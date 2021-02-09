@@ -8,4 +8,6 @@ typedef struct Scope {
   Node* node;
 } Scope;
 
+Scope* scope_create_scope(Scope*);
+
 #endif

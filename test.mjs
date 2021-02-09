@@ -1,8 +1,10 @@
-import { compile } from './liblucy.mjs';
+import { compileXstate as compile } from './liblucy.mjs';
 import { performance } from 'perf_hooks';
 
 let before = performance.now();
 let ret = compile(`
+  import { incrementCount, decrementCount } from './actions.js'
+
   state enabled {
     toggle => disabled
   }

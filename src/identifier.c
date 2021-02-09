@@ -1,11 +1,14 @@
-#include "set.c"
+#include <stdio.h> // can remove
+#include <stdlib.h>
+#include "set.h"
 
 SimpleSet *valid_chars;
+char str[2] = {0};
 
 // This is silly, use Set instead
 int is_valid_identifier_char(char c) {
-  //printf("Identifier Testing %c - %i\n", c, set_contains(valid_chars, &c) == SET_TRUE);
-  return set_contains(valid_chars, &c) == SET_TRUE;
+  str[0] = c;
+  return set_contains(valid_chars, str) == SET_TRUE;
 }
 
 void identifier_init() {
