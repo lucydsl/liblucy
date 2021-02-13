@@ -2,9 +2,14 @@
   "name": "@lucy/liblucy",
   "version": "0.0.1",
   "description": "Nothing to see here.",
+  "main": "liblucy.mjs",
   "exports": {
     ".": "./liblucy.mjs"
   },
+  "files": [
+    "liblucy.mjs",
+    "dist"
+  ],
   "scripts": {
     "test": "make test"
   },
