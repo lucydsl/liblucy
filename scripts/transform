@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Hide require calls
+sed -i.bu 's/require(/_require(/' "$1"

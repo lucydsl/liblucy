@@ -10,5 +10,7 @@ export let init;
 if(Module.calledRun) {
   init = Promise.resolve();
 } else {
-  Module.addOnPostRun(() => init = Promise.resolve());
+  init = new Promise(resolve => {
+    Module.addOnPostRun(() => resolve());
+  });
 }

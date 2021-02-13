@@ -1,5 +1,7 @@
+let _require;
 
 if(typeof process === 'object' && Object.prototype.toString.call(process) === '[object process]') {
+  _require = require;
   Module.instantiateWasm = function(imports, receiveInstance) {
     var bytes = getBinary(wasmBinaryFile);
     var mod = new WebAssembly.Module(bytes);
