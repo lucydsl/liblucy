@@ -1,0 +1,22 @@
+{
+  "name": "@lucy/liblucy",
+  "version": "0.0.1",
+  "description": "Nothing to see here.",
+  "exports": {
+    ".": "./liblucy.mjs"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matthewp/liblucy.git"
+  },
+  "keywords": [],
+  "author": "Matthew Phillips <matthew@matthewphillips.info>",
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/matthewp/liblucy/issues"
+  },
+  "homepage": "https://github.com/matthewp/liblucy#readme"
+}
