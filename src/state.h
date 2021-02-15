@@ -15,6 +15,7 @@ typedef struct State {
   size_t index;
   size_t line;
   size_t column;
+  bool started;
 
   char* word;
   size_t in_word;

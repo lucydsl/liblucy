@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "node.h"
 #include "scope.h"
 #include "state.h"
@@ -10,6 +11,7 @@ State* state_new_state(char* source)
   state->source = source;
   state->source_len = strlen(source);
   state->index = 0;
+  state->started = false;
 
   state->guards = malloc(sizeof(SimpleSet));
   set_init(state->guards);
@@ -55,7 +57,12 @@ char state_peek(State* state) {
 }
 
 char state_next(State* state) {
-  state->index++;
+  if(!state->started) {
+    state->started = true;
+  } else {
+    state->index++;
+  }
+
   return state_char(state);
 }
 

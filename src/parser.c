@@ -471,7 +471,7 @@ static void consume_guard(State* state) {
 static void consume_machine_inner(State* state) {
   int token;
 
-  while(1) {
+  while(true) {
     token = consume_token(state);
 
     switch(token) {

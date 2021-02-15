@@ -29,5 +29,5 @@ clean:
 .PHONY: clean
 
 test:
-	node test.mjs
+	@scripts/test_snapshots
 .PHONY: test
