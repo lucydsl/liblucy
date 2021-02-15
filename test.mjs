@@ -3,14 +3,17 @@ import { performance } from 'perf_hooks';
 
 let before = performance.now();
 let ret = compile(`
-  import { incrementCount, decrementCount } from './actions.js'
+  import { incrementCount, decrementCount, lessThanTen, greaterThanZero } from './actions.js'
 
-  state enabled {
-    toggle => disabled
-  }
+  action increment = assign count incrementCount
+  action decrement = assign count decrementCount
 
-  initial state disabled {
-    toggle => enabled
+  guard isNotMax = lessThanTen
+  guard isNotMin = greaterThanZero
+
+  initial state active {
+    inc => isNotMax => increment
+    dec => isNotMin => decrement
   }
 `);
 let after = performance.now();

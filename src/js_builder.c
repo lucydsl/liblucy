@@ -52,6 +52,41 @@ void js_builder_decrease_indent(JSBuilder* jsb)
   str_builder_truncate(jsb->ib, new_size);
 }
 
+void js_builder_start_object(JSBuilder* jsb) {
+  js_builder_add_str(jsb, "{\n");
+  js_builder_increase_indent(jsb);
+}
+
+void js_builder_end_object(JSBuilder* jsb) {
+  js_builder_add_str(jsb, "\n");
+  js_builder_decrease_indent(jsb);
+  js_builder_add_indent(jsb);
+  js_builder_add_str(jsb, "}");
+}
+
+void js_builder_start_prop(JSBuilder* jsb, char* key) {
+  int len = str_builder_len(jsb->sb);
+  char c = str_builder_char_at(jsb->sb, len - 2);
+
+  if(c != '{') {
+    js_builder_add_str(jsb, ",\n");
+  }
+
+  // TODO Quote if necessary
+  js_builder_add_indent(jsb);
+  js_builder_add_str(jsb, key);
+  js_builder_add_str(jsb, ": ");
+}
+
+void js_builder_start_call(JSBuilder* jsb, char* name) {
+  js_builder_add_str(jsb, name);
+  js_builder_add_str(jsb, "(");
+}
+
+void js_builder_end_call(JSBuilder* jsb) {
+  js_builder_add_str(jsb, ")");
+}
+
 char* js_builder_dump(JSBuilder* jsb)
 {
   return str_builder_dump(jsb->sb, NULL);

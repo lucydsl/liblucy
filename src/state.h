@@ -3,6 +3,7 @@
 
 #include "scope.h"
 #include "node.h"
+#include "set.h"
 
 #define MODIFIER_NONE 0
 #define MODIFIER_TYPE_INITIAL 1
@@ -19,6 +20,8 @@ typedef struct State {
   size_t in_word;
   size_t modifier;
 
+  SimpleSet* guards;
+  SimpleSet* actions;
 
   Node* node;
   Node* parent_node;
@@ -38,5 +41,10 @@ void state_advance_column(State*);
 void state_set_word(State*, char*);
 void state_reset_word(State*);
 void state_node_up(State*);
+
+void state_add_guard(State*, char*);
+void state_add_action(State*, char*);
+bool state_has_guard(State*, char*);
+bool state_has_action(State*, char*);
 
 #endif

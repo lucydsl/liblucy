@@ -1,16 +1,66 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "node.h"
 #include "program.h"
 #include "parser.h"
 #include "str_builder.h"
 #include "js_builder.h"
 
+typedef struct Ref {
+  char* key;
+  struct Ref* next;
+  Expression* value;
+} Ref;
+
 typedef struct PrintState {
   bool state_prop_added;
   bool on_prop_added;
   bool machine_call_added;
+  Ref* guard;
+  Ref* action;
 } PrintState;
+
+static void add_action_ref(PrintState* state, char* key, Expression* value) {
+  Ref *ref = malloc(sizeof(Ref));
+  ref->key = key;
+  ref->value = value;
+  ref->next = NULL;
+
+  if(state->action == NULL) {
+    state->action = ref;
+  } else {
+    Ref* cur = state->action;
+    while(cur->next != NULL) {
+      cur = cur->next;
+    }
+    cur->next = ref;
+  }
+}
+
+static void add_guard_ref(PrintState* state, char* key, Expression* value) {
+  Ref *ref = malloc(sizeof(Ref));
+  ref->key = key;
+  ref->value = value;
+  ref->next = NULL;
+
+  if(state->guard == NULL) {
+    state->guard = ref;
+  } else {
+    Ref* cur = state->guard;
+    while(cur->next != NULL) {
+      cur = cur->next;
+    }
+    cur->next = ref;
+  }
+}
+
+static void destroy_ref(Ref* ref) {
+  if(ref->next != NULL) {
+    destroy_ref(ref->next);
+  }
+  free(ref);
+}
 
 static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, "import ");
@@ -92,24 +142,110 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_increase_indent(jsb);
   }
 
-  TransitionNode* transition_node = (TransitionNode*)node;
   js_builder_add_str(jsb, "\n");
   js_builder_add_indent(jsb);
+
+  TransitionNode* transition_node = (TransitionNode*)node;
   js_builder_safe_key(jsb, transition_node->event);
   js_builder_add_str(jsb, ": ");
-  js_builder_add_string(jsb, transition_node->dest);
+
+  bool has_guard = transition_node->guard != NULL;
+  bool has_action = transition_node->action != NULL;
+  bool has_guard_or_action = has_guard || has_action;
+
+  if(has_guard_or_action) {
+    js_builder_add_str(jsb, "{\n");
+    js_builder_increase_indent(jsb);
+    js_builder_add_indent(jsb);
+
+    if(has_guard) {
+      js_builder_add_str(jsb, "target: ");
+      js_builder_add_string(jsb, transition_node->dest);
+      js_builder_add_str(jsb, ",\n");
+      js_builder_add_indent(jsb);
+
+      js_builder_add_str(jsb, "cond: ");
+
+      TransitionGuard* guard = transition_node->guard;
+      // If there are multiple guards use an array.
+      if(guard->next) {
+        js_builder_add_str(jsb, "[");
+        while(true) {
+          js_builder_add_string(jsb, guard->name);
+          guard = guard->next;
+
+          if(guard == NULL) {
+            break;
+          }
+
+          js_builder_add_str(jsb, ", ");
+        }
+
+        js_builder_add_str(jsb, "]\n");
+      }
+      // If a single guard use a string
+      else {
+        js_builder_add_string(jsb, guard->name);
+      }
+
+      if(has_action) {
+        js_builder_add_str(jsb, ",\n");
+        js_builder_add_indent(jsb);
+      }
+    }
+
+    if(has_action) {
+      js_builder_add_str(jsb, "actions: [");
+      TransitionAction* action = transition_node->action;
+      while(true) {
+        js_builder_add_string(jsb, action->name);
+
+        action = action->next;
+
+        if(action == NULL) {
+          break;
+        }
+
+        js_builder_add_str(jsb, ", ");
+      }
+
+      js_builder_add_str(jsb, "]\n");
+    }
+
+    js_builder_decrease_indent(jsb);
+    js_builder_add_indent(jsb);
+    js_builder_add_str(jsb, "}");
+
+  } else {
+    js_builder_add_string(jsb, transition_node->dest);
+  }
 }
 
 static void exit_transition(PrintState* state, JSBuilder* jsb, Node* node) {
-  state->on_prop_added = false;
-
   if(node->next) {
     js_builder_add_str(jsb, ",");
   } else {
+    state->on_prop_added = false;
+
     js_builder_add_str(jsb, "\n");
     js_builder_decrease_indent(jsb);
     js_builder_add_indent(jsb);
     js_builder_add_str(jsb, "}");
+  }
+}
+
+static void enter_assignment(PrintState* state, JSBuilder* jsb, Node* node) {
+  Assignment* assignment = (Assignment*)node;
+
+  switch(assignment->binding_type) {
+    case ASSIGNMENT_ACTION: {
+      add_action_ref(state, assignment->binding_name, assignment->value);
+      break;
+    }
+    case ASSIGNMENT_GUARD: {
+      add_guard_ref(state, assignment->binding_name, assignment->value);
+      break;
+    }
   }
 }
 
@@ -129,10 +265,12 @@ char* compile_xstate(char * source) {
     js_builder_add_str(jsb, "';\n");
   }
 
-  struct PrintState state;
+  PrintState state;
   state.state_prop_added = false;
   state.on_prop_added = false;
   state.machine_call_added = false;
+  state.guard = NULL;
+  state.action = NULL;
 
   bool exit = false;
   while(node != NULL)
@@ -164,6 +302,10 @@ char* compile_xstate(char * source) {
           enter_transition(&state, jsb, node);
           break;
         }
+        case NODE_ASSIGNMENT_TYPE: {
+          enter_assignment(&state, jsb, node);
+          break;
+        }
       }
     }
 
@@ -187,7 +329,82 @@ char* compile_xstate(char * source) {
     }
   }
 
-  js_builder_add_str(jsb, "});");
+  bool has_guard = state.guard != NULL;
+  bool has_action = state.action != NULL;
+  bool needs_options = has_guard || has_action;
+
+  if(needs_options) {
+    js_builder_add_str(jsb, "}, ");
+    js_builder_decrease_indent(jsb);
+
+    js_builder_start_object(jsb);
+
+    if(has_guard) {
+      js_builder_start_prop(jsb, "guards");
+      js_builder_start_object(jsb);
+
+      Ref* ref = state.guard;
+      while(ref != NULL) {
+        js_builder_start_prop(jsb, ref->key);
+
+        Expression* expression = ref->value;
+
+        if(expression->type != EXPRESSION_IDENTIFIER) {
+          printf("Unexpected type of expression\n");
+          break;
+        }
+
+        char* identifier = ((IdentifierExpression*)expression)->name;
+        js_builder_add_str(jsb, identifier);
+
+        ref = ref->next;
+      }
+
+      js_builder_end_object(jsb);
+    }
+
+    if(has_action) {
+      js_builder_start_prop(jsb, "actions");
+      js_builder_start_object(jsb);
+
+      Ref* ref = state.action;
+      while(ref != NULL) {
+        js_builder_start_prop(jsb, ref->key);
+
+        Expression* expression = ref->value;
+
+        switch(expression->type) {
+          case EXPRESSION_ASSIGN: {
+            AssignExpression* assign = (AssignExpression*)expression;
+
+            js_builder_start_call(jsb, "assign");
+            js_builder_start_object(jsb);
+            js_builder_start_prop(jsb, assign->key);
+            js_builder_add_str(jsb, assign->identifier);
+            js_builder_end_object(jsb);
+            js_builder_end_call(jsb);
+
+            //js_builder_add_string(jsb, assign->identifier);
+            break;
+          }
+          default: {
+            printf("This type of expression is not currently supported.\n");
+            break;
+          }
+        }
+
+        ref = ref->next;
+      }
+
+      js_builder_end_object(jsb);
+    }
+
+    js_builder_end_object(jsb);
+  } else {
+    js_builder_add_str(jsb, "}");
+  }
+
+  js_builder_add_str(jsb, ");");
 
   char* out = js_builder_dump(jsb);
 

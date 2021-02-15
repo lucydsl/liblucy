@@ -20,6 +20,12 @@ void js_builder_add_string(JSBuilder*, char*);
 void js_builder_add_indent(JSBuilder*);
 void js_builder_increase_indent(JSBuilder*);
 void js_builder_decrease_indent(JSBuilder*);
+void js_builder_start_object(JSBuilder*);
+void js_builder_end_object(JSBuilder*);
+void js_builder_start_prop(JSBuilder*, char*);
+void js_builder_start_call(JSBuilder*, char*);
+void js_builder_end_call(JSBuilder*);
+
 char* js_builder_dump(JSBuilder*);
 
 #endif

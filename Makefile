@@ -11,7 +11,7 @@ dist/liblucy-debug.js: $(SRC_FILES)
 		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate"]' \
 		-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "addOnPostRun"]' \
 		-s TEXTDECODER=1
-	rm -f $@.bu
+	@rm -f $@.bu
 
 dist/liblucy-release.js: $(SRC_FILES)
 	@mkdir -p dist

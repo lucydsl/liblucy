@@ -11,6 +11,11 @@ State* state_new_state(char* source)
   state->source_len = strlen(source);
   state->index = 0;
 
+  state->guards = malloc(sizeof(SimpleSet));
+  set_init(state->guards);
+  state->actions = malloc(sizeof(SimpleSet));
+  set_init(state->actions);
+
   state->word = "";
   state->in_word = 0;
   state->line = 0;
@@ -65,4 +70,20 @@ void state_node_up(State* state) {
 
   state->node = current;
   state->parent_node = parent;
+}
+
+void state_add_guard(State* state, char* name) {
+  set_add(state->guards, name);
+}
+
+bool state_has_guard(State* state, char* name) {
+  return set_contains(state->guards, name) == SET_TRUE;
+}
+
+void state_add_action(State* state, char* name) {
+  set_add(state->actions, name);
+}
+
+bool state_has_action(State* state, char* name) {
+  return set_contains(state->actions, name) == SET_TRUE;
 }

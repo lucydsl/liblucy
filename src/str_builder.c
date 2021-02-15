@@ -169,3 +169,10 @@ char *str_builder_dump(const str_builder_t *sb, size_t *len)
     memcpy(out, sb->str, sb->len+1);
     return out;
 }
+
+char str_builder_char_at(const str_builder_t *sb, int index) {
+    if(sb == NULL)
+        return 0;
+
+    return sb->str[index];
+}
