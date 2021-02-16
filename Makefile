@@ -29,5 +29,5 @@ clean:
 .PHONY: clean
 
 test:
-	@scripts/test_snapshots
+	@scripts/test_snapshots $(ARGS)
 .PHONY: test

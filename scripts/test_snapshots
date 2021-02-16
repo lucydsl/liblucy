@@ -1,15 +1,21 @@
 #!/bin/bash
 
-red='\033[0;31m'
-nc='\033[0m' # No Color
+ret=0
 
-for d in test/*/ ; do
+run_test() {
+  d=$1
+
   input="${d}input.lucy"
   output="${d}expected.js"
 
   tmp=$(mktemp)
 
   node ./scripts/run_compile.mjs < $input > $tmp
+
+  if [ ! -f $output ]; then
+      mv $tmp $output
+      return
+  fi
   
   d=$(diff $output $tmp | colordiff)
 
@@ -17,5 +23,16 @@ for d in test/*/ ; do
     echo -e "${red}FAILED${nc} - $input"
     echo ""
     echo "$d"
+
+    ret=1
   fi
+}
+
+red='\033[0;31m'
+nc='\033[0m' # No Color
+
+for d in test/*/ ; do
+  run_test $d
 done
+
+exit $ret
