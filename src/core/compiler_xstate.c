@@ -6,6 +6,7 @@
 #include "parser.h"
 #include "str_builder.h"
 #include "js_builder.h"
+#include "compiler_xstate.h"
 
 typedef struct Ref {
   char* key;
@@ -249,7 +250,7 @@ static void enter_assignment(PrintState* state, JSBuilder* jsb, Node* node) {
   }
 }
 
-char* compile_xstate(char * source) {
+CompileResult* compile_xstate(char * source) {
   Program * program = parse(source);
   char* xstate_specifier = "https://cdn.skypack.dev/xstate";// "xstate";
 
@@ -406,7 +407,17 @@ char* compile_xstate(char * source) {
 
   js_builder_add_str(jsb, ");");
 
-  char* out = js_builder_dump(jsb);
+  char* js = js_builder_dump(jsb);
+  CompileResult* result = malloc(sizeof(*result));
+  result->success = true;
+  result->js = js;
 
-  return out;
+  // Teardown
+  js_builder_destroy(jsb);
+
+  return result;
+}
+
+char* xs_get_js(CompileResult* result) {
+  return result->js;
 }
