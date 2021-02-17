@@ -1,5 +1,6 @@
 #!/bin/bash
 
+LC=bin/lc
 ret=0
 
 run_test() {
@@ -10,7 +11,8 @@ run_test() {
 
   tmp=$(mktemp)
 
-  node ./scripts/run_compile.mjs < $input > $tmp
+  #node ./scripts/run_compile.mjs < $input > $tmp
+  $LC $input > $tmp
 
   if [ ! -f $output ]; then
       mv $tmp $output

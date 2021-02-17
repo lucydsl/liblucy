@@ -33,6 +33,5 @@ clean:
 	@rmdir dist
 .PHONY: clean
 
-test:
+test: bin/lc
 	@scripts/test_snapshots $(ARGS)
-.PHONY: test
