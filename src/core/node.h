@@ -19,6 +19,9 @@
 
 typedef struct Node {
   unsigned short type;
+  size_t start;
+  size_t end;
+  unsigned short line;
   struct Node* parent;
   struct Node* child;
   struct Node* next;

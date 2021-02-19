@@ -9,6 +9,8 @@
 #include "program.h"
 #include "str_builder.h"
 #include "keyword.h"
+#include "parser.h"
+#include "error.h"
 
 #define TOKEN_EOF 0
 #define TOKEN_EOL 1
@@ -19,6 +21,8 @@
 #define TOKEN_END_BLOCK 6
 #define TOKEN_STRING 7
 #define TOKEN_UNKNOWN 8
+
+#define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
 
 int is_newline(char c) {
   return c == '\n';
@@ -125,7 +129,8 @@ static int consume_token(State* state) {
   return TOKEN_EOF;
 }
 
-static void consume_transition(State* state) {
+static int consume_transition(State* state) {
+  int err = 0;
   char* event = state->word;
 
   TransitionNode* transition_node = node_create_transition();
@@ -145,13 +150,12 @@ static void consume_transition(State* state) {
       break;
     }
     case NODE_TRANSITION_TYPE: {
-      printf("A transition sibiling to another, hasn't happened before [%s]\n", event);
-      node_after(current_node, transition_node_node);
-      break;
+      error_msg_with_code_block(state, transition_node_node, "A transition sibiling to another, hasn't happened before, this is likely a compiler bug.");
+      return 2;
     }
     default: {
-      printf("Unexpected parent node to a transition\n");
-      return;
+      error_msg_with_code_block(state, transition_node_node, "Unexpected parent node to a transition.");
+      return 2;
     }
   }
 
@@ -168,15 +172,15 @@ static void consume_transition(State* state) {
     }
 
     if(token != TOKEN_CALL) {
-      printf("Expected a call but got %i\n", token);
-      return;
+      error_msg_with_code_block(state, transition_node_node, "Expected a call.");
+      return 2;
     }
 
     token = consume_token(state);
 
     if(token != TOKEN_IDENTIFIER) {
-      printf("Expected an identifier\n");
-      return;
+      error_unexpected_identifier(state, transition_node_node);
+      return 2;
     }
 
     // TODO if we already have a destination then someting went wrong, throw.
@@ -196,16 +200,20 @@ static void consume_transition(State* state) {
   }
 
   state_node_up(state);
+  return err;
 }
 
-static void consume_state(State* state) {
+int consume_state(State* state) {
+  int err = 0;
+
   StateNode* state_node = node_create_state();
   Node* state_node_node = (Node*)state_node;
+  state_node_start_pos(state, state_node_node);
 
   Node* parent_node = state->node;
   if(parent_node->type != NODE_MACHINE_TYPE) {
-    printf("Unexpected parent node for state - %hu\n", parent_node->type);
-    return;
+    error_msg_with_code_block(state, state_node_node, "Unexpected parent node for state.");
+    return 2;
   }
 
   switch(state->modifier) {
@@ -233,33 +241,40 @@ static void consume_state(State* state) {
 
   int token = consume_token(state);
 
-  if(token != TOKEN_IDENTIFIER) {
-    printf("TODO error (consume_state).\n");
-    return;
+  switch(token) {
+    case TOKEN_IDENTIFIER: {
+      // Set the name of the state
+      state_node->name = state->word;
+      token = consume_token(state);
+      break;
+    }
+    default: {
+      err = 1;
+      error_msg_with_code_block(state, state_node_node, "States must be given a name.");
+      break;
+    }
   }
-
-  // Set the name of the state
-  state_node->name = state->word;
-
-  token = consume_token(state);
 
   if(token != TOKEN_BEGIN_BLOCK) {
-    printf("TODO error (consume_state)\n");
-    return;
+    error_unexpected_identifier(state, state_node_node);
+    return 2;
   }
 
-  while(1) {
+  while(true) {
     token = consume_token(state);
 
     switch(token) {
       case TOKEN_EOL: continue;
-      case TOKEN_END_BLOCK: goto end;
+      case TOKEN_END_BLOCK: {
+        state_node_node->end = state->index;
+        goto end;
+      };
       case TOKEN_IDENTIFIER: {
-        consume_transition(state);
+        _check(consume_transition(state));
         break;
       }
       default: {
-        printf("Unexpected token type (consume_state) - %i\n", token);
+        error_unexpected_identifier(state, state_node_node);
         goto end;
       }
     }
@@ -267,12 +282,14 @@ static void consume_state(State* state) {
 
   end: {
     state_node_up(state);
-    return;
+    return err;
   }
 }
 
-static void consume_import_specifiers(ImportNode* import_node, State* state) {
+static int consume_import_specifiers(ImportNode* import_node, State* state) {
+  int err = 0;
   int token;
+
   ImportSpecifier *specifier;
   while(true) {
     token = consume_token(state);
@@ -281,7 +298,8 @@ static void consume_import_specifiers(ImportNode* import_node, State* state) {
       case TOKEN_IDENTIFIER: {
         char* identifier = state->word;
         if(strcmp(identifier, "as") == 0) {
-          printf("This is an import as\n");
+          error_msg_with_code_block(state, (Node*)import_node, "Import aliases are not currently supported.");
+          return 2;
         }
 
         specifier = node_create_import_specifier(identifier);
@@ -302,33 +320,37 @@ static void consume_import_specifiers(ImportNode* import_node, State* state) {
         break;
       }
       default: {
-        printf("Unexpected token %i (consume_import_specifiers)\n", token);
+        error_unexpected_identifier(state, (Node*)import_node);
         goto end;
       }
     }
   }
 
   end: {
-
+    return err;
   }
 }
 
-static void consume_import(State* state) {
+static int consume_import(State* state) {
+  int err = 0;
   Node *current_node = state->node;
 
   if(current_node->type != NODE_MACHINE_TYPE) {
-    // TODO other checks for this.
-    printf("Import statement must be at the top of the file.\n");
+    error_msg_with_code_block(state, current_node, "Import statement must be at the top of the file.");
+    return 2;
   }
 
   ImportNode *node = node_create_import_statement();
-  node_append(current_node, (Node*)node);
+  Node *import_node_node = (Node*)node;
+  state_node_start_pos(state, import_node_node);
+
+  node_append(current_node, import_node_node);
 
   int token;
   bool consumed_loc = false;
   bool consumed_specifiers = false;
   bool consumed_from = false;
-  loop: while(1) {
+  loop: while(true) {
     token = consume_token(state);
 
     switch(token) {
@@ -338,7 +360,7 @@ static void consume_import(State* state) {
         }
       };
       case TOKEN_BEGIN_BLOCK: {
-        consume_import_specifiers(node, state);
+        _check(consume_import_specifiers(node, state));
         consumed_specifiers = true;
 
         break;
@@ -348,8 +370,8 @@ static void consume_import(State* state) {
           consumed_from = true;
           break;
         }
-        printf("Unexpected identifier [%s]\n", state->word);
-        break;
+        error_unexpected_identifier(state, import_node_node);
+        return 2;
       }
       case TOKEN_STRING: {
         node->from = state->word;
@@ -357,32 +379,31 @@ static void consume_import(State* state) {
         goto loop;
       }
       case TOKEN_UNKNOWN: {
-        printf("Unexpected token %i (consume_import)\n", token);
-        printf("Char is %c\n", state_char(state));
+        error_unexpected_identifier(state, import_node_node);
         goto end;
       }
       default: {
-        printf("Unexexpected token %i (consume_import)\n", token);
+        error_unexpected_identifier(state, import_node_node);
         goto end;
       }
     }
   }
 
   end: {
-
+    return err;
   }
 }
 
-static void consume_action(State* state) {
+static int consume_action(State* state) {
   Assignment* assignment = node_create_assignment(ASSIGNMENT_ACTION);
+  Node *node = (Node*)assignment;
 
   int token;
-
   token = consume_token(state);
 
   if(token != TOKEN_IDENTIFIER) {
-    printf("This should be an identifier\n");
-    return;
+    error_unexpected_identifier(state, node);
+    return 2;
   }
 
   char* binding_name = state->word;
@@ -391,20 +412,20 @@ static void consume_action(State* state) {
   token = consume_token(state);
 
   if(token != TOKEN_ASSIGNMENT) {
-    printf("Expected an assignment\n");
-    return;
+    error_msg_with_code_block(state, node, "Expected an assignment");
+    return 2;
   }
 
   token = consume_token(state);
 
   if(token != TOKEN_IDENTIFIER) {
-    printf("Expected an identifier\n");
-    return;
+    error_msg_with_code_block(state, node, "Expected an identifier");
+    return 2;
   }
 
   if(keyword_get(state->word) != KW_ASSIGN) {
-    printf("only assign expressions are supported at this time\n");
-    return;
+    error_msg_with_code_block(state, node, "Only assign expressions are supported at this time");
+    return 2;
   }
 
   AssignExpression *expression = node_create_assignexpression();
@@ -412,8 +433,8 @@ static void consume_action(State* state) {
   token = consume_token(state);
 
   if(token != TOKEN_IDENTIFIER) {
-    printf("Expected an identifier\n");
-    return;
+    error_unexpected_identifier(state, node);
+    return 2;
   }
 
   expression->key = state->word;
@@ -421,8 +442,8 @@ static void consume_action(State* state) {
   token = consume_token(state);
 
   if(token != TOKEN_IDENTIFIER) {
-    printf("Expected an identifier\n");
-    return;
+    error_unexpected_identifier(state, node);
+    return 2;
   }
 
   expression->identifier = state->word;
@@ -430,17 +451,20 @@ static void consume_action(State* state) {
 
   state_add_action(state, assignment->binding_name);
   node_append(state->node, (Node*)assignment);
+  return 0;
 }
 
-static void consume_guard(State* state) {
+static int consume_guard(State* state) {
   Assignment* assignment = node_create_assignment(ASSIGNMENT_GUARD);
+  Node* node = (Node*)assignment;
 
   int token;
 
   token = consume_token(state);
 
   if(token != TOKEN_IDENTIFIER) {
-    printf("Expected an identifier in a guard but got %i \n", token);
+    error_unexpected_identifier(state, node);
+    return 2;
   }
 
   assignment->binding_name = state->word;
@@ -448,15 +472,15 @@ static void consume_guard(State* state) {
   token = consume_token(state);
 
   if(token != TOKEN_ASSIGNMENT) {
-    printf("Expected an assignment\n");
-    return;
+    error_msg_with_code_block(state, node, "Expected an identifier");
+    return 2;
   }
 
   token = consume_token(state);
 
   if(token != TOKEN_IDENTIFIER) {
-    printf("Expected an identifier\n");
-    return;
+    error_msg_with_code_block(state, node, "Expected an identifier");
+    return 2;
   }
 
   IdentifierExpression *expression = node_create_identifierexpression();
@@ -466,9 +490,11 @@ static void consume_guard(State* state) {
 
   assignment->value = (Expression*)expression;
   node_append(state->node, (Node*)assignment);
+  return 0;
 }
 
-static void consume_machine_inner(State* state) {
+static int consume_machine_inner(State* state) {
+  int err = 0;
   int token;
 
   while(true) {
@@ -481,8 +507,8 @@ static void consume_machine_inner(State* state) {
         char* identifier = state->word;
 
         if(!is_keyword(identifier)) {
-          printf("Unknown top-level identifier [%s] (consume_machine)\n", identifier);
-          return;
+          error_msg_with_code_block(state, state->node, "Unknown top-level identifier.");
+          return 2;
         }
 
         unsigned short key = keyword_get(identifier);
@@ -492,19 +518,20 @@ static void consume_machine_inner(State* state) {
             break;
           }
           case KW_STATE: {
-            consume_state(state);
+            //consume_state(state);
+            _check(consume_state(state));
             break;
           }
           case KW_IMPORT: {
-            consume_import(state);
+            _check(consume_import(state));
             break;
           }
           case KW_ACTION: {
-            consume_action(state);
+            _check(consume_action(state));
             break;
           }
           case KW_GUARD: {
-            consume_guard(state);
+            _check(consume_guard(state));
             break;
           }
         }
@@ -512,28 +539,33 @@ static void consume_machine_inner(State* state) {
         break;
       }
       default: {
-        printf("Unexpected token type (consume_machine) - %i - %c\n", token, state_char(state));
-        return;
+        error_unexpected_identifier(state, state->node);
+        return 2;
       }
     }
   }
 
   end: {
-    return;
+    return err;
   }
 }
 
-Program * parse(char * source) {
-  State* state = state_new_state(source);
+ParseResult* parse(char* source, char* filename) {
+  int err = 0;
+  State* state = state_new_state(source, filename);
   Program* program = new_program();
 
   MachineNode* machine_node = node_create_machine();
   program->body = (Node*)machine_node;
   state->node = (Node*)machine_node;
 
-  consume_machine_inner(state);
+  err = consume_machine_inner(state);
 
-  return program;
+  ParseResult *result = malloc(sizeof(*result));
+  result->success = err == 0;
+  result->program = program;
+
+  return result;
 }
 
 void parser_init() {

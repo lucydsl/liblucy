@@ -1,0 +1,11 @@
+[1m[37mtest/error_no_state_name/input.lucy[0m:1:7
+
+ [1m[31m𝒙[0m[31m States must be given a name.
+
+[0m[1m[37m    1[0m │ 
+[1m[37m    2[0m │ state {
+             [1m[31m˄[0m
+[1m[37m    3[0m │ 
+[1m[37m    4[0m │ }
+Compilation failed!
+

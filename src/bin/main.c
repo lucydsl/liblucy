@@ -48,13 +48,11 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  char* file_path = argv[optind];
+  char* filename = argv[optind];
 
-  if(file_path != NULL) {
-    char* file_path = argv[1];
-
+  if(filename != NULL) {
     FILE *fp;
-    if ((fp = fopen(file_path, "r")) == NULL){
+    if ((fp = fopen(filename, "r")) == NULL){
        printf("Error! opening file");
 
        // Program exits if the file pointer returns NULL.
@@ -73,10 +71,12 @@ int main(int argc, char *argv[]) {
     }
     fclose(fp);
 
-    CompileResult* result = compile_xstate(buffer);
+    CompileResult* result = compile_xstate(buffer, filename);
 
     if(result->success) {
       printf("%s\n", result->js);
+    } else {
+      fprintf(stderr, "Compilation failed!\n");
     }
   } else {
     usage(argv[0]);

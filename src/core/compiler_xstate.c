@@ -250,8 +250,16 @@ static void enter_assignment(PrintState* state, JSBuilder* jsb, Node* node) {
   }
 }
 
-CompileResult* compile_xstate(char * source) {
-  Program * program = parse(source);
+CompileResult* compile_xstate(char* source, char* filename) {
+  ParseResult *parse_result = parse(source, filename);
+
+  if(parse_result->success == false) {
+    CompileResult *result = malloc(sizeof(*result));
+    result->success = false;
+    return result;
+  }
+
+  Program *program = parse_result->program;
   char* xstate_specifier = "https://cdn.skypack.dev/xstate";// "xstate";
 
   JSBuilder *jsb;

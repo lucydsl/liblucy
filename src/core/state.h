@@ -11,6 +11,7 @@
 
 typedef struct State {
   char* source;
+  char* filename;
   size_t source_len;
   size_t index;
   size_t line;
@@ -36,12 +37,13 @@ char state_peek(State*);
 char state_next(State*);
 char state_prev(State*);
 
-State* state_new_state();
+State* state_new_state(char*, char*);
 void state_advance_line(State*);
 void state_advance_column(State*);
 void state_set_word(State*, char*);
 void state_reset_word(State*);
 void state_node_up(State*);
+void state_node_start_pos(State*, Node*);
 
 void state_add_guard(State*, char*);
 void state_add_action(State*, char*);

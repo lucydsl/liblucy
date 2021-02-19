@@ -7,7 +7,7 @@ typedef struct CompileResult {
   char* js;
 } CompileResult;
 
-CompileResult* compile_xstate(char*);
+CompileResult* compile_xstate(char*, char*);
 char* xs_get_js(CompileResult*);
 
 #endif

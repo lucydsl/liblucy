@@ -1,13 +1,18 @@
 import { compileXstate as compile } from '../liblucy.mjs';
+import { readFileSync } from 'fs';
 
-process.stdin.setEncoding('utf-8');
+const filename = process.argv[2];
 
-let lucyStr = '';
-process.stdin.on('data', str => {
-  lucyStr += str;
-})
+if(!filename) {
+  console.log('Filename is required.');
+  process.exit(1);
+}
 
-process.stdin.on('end', () => {
-  const js = compile(lucyStr);
+const source = readFileSync(filename, 'utf-8');
+
+try {
+  const js = compile(source, filename);
   console.log(js);
-});
+} catch {
+  console.error('Compilation failed!');
+}

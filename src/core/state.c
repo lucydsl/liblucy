@@ -5,10 +5,10 @@
 #include "scope.h"
 #include "state.h"
 
-State* state_new_state(char* source)
-{
+State* state_new_state(char* source, char* filename) {
   State *state = malloc(sizeof *state);
   state->source = source;
+  state->filename = filename;
   state->source_len = strlen(source);
   state->index = 0;
   state->started = false;
@@ -77,6 +77,12 @@ void state_node_up(State* state) {
 
   state->node = current;
   state->parent_node = parent;
+}
+
+void state_node_start_pos(State* state, Node* node) {
+  size_t start = state->index - strlen(state->word);
+  node->start = start;
+  node->line = state->line;
 }
 
 void state_add_guard(State* state, char* name) {

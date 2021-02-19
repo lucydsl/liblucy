@@ -22,10 +22,15 @@ function stringToPtr(str) {
   return ret;
 }
 
-export function compileXstate(source) {
+export function compileXstate(source, filename) {
+  if(!source || !filename) {
+    throw new Error('Source and filename are both required.');
+  }
+
   let stack = stackSave();
-  let ptr = stringToPtr(source);
-  let retPtr = _compileXstate(ptr);
+  let srcPtr = stringToPtr(source);
+  let fnPtr = stringToPtr(filename);
+  let retPtr = _compileXstate(srcPtr, fnPtr);
   stackRestore(stack); 
 
   const HEAPU8 = Module.HEAPU8;  

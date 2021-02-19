@@ -2,17 +2,43 @@
 
 LC=bin/lc
 ret=0
+upd=0
+
+red='\033[0;31m'
+nc='\033[0m' # No Color
+
+usage() {
+  program_name=$(basename $0)
+  bold=$(tput bold)
+  normal=$(tput sgr0)
+
+  cat <<EOM
+Usage: $program_name [options] path/to/test/folder/
+
+Run snapshot tests.
+
+Options:
+
+  -u        Updates the snapshots.
+  -h        Display this help message
+EOM
+  exit 0
+}
 
 run_test() {
-  d=$1
+  local d=$1
 
-  input="${d}input.lucy"
-  output="${d}expected.js"
+  local input="${d}input.lucy"
+  local output="${d}expected.js"
 
-  tmp=$(mktemp)
+  local tmp=$(mktemp)
 
-  #node ./scripts/run_compile.mjs < $input > $tmp
-  $LC $input > $tmp
+  $LC $input >> $tmp 2>&1
+
+  if [ "$upd" -eq 1 ]; then
+    mv $tmp $output
+    return
+  fi
 
   if [ ! -f $output ]; then
       mv $tmp $output
@@ -30,11 +56,26 @@ run_test() {
   fi
 }
 
-red='\033[0;31m'
-nc='\033[0m' # No Color
-
-for d in test/*/ ; do
-  run_test $d
+while getopts "hu" opt; do
+  case ${opt} in
+    h )
+      usage;
+      ;;
+    u )
+      upd=1
+      ;;
+  esac
 done
+shift $((OPTIND -1))
+
+folder=$@
+
+if [ -z "$folder" ]; then
+  for d in test/*/ ; do
+    run_test $d
+  done
+else
+  run_test $folder
+fi
 
 exit $ret
