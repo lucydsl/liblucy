@@ -1,6 +1,6 @@
 {
   "name": "@lucy/liblucy",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Nothing to see here.",
   "main": "liblucy.mjs",
   "exports": {
