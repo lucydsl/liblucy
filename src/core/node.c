@@ -6,6 +6,7 @@
 Node* node_create_type(unsigned short type, size_t size) {
   Node *node = malloc(size);
   node->type = type;
+  node->child = NULL;
   return node;
 }
 
@@ -44,7 +45,7 @@ ImportNode* node_create_import_statement() {
 };
 
 ImportSpecifier* node_create_import_specifier(char* imported) {
-  ImportSpecifier* specifier = malloc(sizeof *specifier);
+  ImportSpecifier* specifier = malloc(sizeof *specifier); // This is a Node
   specifier->imported = imported;
   return specifier;
 }
@@ -120,4 +121,86 @@ void node_append(Node* parent, Node* child)
 void node_after(Node* ref, Node* new_sibling)
 {
   ref->next = new_sibling;
+}
+
+static void node_destroy_transition_guards(TransitionGuard* guard) {
+  if(guard != NULL) {
+    if(guard->next != NULL) {
+      node_destroy_transition_guards(guard->next);
+    }
+
+    free(guard);
+  }
+}
+
+static void node_destroy_transition_actions(TransitionAction* action) {
+  if(action != NULL) {
+    if(action->next != NULL) {
+      node_destroy_transition_actions(action->next);
+    }
+
+    free(action);
+  }
+}
+
+Expression* node_clone_expression(Expression* input) {
+  Expression* output;
+  switch(input->type) {
+    case EXPRESSION_IDENTIFIER: {
+      IdentifierExpression *in_id = (IdentifierExpression*)input;
+      IdentifierExpression *out_id = node_create_identifierexpression();
+      out_id->name = strdup(in_id->name);
+      output = (Expression*)out_id;
+      break;
+    }
+    case EXPRESSION_ASSIGN: {
+      AssignExpression *in_ae = (AssignExpression*)input;
+      AssignExpression *out_ae = node_create_assignexpression();
+      out_ae->identifier = strdup(in_ae->identifier);
+      out_ae->key = strdup(in_ae->key);
+      output = (Expression*)out_ae;
+      break;
+    }
+    default: {
+      output = NULL;
+    }
+  }
+  return output;
+}
+
+void node_destroy_transition(TransitionNode* transition_node) {
+  if(transition_node->guard != NULL) {
+    node_destroy_transition_guards(transition_node->guard);
+  }
+
+  if(transition_node->action != NULL) {
+    node_destroy_transition_actions(transition_node->action);
+  }
+}
+
+void node_destroy_assignment(Assignment* assignment) {
+  Expression *expression = assignment->value;
+
+  switch(expression->type) {
+    case EXPRESSION_ASSIGN: {
+      AssignExpression *assign_expression = (AssignExpression*)expression;
+      free(assign_expression->identifier);
+      free(assign_expression->key);
+      break;
+    }
+    case EXPRESSION_IDENTIFIER: {
+      IdentifierExpression *identifier_expression = (IdentifierExpression*)expression;
+      free(identifier_expression->name);
+      break;
+    }
+  }
+
+  free(expression);
+}
+
+void node_destroy(Node* node) {
+  if(node == NULL)
+    return;
+
+  free(node);
 }

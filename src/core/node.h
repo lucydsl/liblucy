@@ -1,5 +1,4 @@
-#ifndef LUCY_NODE_H_
-#define LUCY_NODE_H_
+#pragma once
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -110,4 +109,8 @@ void node_after(Node*, Node*);
 void node_transition_add_guard(TransitionNode*, char*);
 void node_transition_add_action(TransitionNode*, char*);
 
-#endif
+Expression* node_clone_expression(Expression*);
+
+void node_destroy_assignment(Assignment*);
+void node_destroy_transition(TransitionNode*);
+void node_destroy(Node*);

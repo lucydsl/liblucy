@@ -25,7 +25,7 @@ typedef struct PrintState {
 static void add_action_ref(PrintState* state, char* key, Expression* value) {
   Ref *ref = malloc(sizeof(Ref));
   ref->key = key;
-  ref->value = value;
+  ref->value = node_clone_expression(value);
   ref->next = NULL;
 
   if(state->action == NULL) {
@@ -42,7 +42,7 @@ static void add_action_ref(PrintState* state, char* key, Expression* value) {
 static void add_guard_ref(PrintState* state, char* key, Expression* value) {
   Ref *ref = malloc(sizeof(Ref));
   ref->key = key;
-  ref->value = value;
+  ref->value = node_clone_expression(value);
   ref->next = NULL;
 
   if(state->guard == NULL) {
@@ -59,6 +59,9 @@ static void add_guard_ref(PrintState* state, char* key, Expression* value) {
 static void destroy_ref(Ref* ref) {
   if(ref->next != NULL) {
     destroy_ref(ref->next);
+  }
+  if(ref->value != NULL) {
+    
   }
   free(ref);
 }
@@ -294,6 +297,12 @@ CompileResult* compile_xstate(char* source, char* filename) {
         }
         case NODE_TRANSITION_TYPE: {
           exit_transition(&state, jsb, node);
+          node_destroy_transition((TransitionNode*)node);
+          break;
+        }
+        case NODE_ASSIGNMENT_TYPE: {
+          // TODO these things should have been cloned.
+          node_destroy_assignment((Assignment*)node);
           break;
         }
       }
@@ -331,9 +340,11 @@ CompileResult* compile_xstate(char* source, char* filename) {
       node = node->next;
     } else if(node->parent) {
       exit = true;
+      node_destroy(node);
       node = node->parent;
     } else {
       // Reached the end.
+      node_destroy(node);
       break;
     }
   }
