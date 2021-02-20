@@ -216,19 +216,6 @@ int consume_state(State* state) {
     return 2;
   }
 
-  switch(state->modifier) {
-    case MODIFIER_TYPE_INITIAL: {
-      state->modifier = MODIFIER_NONE;
-      MachineNode* machine_node = (MachineNode*)parent_node;
-      machine_node->initial = state_node->name;
-      break;
-    }
-    case MODIFIER_TYPE_FINAL: {
-      state_node->final = true;
-      break;
-    }
-  }
-
   state->parent_node = parent_node;
   state->node = state_node_node;
 
@@ -245,6 +232,21 @@ int consume_state(State* state) {
     case TOKEN_IDENTIFIER: {
       // Set the name of the state
       state_node->name = state->word;
+
+      switch(state->modifier) {
+        case MODIFIER_TYPE_INITIAL: {
+          state->modifier = MODIFIER_NONE;
+          MachineNode* machine_node = (MachineNode*)parent_node;
+          machine_node->initial = state_node->name;
+          break;
+        }
+        case MODIFIER_TYPE_FINAL: {
+          state->modifier = MODIFIER_NONE;
+          state_node->final = true;
+          break;
+        }
+      }
+
       token = consume_token(state);
       break;
     }

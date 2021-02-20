@@ -99,11 +99,22 @@ static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, ";\n");
 }
 
-static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
+static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
+  MachineNode *machine_node = (MachineNode*)node;
+
   if(!state->machine_call_added) {
     state->machine_call_added = true;
     js_builder_add_str(jsb, "\nexport default Machine({\n");
   }
+
+  if(machine_node->initial != NULL) {
+    js_builder_start_prop(jsb, "initial");
+    js_builder_add_string(jsb, machine_node->initial);
+    js_builder_add_str(jsb, ",\n");
+  }
+}
+
+static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
   if(!state->state_prop_added) {
     state->state_prop_added = true;
     js_builder_add_indent(jsb);
@@ -263,7 +274,7 @@ CompileResult* compile_xstate(char* source, char* filename) {
   }
 
   Program *program = parse_result->program;
-  char* xstate_specifier = "https://cdn.skypack.dev/xstate";// "xstate";
+  char* xstate_specifier = "xstate"; // TODO support remove "https://cdn.skypack.dev/xstate"
 
   JSBuilder *jsb;
   Node* node;
@@ -308,6 +319,10 @@ CompileResult* compile_xstate(char* source, char* filename) {
       }
     } else {
       switch(type) {
+        case NODE_MACHINE_TYPE: {
+          enter_machine(&state, jsb, node);
+          break;
+        }
         case NODE_IMPORT_TYPE: {
           enter_import(&state, jsb, node);
           break;
