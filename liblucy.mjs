@@ -9,7 +9,8 @@ const {
 } = Module;
 
 const _compileXstate = Module.asm.compile_xstate;
-const _xs_get_js = Module.asm.xs_get_js;
+const _xsGetJS = Module.asm.xs_get_js;
+const _destroyXstateResult = Module.asm.destroy_xstate_result;
 
 function stringToPtr(str) {
   var ret = 0;
@@ -37,8 +38,9 @@ export function compileXstate(source, filename) {
   let success = !!HEAPU8[retPtr];
 
   if(success) {
-    let jsPtr = _xs_get_js(retPtr);
+    let jsPtr = _xsGetJS(retPtr);
     let js = UTF8ToString(jsPtr);
+    _destroyXstateResult(retPtr);
     return js;
   }
 

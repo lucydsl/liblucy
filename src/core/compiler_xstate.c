@@ -277,6 +277,7 @@ CompileResult* compile_xstate(char* source, char* filename) {
   if(parse_result->success == false) {
     CompileResult *result = malloc(sizeof(*result));
     result->success = false;
+    result->js = NULL;
     return result;
   }
 
@@ -474,4 +475,11 @@ CompileResult* compile_xstate(char* source, char* filename) {
 
 char* xs_get_js(CompileResult* result) {
   return result->js;
+}
+
+void destroy_xstate_result(CompileResult* result) {
+  if(result->js != NULL) {
+    free(result->js);
+  }
+  free(result);
 }

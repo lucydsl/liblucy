@@ -55,6 +55,7 @@ int compile_file(char* filename) {
 
   if(result->success) {
     printf("%s\n", result->js);
+    destroy_xstate_result(result);
     return 0;
   } else {
     fprintf(stderr, "Compilation failed!\n");
