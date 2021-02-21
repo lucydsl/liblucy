@@ -61,9 +61,18 @@ static void destroy_ref(Ref* ref) {
     destroy_ref(ref->next);
   }
   if(ref->value != NULL) {
-    
+    node_destroy_expression(ref->value);
   }
   free(ref);
+}
+
+static void destroy_state(PrintState *state) {
+  if(state->guard != NULL) {
+    destroy_ref(state->guard);
+  }
+  if(state->action != NULL) {
+    destroy_ref(state->action);
+  }
 }
 
 static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
@@ -99,22 +108,20 @@ static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, ";\n");
 }
 
-static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
-  MachineNode *machine_node = (MachineNode*)node;
-
+static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
   if(!state->machine_call_added) {
     state->machine_call_added = true;
     js_builder_add_str(jsb, "\nexport default Machine({\n");
+
+    MachineNode *machine_node = (MachineNode*)node->parent;
+
+    if(machine_node->initial != NULL) {
+      js_builder_start_prop(jsb, "initial");
+      js_builder_add_string(jsb, machine_node->initial);
+      js_builder_add_str(jsb, ",\n");
+    }
   }
 
-  if(machine_node->initial != NULL) {
-    js_builder_start_prop(jsb, "initial");
-    js_builder_add_string(jsb, machine_node->initial);
-    js_builder_add_str(jsb, ",\n");
-  }
-}
-
-static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
   if(!state->state_prop_added) {
     state->state_prop_added = true;
     js_builder_add_indent(jsb);
@@ -319,10 +326,6 @@ CompileResult* compile_xstate(char* source, char* filename) {
       }
     } else {
       switch(type) {
-        case NODE_MACHINE_TYPE: {
-          enter_machine(&state, jsb, node);
-          break;
-        }
         case NODE_IMPORT_TYPE: {
           enter_import(&state, jsb, node);
           break;
@@ -447,6 +450,7 @@ CompileResult* compile_xstate(char* source, char* filename) {
   result->js = js;
 
   // Teardown
+  destroy_state(&state);
   js_builder_destroy(jsb);
 
   return result;

@@ -1,12 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "../core/identifier.h"
 #include "../core/parser.h"
 #include "../core/compiler_xstate.h"
 
-//CompileResult* compile_xstate(char*);
-//char* xs_get_js(CompileResult*);
+#ifdef VERSION
+  #define PROGRAM_VERSION VERSION
+#else
+  #define PROGRAM_VERSION "0.0.0"
+#endif
 
 #define U_INDENT "    "
 
@@ -20,7 +25,40 @@ static void usage(char* program_name) {
 }
 
 static void version() {
-  fprintf(stderr, "0.0.1\n");
+  fprintf(stderr, PROGRAM_VERSION);
+  fprintf(stderr, "\n");
+}
+
+int compile_file(char* filename) {
+  FILE *fp;
+  if ((fp = fopen(filename, "r")) == NULL){
+      printf("Error! opening file");
+
+      // Program exits if the file pointer returns NULL.
+      return 1;
+  }
+
+  char* buffer;
+  long length;
+
+  fseek(fp, 0, SEEK_END);
+  length = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+  buffer = malloc(length);
+  if(buffer) {
+    fread(buffer, 1, length, fp);
+  }
+  fclose(fp);
+
+  CompileResult* result = compile_xstate(buffer, filename);
+
+  if(result->success) {
+    printf("%s\n", result->js);
+    return 0;
+  } else {
+    fprintf(stderr, "Compilation failed!\n");
+    return 1;
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -48,38 +86,23 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  char* program_name = argv[0];
   char* filename = argv[optind];
 
   if(filename != NULL) {
-    FILE *fp;
-    if ((fp = fopen(filename, "r")) == NULL){
-       printf("Error! opening file");
+    struct stat path_stat;
+    stat(filename, &path_stat);
 
-       // Program exits if the file pointer returns NULL.
-       exit(1);
-    }
-
-    char* buffer;
-    long length;
-
-    fseek(fp, 0, SEEK_END);
-    length = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    buffer = malloc(length);
-    if(buffer) {
-      fread(buffer, 1, length, fp);
-    }
-    fclose(fp);
-
-    CompileResult* result = compile_xstate(buffer, filename);
-
-    if(result->success) {
-      printf("%s\n", result->js);
-    } else {
-      fprintf(stderr, "Compilation failed!\n");
+    if(S_ISDIR(path_stat.st_mode)) {
+      printf("Compiling directories is not currently supported.\n\n");
+      usage(program_name);
+      return 1;
+    } else if(S_ISREG(path_stat.st_mode)) {
+      int ret = compile_file(filename);
+      return ret;
     }
   } else {
-    usage(argv[0]);
+    usage(program_name);
   }
 
   return 0;

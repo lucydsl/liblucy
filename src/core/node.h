@@ -113,4 +113,5 @@ Expression* node_clone_expression(Expression*);
 
 void node_destroy_assignment(Assignment*);
 void node_destroy_transition(TransitionNode*);
+void node_destroy_expression(Expression*);
 void node_destroy(Node*);

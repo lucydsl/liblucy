@@ -198,6 +198,23 @@ void node_destroy_assignment(Assignment* assignment) {
   free(expression);
 }
 
+void node_destroy_expression(Expression* expression) {
+  switch(expression->type) {
+    case EXPRESSION_IDENTIFIER: {
+      IdentifierExpression *identifier_expression = (IdentifierExpression*)expression;
+      free(identifier_expression->name);
+      break;
+    }
+    case EXPRESSION_ASSIGN: {
+      AssignExpression *assign_expression = (AssignExpression*)expression;
+      free(assign_expression->identifier);
+      free(assign_expression->key);
+      break;
+    }
+  }
+  free(expression);
+}
+
 void node_destroy(Node* node) {
   if(node == NULL)
     return;

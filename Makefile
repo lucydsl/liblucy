@@ -1,5 +1,6 @@
 EMCC=emcc
 
+VERSION=$(shell cat package.json | jq -r '.version')
 SRC_FILES=$(shell find src -type f)
 CORE_C_FILES=$(shell find src/core -type f -name "*.c")
 BIN_C_FILES=$(shell find src/bin -type f -name "*.c")
@@ -26,11 +27,12 @@ dist/liblucy-release.js: $(SRC_FILES)
 
 bin/lc: $(SRC_FILES)
 	@mkdir -p bin
-	$(CC) ${BIN_C_FILES} $(CORE_C_FILES) -o $@
+	$(CC) ${BIN_C_FILES} $(CORE_C_FILES) -DVERSION=\"$(VERSION)\" -o $@
 
 clean:
 	@rm -f dist/liblucy-debug.js dist/liblucy-debug.wasm dist/liblucy-release.js dist/liblucy-release.wasm
-	@rmdir dist
+	@rm -f bin/lc
+	@rmdir dist bin 2> /dev/null
 .PHONY: clean
 
 test: bin/lc
