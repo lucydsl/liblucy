@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <getopt.h>
 #include "../core/identifier.h"
 #include "../core/parser.h"
 #include "../core/compiler_xstate.h"
@@ -61,12 +62,18 @@ int compile_file(char* filename) {
   }
 }
 
+static struct option long_options[] = {
+  {"help", no_argument, 0, 'h'},
+  {"version", no_argument, 0, 'v'}
+};
+
 int main(int argc, char *argv[]) {
   identifier_init();
   parser_init();
 
+  int option_index = 0;
   int opt;
-  while ((opt = getopt(argc, argv, "hv")) != -1) {
+  while ((opt = getopt_long(argc, argv, "hv", long_options, &option_index)) != -1) {
     switch(opt) {
       case 'h': {
         usage(argv[0]);
