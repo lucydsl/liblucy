@@ -1,7 +1,8 @@
-import { Machine } from 'https://cdn.skypack.dev/xstate';
+import { Machine } from 'xstate';
 import { incrementCount, decrementCount, lessThanTen, greaterThanZero } from './actions.js';
 
 export default Machine({
+  initial: 'active',
   states: {
     active: {
       on: {

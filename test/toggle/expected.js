@@ -1,6 +1,7 @@
-import { Machine } from 'https://cdn.skypack.dev/xstate';
+import { Machine } from 'xstate';
 
 export default Machine({
+  initial: 'disabled',
   states: {
     enabled: {
       on: {
