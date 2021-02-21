@@ -45,7 +45,8 @@ ImportNode* node_create_import_statement() {
 };
 
 ImportSpecifier* node_create_import_specifier(char* imported) {
-  ImportSpecifier* specifier = malloc(sizeof *specifier); // This is a Node
+  Node* node = node_create_type(NODE_IMPORT_SPECIFIER_TYPE, sizeof(ImportSpecifier)); // malloc(sizeof *specifier); // This is a Node
+  ImportSpecifier* specifier = (ImportSpecifier*)node;
   specifier->imported = imported;
   return specifier;
 }
@@ -196,6 +197,23 @@ void node_destroy_assignment(Assignment* assignment) {
   }
 
   free(expression);
+}
+
+void node_destroy_import(ImportNode* import_node) {
+  free(import_node->from);
+}
+
+void node_destroy_import_specifier(ImportSpecifier* specifier) {
+  free(specifier->imported);
+  free(specifier->local);
+}
+
+void node_destroy_machine(MachineNode* machine_node) {
+  free(machine_node->initial);
+}
+
+void node_destroy_state(StateNode* state_node) {
+  free(state_node->name);
 }
 
 void node_destroy_expression(Expression* expression) {

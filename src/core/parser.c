@@ -237,7 +237,7 @@ int consume_state(State* state) {
         case MODIFIER_TYPE_INITIAL: {
           state->modifier = MODIFIER_NONE;
           MachineNode* machine_node = (MachineNode*)parent_node;
-          machine_node->initial = state_node->name;
+          machine_node->initial = strdup(state_node->name);
           break;
         }
         case MODIFIER_TYPE_FINAL: {

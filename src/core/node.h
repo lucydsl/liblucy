@@ -8,7 +8,8 @@
 #define NODE_STATE_TYPE 1
 #define NODE_TRANSITION_TYPE 2
 #define NODE_IMPORT_TYPE 3
-#define NODE_ASSIGNMENT_TYPE 4
+#define NODE_IMPORT_SPECIFIER_TYPE 4
+#define NODE_ASSIGNMENT_TYPE 5
 
 #define ASSIGNMENT_ACTION 0
 #define ASSIGNMENT_GUARD 1
@@ -112,6 +113,10 @@ void node_transition_add_action(TransitionNode*, char*);
 Expression* node_clone_expression(Expression*);
 
 void node_destroy_assignment(Assignment*);
+void node_destroy_import(ImportNode*);
+void node_destroy_import_specifier(ImportSpecifier*);
+void node_destroy_machine(MachineNode*);
+void node_destroy_state(StateNode*);
 void node_destroy_transition(TransitionNode*);
 void node_destroy_expression(Expression*);
 void node_destroy(Node*);

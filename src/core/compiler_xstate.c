@@ -311,6 +311,7 @@ CompileResult* compile_xstate(char* source, char* filename) {
       switch(type) {
         case NODE_STATE_TYPE: {
           exit_state(&state, jsb, node);
+          node_destroy_state((StateNode*)node);
           break;
         }
         case NODE_TRANSITION_TYPE: {
@@ -319,8 +320,23 @@ CompileResult* compile_xstate(char* source, char* filename) {
           break;
         }
         case NODE_ASSIGNMENT_TYPE: {
-          // TODO these things should have been cloned.
           node_destroy_assignment((Assignment*)node);
+          break;
+        }
+        case NODE_IMPORT_SPECIFIER_TYPE: {
+          node_destroy_import_specifier((ImportSpecifier*)node);
+          break;
+        }
+        case NODE_IMPORT_TYPE: {
+          node_destroy_import((ImportNode*)node);
+          break;
+        }
+        case NODE_MACHINE_TYPE: {
+          node_destroy_machine((MachineNode*)node);
+          break;
+        }
+        default: {
+          printf("Node type %hu not torn down (this is a compiler bug)\n", type);
           break;
         }
       }
