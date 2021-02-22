@@ -118,80 +118,83 @@ static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
     if(machine_node->initial != NULL) {
       js_builder_start_prop(jsb, "initial");
       js_builder_add_string(jsb, machine_node->initial);
-      js_builder_add_str(jsb, ",\n");
     }
   }
 
   if(!state->state_prop_added) {
     state->state_prop_added = true;
-    js_builder_add_indent(jsb);
-    js_builder_add_str(jsb, "states: {");
-    
-    // Indent
-    js_builder_increase_indent(jsb);
-  } else {
-    js_builder_add_str(jsb, ",");
+    js_builder_start_prop(jsb, "states");
+    js_builder_start_object(jsb);
   }
 
-  js_builder_add_str(jsb, "\n");
-  js_builder_add_indent(jsb);
-  js_builder_add_str(jsb, ((StateNode*)node)->name);
-  js_builder_add_str(jsb, ": {");
+  StateNode* state_node = (StateNode*)node;
+
+  js_builder_start_prop(jsb, state_node->name);
+  js_builder_start_object(jsb);
 }
 
 static void exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
-  js_builder_add_str(jsb, "\n");
-  js_builder_decrease_indent(jsb);
-  js_builder_add_indent(jsb);
-  js_builder_add_str(jsb, "}");
+  js_builder_end_object(jsb);
 
   // End of all state nodes
   if(!node->next || node->next->type != NODE_STATE_TYPE) {
+    js_builder_end_object(jsb);
     js_builder_add_str(jsb, "\n");
-    js_builder_decrease_indent(jsb);
-    js_builder_add_indent(jsb);
-    js_builder_add_str(jsb, "}\n");
   }
 }
 
+static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
+  js_builder_start_prop(jsb, "invoke");
+  js_builder_start_object(jsb);
+
+  InvokeNode* invoke_node = (InvokeNode*)node;
+  js_builder_start_prop(jsb, "src");
+  js_builder_add_str(jsb, invoke_node->call);
+}
+
+static void exit_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
+  js_builder_end_object(jsb);
+}
+
 static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
-  if(!state->on_prop_added) {
-    state->on_prop_added = true;
-    js_builder_add_str(jsb, "\n");
-    js_builder_increase_indent(jsb);
-    js_builder_add_indent(jsb);
-    js_builder_add_str(jsb, "on: {");
-    js_builder_increase_indent(jsb);
-  }
-
-  js_builder_add_str(jsb, "\n");
-  js_builder_add_indent(jsb);
-
   TransitionNode* transition_node = (TransitionNode*)node;
-  js_builder_safe_key(jsb, transition_node->event);
-  js_builder_add_str(jsb, ": ");
+  Node* parent_node = node->parent;
+  char* event_name = transition_node->event;
+
+  if(parent_node->type == NODE_INVOKE_TYPE) {
+    if(strcmp(event_name, "done") == 0) {
+      js_builder_start_prop(jsb, "onDone");
+    } else if(strcmp(event_name, "error") == 0) {
+      js_builder_start_prop(jsb, "onError");
+    } else {
+      printf("Regular events in invoke are not supported.\n");
+    }
+  } else {
+    if(!state->on_prop_added) {
+      state->on_prop_added = true;
+      js_builder_start_prop(jsb, "on");
+      js_builder_start_object(jsb);
+    }
+
+    js_builder_start_prop(jsb, event_name);
+  }
 
   bool has_guard = transition_node->guard != NULL;
   bool has_action = transition_node->action != NULL;
   bool has_guard_or_action = has_guard || has_action;
 
   if(has_guard_or_action) {
-    js_builder_add_str(jsb, "{\n");
-    js_builder_increase_indent(jsb);
-    js_builder_add_indent(jsb);
+    js_builder_start_object(jsb);
+    js_builder_start_prop(jsb, "target");
+    js_builder_add_string(jsb, transition_node->dest);
 
     if(has_guard) {
-      js_builder_add_str(jsb, "target: ");
-      js_builder_add_string(jsb, transition_node->dest);
-      js_builder_add_str(jsb, ",\n");
-      js_builder_add_indent(jsb);
-
-      js_builder_add_str(jsb, "cond: ");
+      js_builder_start_prop(jsb, "cond");
 
       TransitionGuard* guard = transition_node->guard;
       // If there are multiple guards use an array.
       if(guard->next) {
-        js_builder_add_str(jsb, "[");
+        js_builder_start_array(jsb);
         while(true) {
           js_builder_add_string(jsb, guard->name);
           guard = guard->next;
@@ -203,21 +206,17 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
           js_builder_add_str(jsb, ", ");
         }
 
-        js_builder_add_str(jsb, "]\n");
+        js_builder_end_array(jsb);
       }
       // If a single guard use a string
       else {
         js_builder_add_string(jsb, guard->name);
       }
-
-      if(has_action) {
-        js_builder_add_str(jsb, ",\n");
-        js_builder_add_indent(jsb);
-      }
     }
 
     if(has_action) {
-      js_builder_add_str(jsb, "actions: [");
+      js_builder_start_prop(jsb, "actions");
+      js_builder_start_array(jsb);
       TransitionAction* action = transition_node->action;
       while(true) {
         js_builder_add_string(jsb, action->name);
@@ -231,13 +230,10 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
         js_builder_add_str(jsb, ", ");
       }
 
-      js_builder_add_str(jsb, "]\n");
+      js_builder_end_array(jsb);
     }
 
-    js_builder_decrease_indent(jsb);
-    js_builder_add_indent(jsb);
-    js_builder_add_str(jsb, "}");
-
+    js_builder_end_object(jsb);
   } else {
     js_builder_add_string(jsb, transition_node->dest);
   }
@@ -245,14 +241,11 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
 
 static void exit_transition(PrintState* state, JSBuilder* jsb, Node* node) {
   if(node->next) {
-    js_builder_add_str(jsb, ",");
-  } else {
+    
+  } else if(state->on_prop_added) {
     state->on_prop_added = false;
 
-    js_builder_add_str(jsb, "\n");
-    js_builder_decrease_indent(jsb);
-    js_builder_add_indent(jsb);
-    js_builder_add_str(jsb, "}");
+    js_builder_end_object(jsb);
   }
 }
 
@@ -336,6 +329,11 @@ CompileResult* compile_xstate(char* source, char* filename) {
           node_destroy_machine((MachineNode*)node);
           break;
         }
+        case NODE_INVOKE_TYPE: {
+          exit_invoke(&state, jsb, node);
+          node_destroy_invoke((InvokeNode*)node);
+          break;
+        }
         default: {
           printf("Node type %hu not torn down (this is a compiler bug)\n", type);
           break;
@@ -357,6 +355,10 @@ CompileResult* compile_xstate(char* source, char* filename) {
         }
         case NODE_ASSIGNMENT_TYPE: {
           enter_assignment(&state, jsb, node);
+          break;
+        }
+        case NODE_INVOKE_TYPE: {
+          enter_invoke(&state, jsb, node);
           break;
         }
       }

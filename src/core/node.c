@@ -58,6 +58,12 @@ Assignment* node_create_assignment(unsigned short type) {
   return assignment;
 }
 
+InvokeNode* node_create_invoke() {
+  Node* node = node_create_type(NODE_INVOKE_TYPE, sizeof(InvokeNode));
+  InvokeNode* invoke_node = (InvokeNode*)node;
+  return invoke_node;
+}
+
 AssignExpression* node_create_assignexpression() {
   AssignExpression* expression = malloc(sizeof *expression);
   ((Expression*)expression)->type = EXPRESSION_ASSIGN;
@@ -231,6 +237,10 @@ void node_destroy_expression(Expression* expression) {
     }
   }
   free(expression);
+}
+
+void node_destroy_invoke(InvokeNode* invoke_node) {
+  free(invoke_node->call);
 }
 
 void node_destroy(Node* node) {

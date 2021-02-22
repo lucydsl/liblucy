@@ -71,6 +71,12 @@ char state_prev(State* state) {
   return state_char(state);
 }
 
+void state_node_set(State* state, Node* node) {
+  Node* parent_node = state->node;
+  state->parent_node = parent_node;
+  state->node = node;
+}
+
 void state_node_up(State* state) {
   Node* current = state->parent_node;
   Node* parent = current->parent;

@@ -10,6 +10,7 @@
 #define NODE_IMPORT_TYPE 3
 #define NODE_IMPORT_SPECIFIER_TYPE 4
 #define NODE_ASSIGNMENT_TYPE 5
+#define NODE_INVOKE_TYPE 6
 
 #define ASSIGNMENT_ACTION 0
 #define ASSIGNMENT_GUARD 1
@@ -72,6 +73,12 @@ typedef struct ImportNode {
   char* from;
 } ImportNode;
 
+typedef struct InvokeNode {
+  Node node;
+
+  char* call;
+} InvokeNode;
+
 typedef struct Expression {
   unsigned short type;
 } Expression;
@@ -101,6 +108,7 @@ StateNode* node_create_state();
 ImportNode* node_create_import_statement();
 ImportSpecifier* node_create_import_specifier(char*);
 Assignment* node_create_assignment(unsigned short);
+InvokeNode* node_create_invoke();
 AssignExpression* node_create_assignexpression();
 IdentifierExpression* node_create_identifierexpression();
 
@@ -119,4 +127,5 @@ void node_destroy_machine(MachineNode*);
 void node_destroy_state(StateNode*);
 void node_destroy_transition(TransitionNode*);
 void node_destroy_expression(Expression*);
+void node_destroy_invoke(InvokeNode*);
 void node_destroy(Node*);

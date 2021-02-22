@@ -179,4 +179,5 @@ void keyword_init() {
   dict_insert(keywords, "action", KW_ACTION);
   dict_insert(keywords, "guard", KW_GUARD);
   dict_insert(keywords, "assign", KW_ASSIGN);
+  dict_insert(keywords, "invoke", KW_INVOKE);
 }

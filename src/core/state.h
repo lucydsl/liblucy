@@ -42,6 +42,7 @@ void state_advance_line(State*);
 void state_advance_column(State*);
 void state_set_word(State*, char*);
 void state_reset_word(State*);
+void state_node_set(State*, Node*);
 void state_node_up(State*);
 void state_node_start_pos(State*, Node*);
 

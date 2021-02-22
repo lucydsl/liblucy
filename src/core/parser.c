@@ -149,6 +149,11 @@ static int consume_transition(State* state) {
       state->parent_node = current_node;
       break;
     }
+    case NODE_INVOKE_TYPE: {
+      node_append(current_node, transition_node_node);
+      state->parent_node = current_node;
+      break;
+    }
     case NODE_TRANSITION_TYPE: {
       error_msg_with_code_block(state, transition_node_node, "A transition sibiling to another, hasn't happened before, this is likely a compiler bug.");
       return 2;
@@ -203,7 +208,65 @@ static int consume_transition(State* state) {
   return err;
 }
 
-int consume_state(State* state) {
+static int consume_invoke(State* state) {
+  int err = 0;
+
+  InvokeNode* invoke_node = node_create_invoke();
+  Node* node = (Node*)invoke_node;
+  state_node_start_pos(state, node);
+
+  Node* parent_node = state->node;
+  if(parent_node->type != NODE_STATE_TYPE) {
+    error_msg_with_code_block(state, node, "Unexpected parent for invoke.");
+    return 2;
+  }
+
+  node_append(parent_node, node);
+  state_node_set(state, node);
+
+  int token = consume_token(state);
+
+  if(token != TOKEN_IDENTIFIER) {
+    error_msg_with_code_block(state, node, "Expected a function to call with invoke.");
+    return 2;
+  }
+
+  invoke_node->call = state->word;
+
+  token = consume_token(state);
+
+  if(token != TOKEN_BEGIN_BLOCK) {
+    error_unexpected_identifier(state, node);
+    return 2;
+  }
+
+  while(true) {
+    token = consume_token(state);
+
+    switch(token) {
+      case TOKEN_EOL: continue;
+      case TOKEN_END_BLOCK: {
+        goto end;
+      }
+      case TOKEN_IDENTIFIER: {
+        _check(consume_transition(state));
+        break;
+      }
+      default: {
+        error_unexpected_identifier(state, node);
+        err = 2;
+        goto end;
+      }
+    }
+  }
+
+  end: {
+    state_node_up(state);
+    return err;
+  }
+}
+
+static int consume_state(State* state) {
   int err = 0;
 
   StateNode* state_node = node_create_state();
@@ -216,8 +279,7 @@ int consume_state(State* state) {
     return 2;
   }
 
-  state->parent_node = parent_node;
-  state->node = state_node_node;
+  state_node_set(state, state_node_node);
 
   // TODO get rid of this..
   if(parent_node->type == NODE_STATE_TYPE) {
@@ -272,7 +334,19 @@ int consume_state(State* state) {
         goto end;
       };
       case TOKEN_IDENTIFIER: {
-        _check(consume_transition(state));
+        unsigned short key = keyword_get(state->word);
+
+        switch(key) {
+          case KW_INVOKE: {
+            _check(consume_invoke(state));
+            break;
+          }
+          default: {
+            _check(consume_transition(state));
+            break;
+          }
+        }
+
         break;
       }
       default: {
@@ -520,7 +594,6 @@ static int consume_machine_inner(State* state) {
             break;
           }
           case KW_STATE: {
-            //consume_state(state);
             _check(consume_state(state));
             break;
           }

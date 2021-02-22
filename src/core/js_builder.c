@@ -86,6 +86,14 @@ void js_builder_end_call(JSBuilder* jsb) {
   js_builder_add_str(jsb, ")");
 }
 
+void js_builder_start_array(JSBuilder* jsb) {
+  js_builder_add_str(jsb, "[");
+}
+
+void js_builder_end_array(JSBuilder* jsb) {
+  js_builder_add_str(jsb, "]");
+}
+
 char* js_builder_dump(JSBuilder* jsb)
 {
   return str_builder_dump(jsb->sb, NULL);

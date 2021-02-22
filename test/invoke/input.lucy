@@ -1,0 +1,18 @@
+import { getUser, setUser } from './user.js'
+
+action assignUser = assign user setUser
+
+state loading {
+  invoke getUser {
+    done => assignUser => ready
+    error => error
+  }
+}
+
+state ready {
+
+}
+
+state error {
+
+}
