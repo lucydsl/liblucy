@@ -1,5 +1,23 @@
-[1m[37mtest/machine/input.lucy[0m:1:13
+Found a machine
+import { Machine } from 'xstate';
 
- [1m[31m𝒙[0m[31m Unknown top-level identifier.
-
-[0m
+export const light = Machine({
+  initial: 'green',
+  states: {
+    green: {
+      on: {
+        timer: 'yellow'
+      }
+    },
+    yellow: {
+      on: {
+        timer: 'red'
+      }
+    },
+    red: {
+      on: {
+        timer: 'green'
+      }
+    }
+  }
+});

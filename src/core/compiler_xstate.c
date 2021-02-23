@@ -77,11 +77,18 @@ static void destroy_state(PrintState *state) {
 }
 
 static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
+  MachineNode *machine_node = (MachineNode*)node;
+
   if(!state->machine_call_added) {
     state->machine_call_added = true;
-    js_builder_add_str(jsb, "\nexport default Machine({\n");
 
-    MachineNode *machine_node = (MachineNode*)node;
+    if(machine_node->name == NULL) {
+      js_builder_add_str(jsb, "\nexport default Machine({\n");
+    } else {
+      js_builder_add_str(jsb, "\nexport const ");
+      js_builder_add_str(jsb, machine_node->name);
+      js_builder_add_str(jsb, " = Machine({\n");
+    }
 
     if(machine_node->initial != NULL) {
       js_builder_start_prop(jsb, "initial");
@@ -124,18 +131,6 @@ static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
 }
 
 static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
-  /*if(!state->machine_call_added) {
-    state->machine_call_added = true;
-    js_builder_add_str(jsb, "\nexport default Machine({\n");
-
-    MachineNode *machine_node = (MachineNode*)node->parent;
-
-    if(machine_node->initial != NULL) {
-      js_builder_start_prop(jsb, "initial");
-      js_builder_add_string(jsb, machine_node->initial);
-    }
-  }*/
-
   if(!state->state_prop_added) {
     state->state_prop_added = true;
     js_builder_start_prop(jsb, "states");
