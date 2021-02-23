@@ -1,0 +1,8 @@
+
+initial state one {
+  => two
+}
+
+final state two {
+
+}

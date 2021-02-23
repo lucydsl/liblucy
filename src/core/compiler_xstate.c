@@ -17,6 +17,7 @@ typedef struct Ref {
 typedef struct PrintState {
   bool state_prop_added;
   bool on_prop_added;
+  bool always_prop_added;
   bool machine_call_added;
   Ref* guard;
   Ref* action;
@@ -75,6 +76,20 @@ static void destroy_state(PrintState *state) {
   }
 }
 
+static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
+  if(!state->machine_call_added) {
+    state->machine_call_added = true;
+    js_builder_add_str(jsb, "\nexport default Machine({\n");
+
+    MachineNode *machine_node = (MachineNode*)node;
+
+    if(machine_node->initial != NULL) {
+      js_builder_start_prop(jsb, "initial");
+      js_builder_add_string(jsb, machine_node->initial);
+    }
+  }
+}
+
 static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, "import ");
 
@@ -109,7 +124,7 @@ static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
 }
 
 static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
-  if(!state->machine_call_added) {
+  /*if(!state->machine_call_added) {
     state->machine_call_added = true;
     js_builder_add_str(jsb, "\nexport default Machine({\n");
 
@@ -119,7 +134,7 @@ static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
       js_builder_start_prop(jsb, "initial");
       js_builder_add_string(jsb, machine_node->initial);
     }
-  }
+  }*/
 
   if(!state->state_prop_added) {
     state->state_prop_added = true;
@@ -160,6 +175,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
   TransitionNode* transition_node = (TransitionNode*)node;
   Node* parent_node = node->parent;
   char* event_name = transition_node->event;
+  bool is_always = transition_node->always;
 
   if(parent_node->type == NODE_INVOKE_TYPE) {
     if(strcmp(event_name, "done") == 0) {
@@ -170,20 +186,30 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
       printf("Regular events in invoke are not supported.\n");
     }
   } else {
-    if(!state->on_prop_added) {
-      state->on_prop_added = true;
-      js_builder_start_prop(jsb, "on");
-      js_builder_start_object(jsb);
-    }
+    if(is_always) {
+      if(!state->always_prop_added) {
+        state->always_prop_added = true;
+        js_builder_start_prop(jsb, "always");
+        js_builder_start_array(jsb, true);
+        js_builder_add_indent(jsb);
+      }
+    } else {
+      if(!state->on_prop_added) {
+        state->on_prop_added = true;
+        js_builder_start_prop(jsb, "on");
+        js_builder_start_object(jsb);
+      }
 
-    js_builder_start_prop(jsb, event_name);
+      js_builder_start_prop(jsb, event_name);
+    }
   }
 
   bool has_guard = transition_node->guard != NULL;
   bool has_action = transition_node->action != NULL;
   bool has_guard_or_action = has_guard || has_action;
+  bool use_object_notation = has_guard_or_action || is_always;
 
-  if(has_guard_or_action) {
+  if(use_object_notation) {
     js_builder_start_object(jsb);
     js_builder_start_prop(jsb, "target");
     js_builder_add_string(jsb, transition_node->dest);
@@ -194,7 +220,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
       TransitionGuard* guard = transition_node->guard;
       // If there are multiple guards use an array.
       if(guard->next) {
-        js_builder_start_array(jsb);
+        js_builder_start_array(jsb, false);
         while(true) {
           js_builder_add_string(jsb, guard->name);
           guard = guard->next;
@@ -206,7 +232,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
           js_builder_add_str(jsb, ", ");
         }
 
-        js_builder_end_array(jsb);
+        js_builder_end_array(jsb, false);
       }
       // If a single guard use a string
       else {
@@ -216,7 +242,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
 
     if(has_action) {
       js_builder_start_prop(jsb, "actions");
-      js_builder_start_array(jsb);
+      js_builder_start_array(jsb, false);
       TransitionAction* action = transition_node->action;
       while(true) {
         js_builder_add_string(jsb, action->name);
@@ -230,10 +256,14 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
         js_builder_add_str(jsb, ", ");
       }
 
-      js_builder_end_array(jsb);
+      js_builder_end_array(jsb, false);
     }
 
     js_builder_end_object(jsb);
+
+    if(is_always) {
+      js_builder_end_array(jsb, true);
+    }
   } else {
     js_builder_add_string(jsb, transition_node->dest);
   }
@@ -292,6 +322,7 @@ CompileResult* compile_xstate(char* source, char* filename) {
   PrintState state;
   state.state_prop_added = false;
   state.on_prop_added = false;
+  state.always_prop_added = false;
   state.machine_call_added = false;
   state.guard = NULL;
   state.action = NULL;
@@ -359,6 +390,10 @@ CompileResult* compile_xstate(char* source, char* filename) {
         }
         case NODE_INVOKE_TYPE: {
           enter_invoke(&state, jsb, node);
+          break;
+        }
+        case NODE_MACHINE_TYPE: {
+          enter_machine(&state, jsb, node);
           break;
         }
       }

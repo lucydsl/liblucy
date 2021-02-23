@@ -31,6 +31,7 @@ typedef struct Node {
 typedef struct MachineNode {
   Node node;
 
+  char* name;
   char* initial;
 } MachineNode;
 
@@ -54,6 +55,7 @@ typedef struct TransitionAction {
 typedef struct TransitionNode {
   Node node;
 
+  bool always;
   char* event;
   char* dest;
   TransitionGuard* guard;
@@ -113,7 +115,7 @@ AssignExpression* node_create_assignexpression();
 IdentifierExpression* node_create_identifierexpression();
 
 void node_append(Node*, Node*);
-void node_after(Node*, Node*);
+void node_after_last(Node*, Node*);
 
 void node_transition_add_guard(TransitionNode*, char*);
 void node_transition_add_action(TransitionNode*, char*);

@@ -26,7 +26,7 @@ void error_file_info(State* state) {
   fprintf(stderr, BOLDWHITE "%s" RESET ":%zu:%zu\n", state->filename, state->line, state->index);
 }
 
-void error_message(char* msg) {
+void error_message(const char* msg) {
   fprintf(stderr, "\n " BOLDRED "𝒙" RESET RED " %s\n\n" RESET, msg);
 }
 
@@ -100,7 +100,7 @@ void error_annotate(State* state, Node* node) {
 
 void error_msg_with_code_block(State* state, Node* node, const char* msg) {
   error_file_info(state);
-  error_message("States must be given a name.");
+  error_message(msg);
   error_annotate(state, node);
   printf("\n");
 }

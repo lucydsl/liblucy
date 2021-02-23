@@ -1,6 +1,7 @@
 #include <stdio.h> // todo remove
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "js_builder.h"
 #include "str_builder.h"
 
@@ -86,15 +87,23 @@ void js_builder_end_call(JSBuilder* jsb) {
   js_builder_add_str(jsb, ")");
 }
 
-void js_builder_start_array(JSBuilder* jsb) {
+void js_builder_start_array(JSBuilder* jsb, bool newline) {
   js_builder_add_str(jsb, "[");
+  if(newline) {
+    js_builder_add_str(jsb, "\n");
+    js_builder_increase_indent(jsb);
+  }
 }
 
-void js_builder_end_array(JSBuilder* jsb) {
+void js_builder_end_array(JSBuilder* jsb, bool newline) {
+  if(newline) {
+    js_builder_add_str(jsb, "\n");
+    js_builder_decrease_indent(jsb);
+    js_builder_add_indent(jsb);
+  }
   js_builder_add_str(jsb, "]");
 }
 
-char* js_builder_dump(JSBuilder* jsb)
-{
+char* js_builder_dump(JSBuilder* jsb) {
   return str_builder_dump(jsb->sb, NULL);
 }

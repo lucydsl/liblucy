@@ -135,6 +135,16 @@ static int consume_transition(State* state) {
 
   TransitionNode* transition_node = node_create_transition();
   transition_node->event = event;
+
+  // Always transition
+  if(event == NULL) {
+    transition_node->always = event == NULL;
+
+    // Currently in a call, so rewind to back out.
+    state_prev(state);
+    state_prev(state);
+  }
+
   state_reset_word(state);
 
   // Parent should be a state node, should we check here? TODO
@@ -173,6 +183,7 @@ static int consume_transition(State* state) {
     int token = consume_token(state);
 
     if(token == TOKEN_EOL) {
+      // End of the transition
       break;
     }
 
@@ -221,7 +232,6 @@ static int consume_invoke(State* state) {
     return 2;
   }
 
-  node_append(parent_node, node);
   state_node_set(state, node);
 
   int token = consume_token(state);
@@ -281,13 +291,6 @@ static int consume_state(State* state) {
 
   state_node_set(state, state_node_node);
 
-  // TODO get rid of this..
-  if(parent_node->type == NODE_STATE_TYPE) {
-    node_after(parent_node, state_node_node);
-  } else {
-    node_append(parent_node, state_node_node);
-  }
-
   int token = consume_token(state);
 
   switch(token) {
@@ -333,6 +336,11 @@ static int consume_state(State* state) {
         state_node_node->end = state->index;
         goto end;
       };
+      case TOKEN_CALL: {
+        state->word = NULL;
+        _check(consume_transition(state));
+        break;
+      }
       case TOKEN_IDENTIFIER: {
         unsigned short key = keyword_get(state->word);
 
@@ -411,16 +419,15 @@ static int consume_import(State* state) {
   int err = 0;
   Node *current_node = state->node;
 
-  if(current_node->type != NODE_MACHINE_TYPE) {
+  if(current_node != NULL) {
     error_msg_with_code_block(state, current_node, "Import statement must be at the top of the file.");
     return 2;
   }
 
-  ImportNode *node = node_create_import_statement();
-  Node *import_node_node = (Node*)node;
-  state_node_start_pos(state, import_node_node);
-
-  node_append(current_node, import_node_node);
+  ImportNode *import_node = node_create_import_statement();
+  Node *node = (Node*)import_node;
+  state_node_start_pos(state, node);
+  state_node_set(state, node);
 
   int token;
   bool consumed_loc = false;
@@ -436,7 +443,7 @@ static int consume_import(State* state) {
         }
       };
       case TOKEN_BEGIN_BLOCK: {
-        _check(consume_import_specifiers(node, state));
+        _check(consume_import_specifiers(import_node, state));
         consumed_specifiers = true;
 
         break;
@@ -446,26 +453,30 @@ static int consume_import(State* state) {
           consumed_from = true;
           break;
         }
-        error_unexpected_identifier(state, import_node_node);
-        return 2;
+        error_unexpected_identifier(state, node);
+        err = 2;
+        goto end;
       }
       case TOKEN_STRING: {
-        node->from = state->word;
+        import_node->from = state->word;
         consumed_loc = true;
         goto loop;
       }
       case TOKEN_UNKNOWN: {
-        error_unexpected_identifier(state, import_node_node);
+        error_unexpected_identifier(state, node);
+        err = 2;
         goto end;
       }
       default: {
-        error_unexpected_identifier(state, import_node_node);
+        error_unexpected_identifier(state, node);
+        err = 2;
         goto end;
       }
     }
   }
 
   end: {
+    state_node_up(state);
     return err;
   }
 }
@@ -473,6 +484,7 @@ static int consume_import(State* state) {
 static int consume_action(State* state) {
   Assignment* assignment = node_create_assignment(ASSIGNMENT_ACTION);
   Node *node = (Node*)assignment;
+  state_node_set(state, node);
 
   int token;
   token = consume_token(state);
@@ -526,13 +538,14 @@ static int consume_action(State* state) {
   assignment->value = (Expression*)expression;
 
   state_add_action(state, assignment->binding_name);
-  node_append(state->node, (Node*)assignment);
+  state_node_up(state);
   return 0;
 }
 
 static int consume_guard(State* state) {
   Assignment* assignment = node_create_assignment(ASSIGNMENT_GUARD);
   Node* node = (Node*)assignment;
+  state_node_set(state, node);
 
   int token;
 
@@ -565,26 +578,33 @@ static int consume_guard(State* state) {
   state_add_guard(state, assignment->binding_name);
 
   assignment->value = (Expression*)expression;
-  node_append(state->node, (Node*)assignment);
+  state_node_up(state);
   return 0;
 }
 
-static int consume_machine_inner(State* state) {
+static int consume_machine_inner(State* state, bool is_implicit, int initial_token) {
   int err = 0;
-  int token;
+  int token = is_implicit ? initial_token : consume_token(state);
 
   while(true) {
-    token = consume_token(state);
-
     switch(token) {
-      case TOKEN_EOL: continue;
+      case TOKEN_EOL: goto next;
       case TOKEN_EOF: goto end;
+      case TOKEN_END_BLOCK: {
+        if(!is_implicit) {
+          goto end;
+        }
+        error_unexpected_identifier(state, state->node);
+        err = 1;
+        break;
+      }
       case TOKEN_IDENTIFIER: {
         char* identifier = state->word;
 
         if(!is_keyword(identifier)) {
           error_msg_with_code_block(state, state->node, "Unknown top-level identifier.");
-          return 2;
+          err = 2;
+          goto end;
         }
 
         unsigned short key = keyword_get(identifier);
@@ -615,7 +635,105 @@ static int consume_machine_inner(State* state) {
       }
       default: {
         error_unexpected_identifier(state, state->node);
-        return 2;
+        err = 2;
+        goto end;
+      }
+    }
+
+    next: {
+      token = consume_token(state);
+    }
+  }
+
+  end: {
+    return err;
+  }
+}
+
+static int consume_machine(State* state) {
+  int err = 0;
+
+  MachineNode* machine_node = node_create_machine();
+  Node* node = (Node*)machine_node;
+  state_node_set(state, node);
+
+  int token = consume_token(state);
+  if(token != TOKEN_IDENTIFIER) {
+    error_msg_with_code_block(state, node, "Machine must have a name.");
+    err = 1;
+    goto end;
+  }
+  machine_node->name = state->word;
+
+  token = consume_token(state);
+
+  if(token != TOKEN_BEGIN_BLOCK) {
+    error_unexpected_identifier(state, node);
+    err = 1;
+    goto end;
+  }
+
+  _check(consume_machine_inner(state, false, 0));
+
+  end: {
+    state_node_up(state);
+    return err;
+  }
+}
+
+static int consume_implicit_machine(State* state, int current_token) {
+  int err = 0;
+
+  MachineNode* machine_node = node_create_machine();
+  Node* node = (Node*)machine_node;
+
+  state_node_set(state, node);
+
+  _check(consume_machine_inner(state, true, current_token));
+
+  state_node_up(state);
+  return err;
+}
+
+static int consume_program(State* state) {
+  int err = 0;
+  Program* program = state->program;
+
+  int token;
+
+  while(true) {
+    token = consume_token(state);
+
+    switch(token) {
+      case TOKEN_EOL: continue;
+      case TOKEN_EOF: goto end;
+      case TOKEN_IDENTIFIER: {
+        char* identifier = state->word;
+
+        if(!is_keyword(identifier)) {
+          error_msg_with_code_block(state, state->node, "Unknown top-level identifier.");
+          return 2;
+        }
+
+        unsigned short key = keyword_get(identifier);
+        switch(key) {
+          case KW_IMPORT: {
+            _check(consume_import(state));
+            break;
+          }
+          case KW_MACHINE: {
+            printf("Found a machine\n");
+            _check(consume_machine(state));
+            break;
+          }
+          default: {
+            // Top-level machine
+            _check(consume_implicit_machine(state, token));
+            break;
+          }
+        }
+
+        break;
       }
     }
   }
@@ -627,14 +745,15 @@ static int consume_machine_inner(State* state) {
 
 ParseResult* parse(char* source, char* filename) {
   int err = 0;
-  State* state = state_new_state(source, filename);
   Program* program = new_program();
+  State* state = state_new_state(source, filename);
+  state->program = program;
 
-  MachineNode* machine_node = node_create_machine();
+  /*MachineNode* machine_node = node_create_machine();
   program->body = (Node*)machine_node;
-  state->node = (Node*)machine_node;
+  state->node = (Node*)machine_node;*/
 
-  err = consume_machine_inner(state);
+  err = consume_program(state);
 
   ParseResult *result = malloc(sizeof(*result));
   result->success = err == 0;

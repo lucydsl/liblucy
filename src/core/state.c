@@ -18,6 +18,9 @@ State* state_new_state(char* source, char* filename) {
   state->actions = malloc(sizeof(SimpleSet));
   set_init(state->actions);
 
+  state->node = NULL;
+  state->parent_node = NULL;
+
   state->word = "";
   state->in_word = 0;
   state->line = 0;
@@ -72,17 +75,32 @@ char state_prev(State* state) {
 }
 
 void state_node_set(State* state, Node* node) {
-  Node* parent_node = state->node;
-  state->parent_node = parent_node;
+  if(state->node != NULL) {
+    Node* parent_node = state->node;
+    state->parent_node = parent_node;
+
+    node_append(parent_node, node);
+  } else {
+    Program* program = state->program;
+    if(program->body == NULL) {
+      program->body = node;
+    } else {
+      node_after_last(program->body, node);
+    }
+  }
+
   state->node = node;
 }
 
 void state_node_up(State* state) {
-  Node* current = state->parent_node;
-  Node* parent = current->parent;
-
-  state->node = current;
-  state->parent_node = parent;
+  Node* current_parent = state->parent_node;
+  if(current_parent != NULL) {
+    Node* new_parent = current_parent->parent;
+    state->node = current_parent;
+    state->parent_node = new_parent;
+  } else {
+    state->node = NULL;
+  }
 }
 
 void state_node_start_pos(State* state, Node* node) {

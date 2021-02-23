@@ -27,8 +27,8 @@ void js_builder_end_object(JSBuilder*);
 void js_builder_start_prop(JSBuilder*, char*);
 void js_builder_start_call(JSBuilder*, char*);
 void js_builder_end_call(JSBuilder*);
-void js_builder_start_array(JSBuilder*);
-void js_builder_end_array(JSBuilder*);
+void js_builder_start_array(JSBuilder*, bool);
+void js_builder_end_array(JSBuilder*, bool);
 
 char* js_builder_dump(JSBuilder*);
 

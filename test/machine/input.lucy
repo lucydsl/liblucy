@@ -1,0 +1,14 @@
+
+machine light {
+  initial state green {
+    timer => yellow
+  }
+
+  state yellow {
+    timer => red
+  }
+
+  state red {
+    timer => green
+  }
+}

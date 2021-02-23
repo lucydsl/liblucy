@@ -10,6 +10,7 @@
 #define KW_GUARD 6
 #define KW_ASSIGN 7
 #define KW_INVOKE 8
+#define KW_MACHINE 9
 
 bool is_keyword(char*);
 unsigned short keyword_get(char*);

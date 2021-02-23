@@ -37,3 +37,4 @@ clean:
 
 test: bin/lc
 	@scripts/test_snapshots $(ARGS)
+.PHONY: test

@@ -106,8 +106,7 @@ void node_transition_add_action(TransitionNode* transition_node, char* name) {
   }
 }
 
-void node_append(Node* parent, Node* child)
-{
+void node_append(Node* parent, Node* child) {
   if(parent == NULL) {
     return;
   }
@@ -117,17 +116,16 @@ void node_append(Node* parent, Node* child)
   if(parent->child == NULL) {
     parent->child = child;
   } else {
-    Node* sibling = parent->child;
-    while(sibling->next != NULL) {
-      sibling = sibling->next;
-    }
-    sibling->next = child;
+    node_after_last(parent->child, child);
   }
 }
 
-void node_after(Node* ref, Node* new_sibling)
-{
-  ref->next = new_sibling;
+void node_after_last(Node* ref, Node* node) {
+  Node* sibling = ref;
+  while(sibling->next != NULL) {
+    sibling = sibling->next;
+  }
+  sibling->next = node;
 }
 
 static void node_destroy_transition_guards(TransitionGuard* guard) {

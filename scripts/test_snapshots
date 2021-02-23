@@ -27,6 +27,11 @@ EOM
 
 run_test() {
   local d=$1
+  local skip="${d}.skip"
+
+  if [ -f $skip ]; then
+    return 0
+  fi
 
   local input="${d}input.lucy"
   local output="${d}expected.js"
