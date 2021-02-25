@@ -114,6 +114,8 @@ InvokeNode* node_create_invoke();
 AssignExpression* node_create_assignexpression();
 IdentifierExpression* node_create_identifierexpression();
 
+bool node_machine_is_nested(Node*);
+
 void node_append(Node*, Node*);
 void node_after_last(Node*, Node*);
 

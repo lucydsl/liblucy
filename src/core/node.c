@@ -106,6 +106,12 @@ void node_transition_add_action(TransitionNode* transition_node, char* name) {
   }
 }
 
+bool node_machine_is_nested(Node* node) {
+  return node->type == NODE_MACHINE_TYPE &&
+    node->parent != NULL &&
+    node->parent->type == NODE_STATE_TYPE;
+}
+
 void node_append(Node* parent, Node* child) {
   if(parent == NULL) {
     return;

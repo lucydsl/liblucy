@@ -1,4 +1,3 @@
-Found a machine
 import { Machine } from 'xstate';
 
 export const light = Machine({
@@ -18,6 +17,18 @@ export const light = Machine({
       on: {
         timer: 'green'
       }
+    }
+  }
+});
+export const two = Machine({
+  states: {
+    start: {
+      on: {
+        next: 'end'
+      }
+    },
+    end: {
+      type: 'final'
     }
   }
 });

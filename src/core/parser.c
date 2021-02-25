@@ -24,6 +24,8 @@
 
 #define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
 
+static int consume_machine(State*);
+
 int is_newline(char c) {
   return c == '\n';
 }
@@ -349,6 +351,10 @@ static int consume_state(State* state) {
             _check(consume_invoke(state));
             break;
           }
+          case KW_MACHINE: {
+            _check(consume_machine(state));
+            break;
+          }
           default: {
             _check(consume_transition(state));
             break;
@@ -613,6 +619,10 @@ static int consume_machine_inner(State* state, bool is_implicit, int initial_tok
             state->modifier = MODIFIER_TYPE_INITIAL;
             break;
           }
+          case KW_FINAL: {
+            state->modifier = MODIFIER_TYPE_FINAL;
+            break;
+          }
           case KW_STATE: {
             _check(consume_state(state));
             break;
@@ -722,7 +732,6 @@ static int consume_program(State* state) {
             break;
           }
           case KW_MACHINE: {
-            printf("Found a machine\n");
             _check(consume_machine(state));
             break;
           }

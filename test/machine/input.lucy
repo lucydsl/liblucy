@@ -12,3 +12,12 @@ machine light {
     timer => green
   }
 }
+
+machine two {
+  state start {
+    next => end
+  }
+  final state end {
+
+  }
+}

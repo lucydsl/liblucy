@@ -11,7 +11,7 @@ export default Machine({
       ]
     },
     two: {
-
+      type: 'final'
     }
   }
 });

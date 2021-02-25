@@ -1,0 +1,28 @@
+
+machine light {
+  initial state green {
+    timer => yellow
+  }
+
+  state yellow {
+    timer => red
+  }
+
+  state red {
+    timer => green
+
+    machine pedestrian {
+      initial state walk {
+        countdown => wait
+      }
+
+      state wait {
+        countdown => stop
+      }
+
+      final state stop {
+
+      }
+    }
+  }
+}
