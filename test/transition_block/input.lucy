@@ -1,0 +1,18 @@
+import { check } from './stuff.js'
+
+guard canGo = check
+guard sureCanGo = check
+guard AreWeReallySure = check
+
+initial state start {
+  go => {
+    canGo =>
+      sureCanGo =>
+      AreWeReallySure =>
+      end
+  }
+}
+
+final state end {
+
+}

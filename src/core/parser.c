@@ -154,6 +154,7 @@ static int consume_transition(State* state) {
   size_t current_node_type = current_node->type;
 
   Node* transition_node_node = (Node*)transition_node;
+  state_node_start_pos(state, transition_node_node);
 
   switch(current_node_type) {
     case NODE_STATE_TYPE: {
@@ -180,25 +181,56 @@ static int consume_transition(State* state) {
 
   state->node = transition_node_node;
 
+  bool block_transition = false;
   char* identifier = NULL;
   while(true) {
     int token = consume_token(state);
 
     if(token == TOKEN_EOL) {
+      if(block_transition) {
+        token = consume_token(state);
+
+        while(token == TOKEN_EOL) {
+          token = consume_token(state);
+        }
+
+        if(token != TOKEN_END_BLOCK) {
+          error_msg_with_code_block(state, transition_node_node, "Block transition expects destination state.");
+          err = 2;
+          goto end;
+        }
+
+        break;
+      }
       // End of the transition
       break;
     }
 
     if(token != TOKEN_CALL) {
       error_msg_with_code_block(state, transition_node_node, "Expected a call.");
-      return 2;
+      err = 2;
+      goto end;
     }
 
     token = consume_token(state);
 
+    while(block_transition && token == TOKEN_EOL) {
+      token = consume_token(state);
+    }
+
+    if(token == TOKEN_BEGIN_BLOCK && !block_transition) {
+      block_transition = true;
+      token = consume_token(state);
+
+      while(token == TOKEN_EOL) {
+        token = consume_token(state);
+      }
+    }
+
     if(token != TOKEN_IDENTIFIER) {
       error_unexpected_identifier(state, transition_node_node);
-      return 2;
+      err = 2;
+      goto end;
     }
 
     // TODO if we already have a destination then someting went wrong, throw.
@@ -217,8 +249,10 @@ static int consume_transition(State* state) {
     transition_node->dest = state_node->name;
   }
 
-  state_node_up(state);
-  return err;
+  end: {
+    state_node_up(state);
+    return err;
+  }
 }
 
 static int consume_invoke(State* state) {
