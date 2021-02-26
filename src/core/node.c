@@ -3,6 +3,8 @@
 #include <string.h>
 #include "node.h"
 
+static void node_destroy_guardexpression(GuardExpression*);
+
 Node* node_create_type(unsigned short type, size_t size) {
   Node *node = malloc(size);
   node->type = type;
@@ -144,6 +146,12 @@ void node_after_last(Node* ref, Node* node) {
 
 static void node_destroy_transition_guards(TransitionGuard* guard) {
   if(guard != NULL) {
+    if(guard->name != NULL) {
+      free(guard->name);
+    }
+    if(guard->expression != NULL) {
+      node_destroy_guardexpression(guard->expression);
+    }
     if(guard->next != NULL) {
       node_destroy_transition_guards(guard->next);
     }
@@ -154,6 +162,9 @@ static void node_destroy_transition_guards(TransitionGuard* guard) {
 
 static void node_destroy_transition_actions(TransitionAction* action) {
   if(action != NULL) {
+    if(action->name != NULL) {
+      free(action->name);
+    }
     if(action->next != NULL) {
       node_destroy_transition_actions(action->next);
     }
@@ -197,19 +208,40 @@ void node_destroy_transition(TransitionNode* transition_node) {
   }
 }
 
+static void node_destroy_assignexpression(AssignExpression* expression) {
+  if(expression != NULL) {
+    free(expression->identifier);
+    free(expression->key);
+  }
+}
+
+static void node_destroy_identifierexpression(IdentifierExpression* expression) {
+  if(expression != NULL) {
+    free(expression->name);
+  }
+}
+
+static void node_destroy_guardexpression(GuardExpression* expression) {
+  if(expression != NULL) {
+    free(expression->ref);
+  }
+}
+
 void node_destroy_assignment(Assignment* assignment) {
   Expression *expression = assignment->value;
 
   switch(expression->type) {
     case EXPRESSION_ASSIGN: {
-      AssignExpression *assign_expression = (AssignExpression*)expression;
-      free(assign_expression->identifier);
-      free(assign_expression->key);
+      AssignExpression* assign_expression = (AssignExpression*)expression;
+      node_destroy_assignexpression(assign_expression);
       break;
     }
     case EXPRESSION_IDENTIFIER: {
-      IdentifierExpression *identifier_expression = (IdentifierExpression*)expression;
-      free(identifier_expression->name);
+      node_destroy_identifierexpression((IdentifierExpression*)expression);
+      break;
+    }
+    case EXPRESSION_GUARD: {
+      node_destroy_guardexpression((GuardExpression*)expression);
       break;
     }
   }
