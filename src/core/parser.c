@@ -133,7 +133,7 @@ static int consume_token(State* state) {
 
 static int consume_transition(State* state) {
   int err = 0;
-  char* event = state->word;
+  char* event = state_take_word(state);
 
   TransitionNode* transition_node = node_create_transition();
   transition_node->event = event;
@@ -233,8 +233,8 @@ static int consume_transition(State* state) {
       goto end;
     }
 
-    identifier = state->word;
-    unsigned short key = keyword_get(state->word);
+    identifier = state_take_word(state);
+    unsigned short key = keyword_get(identifier);
     switch(key) {
       case KW_GUARD: {
         token = consume_token(state);
@@ -245,7 +245,7 @@ static int consume_transition(State* state) {
         }
 
         GuardExpression* guard_expression = node_create_guardexpression();
-        guard_expression->ref = state->word;
+        guard_expression->ref = identifier;
         TransitionGuard* guard = node_transition_add_guard(transition_node, NULL);
         guard->expression = guard_expression;
         continue;
@@ -293,7 +293,7 @@ static int consume_invoke(State* state) {
     return 2;
   }
 
-  invoke_node->call = state->word;
+  invoke_node->call = state_take_word(state);
 
   token = consume_token(state);
 
@@ -348,7 +348,7 @@ static int consume_state(State* state) {
   switch(token) {
     case TOKEN_IDENTIFIER: {
       // Set the name of the state
-      state_node->name = state->word;
+      state_node->name = state_take_word(state);
 
       switch(state->modifier) {
         case MODIFIER_TYPE_INITIAL: {
@@ -389,7 +389,7 @@ static int consume_state(State* state) {
         goto end;
       };
       case TOKEN_CALL: {
-        state->word = NULL;
+        state_set_word(state, NULL);
         _check(consume_transition(state));
         break;
       }
@@ -436,8 +436,9 @@ static int consume_import_specifiers(ImportNode* import_node, State* state) {
     
     switch(token) {
       case TOKEN_IDENTIFIER: {
-        char* identifier = state->word;
+        char* identifier = state_take_word(state);
         if(strcmp(identifier, "as") == 0) {
+
           error_msg_with_code_block(state, (Node*)import_node, "Import aliases are not currently supported.");
           return 2;
         }
@@ -514,7 +515,7 @@ static int consume_import(State* state) {
         goto end;
       }
       case TOKEN_STRING: {
-        import_node->from = state->word;
+        import_node->from = state_take_word(state);
         consumed_loc = true;
         goto loop;
       }
@@ -550,7 +551,7 @@ static int consume_action(State* state) {
     return 2;
   }
 
-  char* binding_name = state->word;
+  char* binding_name = state_take_word(state);
   assignment->binding_name = binding_name;
 
   token = consume_token(state);
@@ -581,7 +582,7 @@ static int consume_action(State* state) {
     return 2;
   }
 
-  expression->key = state->word;
+  expression->key = state_take_word(state);
 
   token = consume_token(state);
 
@@ -590,7 +591,7 @@ static int consume_action(State* state) {
     return 2;
   }
 
-  expression->identifier = state->word;
+  expression->identifier = state_take_word(state);
   assignment->value = (Expression*)expression;
 
   state_add_action(state, assignment->binding_name);
@@ -612,7 +613,7 @@ static int consume_guard(State* state) {
     return 2;
   }
 
-  assignment->binding_name = state->word;
+  assignment->binding_name = state_take_word(state);
 
   token = consume_token(state);
 
@@ -629,7 +630,7 @@ static int consume_guard(State* state) {
   }
 
   IdentifierExpression *expression = node_create_identifierexpression();
-  expression->name = state->word;
+  expression->name = state_take_word(state);
 
   state_add_guard(state, assignment->binding_name);
 
@@ -723,7 +724,7 @@ static int consume_machine(State* state) {
     err = 1;
     goto end;
   }
-  machine_node->name = state->word;
+  machine_node->name = state_take_word(state);
 
   token = consume_token(state);
 
