@@ -233,9 +233,25 @@ static int consume_transition(State* state) {
       goto end;
     }
 
-    // TODO if we already have a destination then someting went wrong, throw.
-
     identifier = state->word;
+    unsigned short key = keyword_get(state->word);
+    switch(key) {
+      case KW_GUARD: {
+        token = consume_token(state);
+        if(token != TOKEN_IDENTIFIER) {
+          error_msg_with_code_block(state, NULL, "Expected an import reference after guard.");
+          err = 2;
+          goto end;
+        }
+
+        GuardExpression* guard_expression = node_create_guardexpression();
+        guard_expression->ref = state->word;
+        TransitionGuard* guard = node_transition_add_guard(transition_node, NULL);
+        guard->expression = guard_expression;
+        continue;
+      }
+    }
+
     if(state_has_guard(state, identifier)) {
       node_transition_add_guard(transition_node, identifier);
     } else if(state_has_action(state, identifier)) {

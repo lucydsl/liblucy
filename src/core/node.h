@@ -17,6 +17,8 @@
 
 #define EXPRESSION_ASSIGN 0
 #define EXPRESSION_IDENTIFIER 1
+#define EXPRESSION_GUARD 2
+#define EXPRESSION_ACTION 3
 
 typedef struct Node {
   unsigned short type;
@@ -45,6 +47,7 @@ typedef struct StateNode {
 typedef struct TransitionGuard {
   char* name;
   struct TransitionGuard* next;
+  struct GuardExpression* expression;
 } TransitionGuard;
 
 typedef struct TransitionAction {
@@ -96,6 +99,11 @@ typedef struct AssignExpression {
   char* identifier;
 } AssignExpression;
 
+typedef struct GuardExpression {
+  Expression expression;
+  char* ref;
+} GuardExpression;
+
 typedef struct Assignment {
   Node node;
   unsigned short binding_type;
@@ -113,14 +121,15 @@ Assignment* node_create_assignment(unsigned short);
 InvokeNode* node_create_invoke();
 AssignExpression* node_create_assignexpression();
 IdentifierExpression* node_create_identifierexpression();
+GuardExpression* node_create_guardexpression();
 
 bool node_machine_is_nested(Node*);
 
 void node_append(Node*, Node*);
 void node_after_last(Node*, Node*);
 
-void node_transition_add_guard(TransitionNode*, char*);
-void node_transition_add_action(TransitionNode*, char*);
+TransitionGuard* node_transition_add_guard(TransitionNode*, char*);
+TransitionAction* node_transition_add_action(TransitionNode*, char*);
 
 Expression* node_clone_expression(Expression*);
 

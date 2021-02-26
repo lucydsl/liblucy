@@ -320,7 +320,14 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
       if(guard->next) {
         js_builder_start_array(jsb, false);
         while(true) {
-          js_builder_add_string(jsb, guard->name);
+          if(guard->name != NULL) {
+            js_builder_add_string(jsb, guard->name);
+          } else {
+            // Expression!
+            js_builder_add_str(jsb, guard->expression->ref);
+          }
+
+          
           guard = guard->next;
 
           if(guard == NULL) {
@@ -334,7 +341,12 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
       }
       // If a single guard use a string
       else {
-        js_builder_add_string(jsb, guard->name);
+        if(guard->name != NULL) {
+          js_builder_add_string(jsb, guard->name);
+        } else {
+          // Expression!
+          js_builder_add_str(jsb, guard->expression->ref);
+        }
       }
     }
 
@@ -410,8 +422,7 @@ CompileResult* compile_xstate(char* source, char* filename) {
   jsb = js_builder_create();
   node = program->body;
 
-  if(node != NULL)
-  {
+  if(node != NULL) {
     js_builder_add_str(jsb, "import { Machine } from '");
     js_builder_add_str(jsb, xstate_specifier);
     js_builder_add_str(jsb, "';\n");
@@ -425,8 +436,7 @@ CompileResult* compile_xstate(char* source, char* filename) {
   state.action = NULL;
 
   bool exit = false;
-  while(node != NULL)
-  {
+  while(node != NULL) {
     unsigned short type = node->type;
 
     if(exit) {

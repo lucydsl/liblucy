@@ -1,0 +1,11 @@
+import { isDog } from './util'
+
+initial state idle {
+  pet => guard isDog => pet
+}
+
+state pet {
+  => goodBoy
+}
+
+final state goodBoy {}

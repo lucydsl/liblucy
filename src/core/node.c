@@ -76,7 +76,13 @@ IdentifierExpression* node_create_identifierexpression() {
   return expression;
 }
 
-void node_transition_add_guard(TransitionNode* transition_node, char* name) {
+GuardExpression* node_create_guardexpression() {
+  GuardExpression* expression = malloc(sizeof *expression);
+  ((Expression*)expression)->type = EXPRESSION_GUARD;
+  return expression;
+}
+
+TransitionGuard* node_transition_add_guard(TransitionNode* transition_node, char* name) {
   TransitionGuard* guard = create_transition_guard();
   guard->name = name;
 
@@ -89,9 +95,10 @@ void node_transition_add_guard(TransitionNode* transition_node, char* name) {
     }
     cur->next = guard;
   }
+  return guard;
 }
 
-void node_transition_add_action(TransitionNode* transition_node, char* name) {
+TransitionAction* node_transition_add_action(TransitionNode* transition_node, char* name) {
   TransitionAction* action = create_transition_action();
   action->name = name;
 
@@ -104,6 +111,7 @@ void node_transition_add_action(TransitionNode* transition_node, char* name) {
     }
     cur->next = action;
   }
+  return action;
 }
 
 bool node_machine_is_nested(Node* node) {
