@@ -44,7 +44,7 @@ void state_advance_column(State* state) {
 
 void state_advance_line(State* state) {
   state->line++;
-  state->column++;
+  state->column = 0;
 }
 
 int state_inbounds(State* state) {

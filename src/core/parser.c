@@ -207,7 +207,7 @@ static int consume_transition(State* state) {
     }
 
     if(token != TOKEN_CALL) {
-      error_msg_with_code_block(state, transition_node_node, "Expected a call.");
+      error_msg_with_code_block(state, NULL, "Expected to pipe to a destination.");
       err = 2;
       goto end;
     }

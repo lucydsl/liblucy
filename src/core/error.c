@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <limits.h>
 #include "node.h"
 #include "state.h"
 #include "str_builder.h"
@@ -22,25 +23,55 @@
 #define BOLDCYAN    "\033[1m\033[36m"      /* Bold Cyan */
 #define BOLDWHITE   "\033[1m\033[37m"      /* Bold White */
 
+#define CODE_BLOCK_INDENT 4
+
+static int num_places (int n) {
+    if (n < 0) n = (n == INT_MIN) ? INT_MAX : -n;
+    if (n < 10) return 1;
+    if (n < 100) return 2;
+    if (n < 1000) return 3;
+    if (n < 10000) return 4;
+    if (n < 100000) return 5;
+    if (n < 1000000) return 6;
+    if (n < 10000000) return 7;
+    if (n < 100000000) return 8;
+    if (n < 1000000000) return 9;
+    /*      2147483647 is 2^31-1 - add more ifs as needed
+       and adjust this final return as well. */
+    return 10;
+}
+
 void error_file_info(State* state) {
-  fprintf(stderr, BOLDWHITE "%s" RESET ":%zu:%zu\n", state->filename, state->line, state->index);
+  unsigned short line = state->line + 1;
+  unsigned short col = state->column;
+  fprintf(stderr, BOLDWHITE "%s" RESET ":%hu:%hu\n", state->filename, line, col);
 }
 
 void error_message(const char* msg) {
   fprintf(stderr, "\n " BOLDRED "𝒙" RESET RED " %s\n\n" RESET, msg);
 }
 
-static void print_code_line(str_builder_t *sb, size_t line) {
-  fprintf(stderr, BOLDWHITE "    %zu" RESET " │ %s", line, str_builder_dump(sb, NULL));
+static void print_code_line(str_builder_t *sb, size_t line, int max_spaces) {
+  int line_spaces = num_places(line);
+  int num_spaces = max_spaces - line_spaces + 1;
+
+  char spaces[num_spaces + 1];
+  for(int i = 0; i < num_spaces; i++) {
+    spaces[i] = ' ';
+  }
+  spaces[num_spaces] = '\0';
+
+  fprintf(stderr, BOLDWHITE "    %zu" RESET "%s│ %s", line, spaces, str_builder_dump(sb, NULL));
 }
 
 void error_annotate(State* state, Node* node) {
   char* source = state->source;
   size_t source_len = state->source_len;
 
-  unsigned short problem_line = node->line;
+  unsigned short problem_line = node == NULL ? state->line : node->line;
   unsigned short start_line = problem_line > 2 ? (problem_line - 2) : 0;
   unsigned short end_line = problem_line + 2;
+  unsigned int max_num_places = num_places(end_line);
 
   str_builder_t *sb = str_builder_create();
 
@@ -61,26 +92,25 @@ void error_annotate(State* state, Node* node) {
 
       if(line > end_line) {
         in_block = false;
+        break;
       }
     }
 
     if(c == '\n') {
       if(in_block) {
-        print_code_line(sb, line + 1);
+        print_code_line(sb, line + 1, max_num_places);
         str_builder_clear(sb);
       }
 
       if(line == problem_line) {
-        str_builder_t *psb = str_builder_create();
-        unsigned short pi = 0;
-        unsigned short spaces = col + 6;
-        while(pi < spaces) {
-          str_builder_add_char(psb, ' ');
-          pi++;
+        unsigned short places = CODE_BLOCK_INDENT + max_num_places + 1 + col + 1;
+        char spaces[places + 1];
+        for(int pi = 0; pi < places; pi++) {
+          spaces[pi] = ' ';
         }
+        spaces[places] = '\0';
 
-        fprintf(stderr, "%s" BOLDRED "˄" RESET "\n", str_builder_dump(psb, NULL));
-        str_builder_destroy(psb);
+        fprintf(stderr, "%s" BOLDRED "˄" RESET "\n", spaces);
       }
 
       line++;
@@ -92,7 +122,7 @@ void error_annotate(State* state, Node* node) {
     i++;
   }
 
-  print_code_line(sb, line + 1);
+  print_code_line(sb, line + 1, max_num_places);
   fprintf(stderr, "\n");
 
   str_builder_destroy(sb);
