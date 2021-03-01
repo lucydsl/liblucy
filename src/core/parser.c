@@ -56,6 +56,7 @@ static char* consume_string(State* state) {
 
   char* str = str_builder_dump(sb, NULL);
   state_set_word(state, str);
+  str_builder_destroy(sb);
   
   return str;
 }
@@ -64,9 +65,11 @@ static char* consume_identifier(State* state) {
   char c = state_char(state);
   str_builder_t *sb;
   sb = str_builder_create();
+  size_t len = 0;
 
   do {
     str_builder_add_char(sb, c);
+    len++;
 
     state_advance_column(state);
     state_next(state);
@@ -74,8 +77,9 @@ static char* consume_identifier(State* state) {
   } while(state_inbounds(state) && is_valid_identifier_char(c));
   state_prev(state);
 
-  char* str = str_builder_dump(sb, NULL);
+  char* str = str_builder_dump(sb, &len);
   state_set_word(state, str);
+  str_builder_destroy(sb);
 
   return str;
 }

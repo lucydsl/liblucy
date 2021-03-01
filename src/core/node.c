@@ -15,16 +15,21 @@ Node* node_create_type(unsigned short type, size_t size) {
 TransitionNode* node_create_transition() {
   Node* node = node_create_type(NODE_TRANSITION_TYPE, sizeof(TransitionNode));
   TransitionNode *tn = (TransitionNode*)node;
+  tn->guard = NULL;
+  tn->action = NULL;
   return tn;
 }
 
 static TransitionGuard* create_transition_guard() {
   TransitionGuard* guard = malloc(sizeof(*guard));
+  guard->next = NULL;
+  guard->expression = NULL;
   return guard;
 }
 
 static TransitionAction* create_transition_action() {
   TransitionAction* action = malloc(sizeof(*action));
+  action->next = NULL;
   return action;
 }
 
