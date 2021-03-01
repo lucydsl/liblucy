@@ -351,11 +351,27 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
     }
 
     if(has_action) {
-      js_builder_start_prop(jsb, "actions");
-      js_builder_start_array(jsb, false);
       TransitionAction* action = transition_node->action;
+      bool is_inline = action->expression != NULL;
+      js_builder_start_prop(jsb, "actions");
+      js_builder_start_array(jsb, is_inline);
+
       while(true) {
-        js_builder_add_string(jsb, action->name);
+        if(action->name != NULL) {
+          js_builder_add_string(jsb, action->name);
+        } else {
+          // Inline assign!
+          unsigned short expression_type = action->expression->type;
+          if(expression_type == EXPRESSION_ASSIGN) {
+            AssignExpression* assign_expression = (AssignExpression*)action->expression;
+            js_builder_start_call(jsb, "action");
+            js_builder_start_object(jsb);
+            js_builder_start_prop(jsb, assign_expression->key);
+            js_builder_add_str(jsb, "(context, event) => event.data");
+            js_builder_end_object(jsb);
+            js_builder_end_call(jsb);
+          }
+        }
 
         action = action->next;
 
@@ -366,7 +382,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
         js_builder_add_str(jsb, ", ");
       }
 
-      js_builder_end_array(jsb, false);
+      js_builder_end_array(jsb, is_inline);
     }
 
     js_builder_end_object(jsb);

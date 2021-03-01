@@ -239,6 +239,7 @@ static int consume_transition(State* state) {
     identifier = state_take_word(state);
     unsigned short key = keyword_get(identifier);
     switch(key) {
+      // Inline guard
       case KW_GUARD: {
         token = consume_token(state);
         if(token != TOKEN_IDENTIFIER) {
@@ -252,6 +253,20 @@ static int consume_transition(State* state) {
         TransitionGuard* guard = node_transition_add_guard(transition_node, NULL);
         guard->expression = guard_expression;
         continue;
+      }
+      case KW_ASSIGN: {
+        token = consume_token(state);
+        if(token != TOKEN_IDENTIFIER) {
+          error_msg_with_code_block(state, NULL, "Expected a property to assign to.");
+          err = 2;
+          goto end;
+        }
+
+        AssignExpression* assign_expression = node_create_assignexpression();
+        assign_expression->key = state_take_word(state);
+        TransitionAction* action = node_transition_add_action(transition_node, NULL);
+        action->expression = (Expression*)assign_expression;
+        break;
       }
     }
 

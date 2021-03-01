@@ -53,6 +53,7 @@ typedef struct TransitionGuard {
 typedef struct TransitionAction {
   char* name;
   struct TransitionAction* next;
+  struct Expression* expression;
 } TransitionAction;
 
 typedef struct TransitionNode {

@@ -1,0 +1,9 @@
+import { pet } from './util'
+
+initial state idle {
+  invoke pet {
+    done => assign wilbur => goodBoy
+  }
+}
+
+final state goodBoy {}

@@ -79,6 +79,12 @@ void js_builder_start_prop(JSBuilder* jsb, char* key) {
 }
 
 void js_builder_start_call(JSBuilder* jsb, char* name) {
+  int len = str_builder_len(jsb->sb);
+  char c = str_builder_char_at(jsb->sb, len - 1);
+  if(c == '\n') {
+    js_builder_add_indent(jsb);
+  }
+
   js_builder_add_str(jsb, name);
   js_builder_add_str(jsb, "(");
 }

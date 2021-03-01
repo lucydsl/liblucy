@@ -30,6 +30,7 @@ static TransitionGuard* create_transition_guard() {
 static TransitionAction* create_transition_action() {
   TransitionAction* action = malloc(sizeof(*action));
   action->next = NULL;
+  action->expression = NULL;
   return action;
 }
 
