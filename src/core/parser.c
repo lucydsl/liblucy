@@ -147,14 +147,13 @@ static int consume_transition(State* state) {
     state_prev(state);
   }
 
-  state_reset_word(state);
-
   // Parent should be a state node, should we check here? TODO
   Node* current_node = state->node;
   size_t current_node_type = current_node->type;
 
   Node* transition_node_node = (Node*)transition_node;
-  state_node_start_pos(state, transition_node_node);
+  int rewind_to_start = event == NULL ? 2 : strlen(event);
+  state_node_start_pos(state, transition_node_node, rewind_to_start);
 
   switch(current_node_type) {
     case NODE_STATE_TYPE: {
@@ -239,13 +238,13 @@ static int consume_transition(State* state) {
       case KW_GUARD: {
         token = consume_token(state);
         if(token != TOKEN_IDENTIFIER) {
-          error_msg_with_code_block(state, NULL, "Expected an import reference after guard.");
+          error_msg_with_code_block(state, NULL, "Expected a reference to an imported function after guard.");
           err = 2;
           goto end;
         }
 
         GuardExpression* guard_expression = node_create_guardexpression();
-        guard_expression->ref = identifier;
+        guard_expression->ref = state_take_word(state);
         TransitionGuard* guard = node_transition_add_guard(transition_node, NULL);
         guard->expression = guard_expression;
         continue;
@@ -276,7 +275,7 @@ static int consume_invoke(State* state) {
 
   InvokeNode* invoke_node = node_create_invoke();
   Node* node = (Node*)invoke_node;
-  state_node_start_pos(state, node);
+  state_node_start_pos(state, node, 6); // "invoke"
 
   Node* parent_node = state->node;
   if(parent_node->type != NODE_STATE_TYPE) {
@@ -333,7 +332,7 @@ static int consume_state(State* state) {
 
   StateNode* state_node = node_create_state();
   Node* state_node_node = (Node*)state_node;
-  state_node_start_pos(state, state_node_node);
+  state_node_start_pos(state, state_node_node, 5);
 
   Node* parent_node = state->node;
   if(parent_node->type != NODE_MACHINE_TYPE) {
@@ -483,7 +482,7 @@ static int consume_import(State* state) {
 
   ImportNode *import_node = node_create_import_statement();
   Node *node = (Node*)import_node;
-  state_node_start_pos(state, node);
+  state_node_start_pos(state, node, 6);
   state_node_set(state, node);
 
   int token;

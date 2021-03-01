@@ -47,7 +47,7 @@ ImportNode* node_create_import_statement() {
 };
 
 ImportSpecifier* node_create_import_specifier(char* imported) {
-  Node* node = node_create_type(NODE_IMPORT_SPECIFIER_TYPE, sizeof(ImportSpecifier)); // malloc(sizeof *specifier); // This is a Node
+  Node* node = node_create_type(NODE_IMPORT_SPECIFIER_TYPE, sizeof(ImportSpecifier));
   ImportSpecifier* specifier = (ImportSpecifier*)node;
   specifier->imported = imported;
   return specifier;
@@ -254,8 +254,11 @@ void node_destroy_import(ImportNode* import_node) {
 }
 
 void node_destroy_import_specifier(ImportSpecifier* specifier) {
-  free(specifier->imported);
-  free(specifier->local);
+  if(specifier->imported != NULL)
+    free(specifier->imported);
+
+  if(specifier->local != NULL)
+    free(specifier->local);
 }
 
 void node_destroy_machine(MachineNode* machine_node) {

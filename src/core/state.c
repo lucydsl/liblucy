@@ -1,3 +1,4 @@
+#include <stdio.h> // TODO remove
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -21,21 +22,28 @@ State* state_new_state(char* source, char* filename) {
   state->node = NULL;
   state->parent_node = NULL;
 
-  state->word = "";
-  state->in_word = 0;
+  state->word = NULL;
   state->line = 0;
   state->column = 0;
   return state;
 }
 
 void state_set_word(State* state, char* word) {
+  state_reset_word(state);
   state->word = word;
-  state->in_word = 1;
+}
+
+char* state_take_word(State* state) {
+  char* word = state->word;
+  state->word = NULL;
+  return word;
 }
 
 void state_reset_word(State* state) {
-  state->word = "";
-  state->in_word = 0;
+  if(state->word != NULL) {
+    free(state->word);
+    state->word = NULL;
+  }
 }
 
 void state_advance_column(State* state) {
@@ -103,8 +111,8 @@ void state_node_up(State* state) {
   }
 }
 
-void state_node_start_pos(State* state, Node* node) {
-  size_t start = state->index - strlen(state->word);
+void state_node_start_pos(State* state, Node* node, unsigned short rewind_amount) {
+  size_t start = state->index - rewind_amount;
   node->start = start;
   node->line = state->line;
 }

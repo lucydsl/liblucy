@@ -19,7 +19,6 @@ typedef struct State {
   size_t column;
   bool started;
 
-  size_t in_word;
   size_t modifier;
   char* word;
 
@@ -43,10 +42,11 @@ State* state_new_state(char*, char*);
 void state_advance_line(State*);
 void state_advance_column(State*);
 void state_set_word(State*, char*);
+char* state_take_word(State*);
 void state_reset_word(State*);
 void state_node_set(State*, Node*);
 void state_node_up(State*);
-void state_node_start_pos(State*, Node*);
+void state_node_start_pos(State*, Node*, unsigned short);
 
 void state_add_guard(State*, char*);
 void state_add_action(State*, char*);

@@ -415,7 +415,7 @@ CompileResult* compile_xstate(char* source, char* filename) {
   }
 
   Program *program = parse_result->program;
-  char* xstate_specifier = "xstate"; // TODO support remove "https://cdn.skypack.dev/xstate"
+  char* xstate_specifier = "xstate"; // TODO support "https://cdn.skypack.dev/xstate"
 
   JSBuilder *jsb;
   Node* node;
