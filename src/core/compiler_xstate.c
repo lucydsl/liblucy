@@ -352,9 +352,17 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
 
     if(has_action) {
       TransitionAction* action = transition_node->action;
-      bool is_inline = action->expression != NULL;
+      TransitionAction* inner = action;
+      bool use_multiline = false;
+      while(inner && !use_multiline) {
+        if(action->expression && action->expression->type == EXPRESSION_ASSIGN) {
+          use_multiline = true;
+          break;
+        }
+        inner = inner->next;
+      }
       js_builder_start_prop(jsb, "actions");
-      js_builder_start_array(jsb, is_inline);
+      js_builder_start_array(jsb, use_multiline);
 
       while(true) {
         if(action->name != NULL) {
@@ -362,14 +370,25 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
         } else {
           // Inline assign!
           unsigned short expression_type = action->expression->type;
-          if(expression_type == EXPRESSION_ASSIGN) {
-            AssignExpression* assign_expression = (AssignExpression*)action->expression;
-            js_builder_start_call(jsb, "action");
-            js_builder_start_object(jsb);
-            js_builder_start_prop(jsb, assign_expression->key);
-            js_builder_add_str(jsb, "(context, event) => event.data");
-            js_builder_end_object(jsb);
-            js_builder_end_call(jsb);
+          switch(expression_type) {
+            case EXPRESSION_ASSIGN: {
+              AssignExpression* assign_expression = (AssignExpression*)action->expression;
+              js_builder_start_call(jsb, "action");
+              js_builder_start_object(jsb);
+              js_builder_start_prop(jsb, assign_expression->key);
+              js_builder_add_str(jsb, "(context, event) => event.data");
+              js_builder_end_object(jsb);
+              js_builder_end_call(jsb);
+              break;
+            }
+            case EXPRESSION_ACTION: {
+              ActionExpression* action_expression = (ActionExpression*)action->expression;
+              if(use_multiline) {
+                js_builder_add_indent(jsb);
+              }
+              js_builder_add_str(jsb, action_expression->ref);
+              break;
+            }
           }
         }
 
@@ -382,7 +401,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
         js_builder_add_str(jsb, ", ");
       }
 
-      js_builder_end_array(jsb, is_inline);
+      js_builder_end_array(jsb, use_multiline);
     }
 
     js_builder_end_object(jsb);

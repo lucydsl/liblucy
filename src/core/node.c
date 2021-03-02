@@ -4,6 +4,8 @@
 #include "node.h"
 
 static void node_destroy_guardexpression(GuardExpression*);
+static void node_destroy_actionexpression(ActionExpression*);
+static void node_destroy_assignexpression(AssignExpression*);
 
 Node* node_create_type(unsigned short type, size_t size) {
   Node *node = malloc(size);
@@ -75,6 +77,8 @@ InvokeNode* node_create_invoke() {
 AssignExpression* node_create_assignexpression() {
   AssignExpression* expression = malloc(sizeof *expression);
   ((Expression*)expression)->type = EXPRESSION_ASSIGN;
+  expression->identifier = NULL;
+  expression->key = NULL;
   return expression;
 }
 
@@ -87,6 +91,12 @@ IdentifierExpression* node_create_identifierexpression() {
 GuardExpression* node_create_guardexpression() {
   GuardExpression* expression = malloc(sizeof *expression);
   ((Expression*)expression)->type = EXPRESSION_GUARD;
+  return expression;
+}
+
+ActionExpression* node_create_actionexpression() {
+  ActionExpression* expression = malloc(sizeof *expression);
+  ((Expression*)expression)->type = EXPRESSION_ACTION;
   return expression;
 }
 
@@ -171,6 +181,21 @@ static void node_destroy_transition_actions(TransitionAction* action) {
     if(action->name != NULL) {
       free(action->name);
     }
+    if(action->expression != NULL) {
+      switch(action->expression->type) {
+        case EXPRESSION_ACTION: {
+          node_destroy_actionexpression((ActionExpression*)action->expression);
+          break;
+        }
+        case EXPRESSION_ASSIGN: {
+          node_destroy_assignexpression((AssignExpression*)action->expression);
+          break;
+        }
+        default: {
+          printf("Unknown expression type.\n");
+        }
+      }
+    }
     if(action->next != NULL) {
       node_destroy_transition_actions(action->next);
     }
@@ -216,8 +241,12 @@ void node_destroy_transition(TransitionNode* transition_node) {
 
 static void node_destroy_assignexpression(AssignExpression* expression) {
   if(expression != NULL) {
-    free(expression->identifier);
-    free(expression->key);
+    if(expression->identifier != NULL) {
+      free(expression->identifier);
+    }
+    if(expression->key != NULL) {
+      free(expression->key);
+    }
   }
 }
 
@@ -228,6 +257,12 @@ static void node_destroy_identifierexpression(IdentifierExpression* expression) 
 }
 
 static void node_destroy_guardexpression(GuardExpression* expression) {
+  if(expression != NULL) {
+    free(expression->ref);
+  }
+}
+
+static void node_destroy_actionexpression(ActionExpression* expression) {
   if(expression != NULL) {
     free(expression->ref);
   }

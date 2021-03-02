@@ -105,6 +105,11 @@ typedef struct GuardExpression {
   char* ref;
 } GuardExpression;
 
+typedef struct ActionExpression {
+  Expression expression;
+  char* ref;
+} ActionExpression;
+
 typedef struct Assignment {
   Node node;
   unsigned short binding_type;
@@ -123,6 +128,7 @@ InvokeNode* node_create_invoke();
 AssignExpression* node_create_assignexpression();
 IdentifierExpression* node_create_identifierexpression();
 GuardExpression* node_create_guardexpression();
+ActionExpression* node_create_actionexpression();
 
 bool node_machine_is_nested(Node*);
 

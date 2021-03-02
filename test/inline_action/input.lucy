@@ -1,0 +1,7 @@
+import { pet } from './util'
+
+initial state idle {
+  meet => action pet => goodBoy
+}
+
+final state goodBoy {}

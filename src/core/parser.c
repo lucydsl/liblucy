@@ -268,6 +268,20 @@ static int consume_transition(State* state) {
         action->expression = (Expression*)assign_expression;
         break;
       }
+      case KW_ACTION: {
+        token = consume_token(state);
+        if(token != TOKEN_IDENTIFIER) {
+          error_msg_with_code_block(state, NULL, "Expected a reference to an imported function after action.");
+          err = 2;
+          goto end;
+        }
+
+        ActionExpression* action_expression = node_create_actionexpression();
+        action_expression->ref = state_take_word(state);
+        TransitionAction* action = node_transition_add_action(transition_node, NULL);
+        action->expression = (Expression*)action_expression;
+        break;
+      }
     }
 
     if(state_has_guard(state, identifier)) {
