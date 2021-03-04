@@ -76,7 +76,7 @@ shift $((OPTIND -1))
 folder=$@
 
 if [ -z "$folder" ]; then
-  for d in test/*/ ; do
+  for d in test/snapshots/*/ ; do
     run_test $d
   done
 else

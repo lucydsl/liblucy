@@ -1,58 +1,64 @@
-import Module from './dist/liblucy-debug.js';
+//import createModule from './dist/liblucy-debug.mjs';
 
-const {
-  stackAlloc,
-  stackRestore,
-  stackSave,
-  stringToUTF8,
-  UTF8ToString
-} = Module;
+export default async function(createModule) {
+  const moduleReady = createModule();
+  const Module = await moduleReady;
 
-const _compileXstate = Module.asm.compile_xstate;
-const _xsGetJS = Module.asm.xs_get_js;
-const _destroyXstateResult = Module.asm.destroy_xstate_result;
+  const {
+    stackAlloc,
+    stackRestore,
+    stackSave,
+    stringToUTF8,
+    UTF8ToString
+  } = Module;
 
-function stringToPtr(str) {
-  var ret = 0;
-  if (str !== null && str !== undefined && str !== 0) { // null string
-    // at most 4 bytes per UTF-8 code point, +1 for the trailing '\0'
-    var len = (str.length << 2) + 1;
-    ret = stackAlloc(len);
-    stringToUTF8(str, ret, len);
-  }
-  return ret;
-}
+  const _compileXstate = Module.asm.compile_xstate;
+  const _xsGetJS = Module.asm.xs_get_js;
+  const _destroyXstateResult = Module.asm.destroy_xstate_result;
 
-export function compileXstate(source, filename) {
-  if(!source || !filename) {
-    throw new Error('Source and filename are both required.');
-  }
-
-  let stack = stackSave();
-  let srcPtr = stringToPtr(source);
-  let fnPtr = stringToPtr(filename);
-  let retPtr = _compileXstate(srcPtr, fnPtr);
-  stackRestore(stack); 
-
-  const HEAPU8 = Module.HEAPU8;  
-  let success = !!HEAPU8[retPtr];
-
-  if(success) {
-    let jsPtr = _xsGetJS(retPtr);
-    let js = UTF8ToString(jsPtr);
-    _destroyXstateResult(retPtr);
-    return js;
+  function stringToPtr(str) {
+    var ret = 0;
+    if (str !== null && str !== undefined && str !== 0) { // null string
+      // at most 4 bytes per UTF-8 code point, +1 for the trailing '\0'
+      var len = (str.length << 2) + 1;
+      ret = stackAlloc(len);
+      stringToUTF8(str, ret, len);
+    }
+    return ret;
   }
 
-  let err = new Error('Compiler error');
-  throw err;
-}
+  /**
+   * Compile Lucy source a module of XState machines.
+   * @param source {String} the input Lucy source.
+   * @param filename {String} the name of the Lucy file.
+   * @returns {String} The compiled JavaScript module.
+   */
+  function compileXstate(source, filename) {
+    if(!source || !filename) {
+      throw new Error('Source and filename are both required.');
+    }
+  
+    let stack = stackSave();
+    let srcPtr = stringToPtr(source);
+    let fnPtr = stringToPtr(filename);
+    let retPtr = _compileXstate(srcPtr, fnPtr);
+    stackRestore(stack); 
+  
+    const HEAPU8 = Module.HEAPU8;  
+    let success = !!HEAPU8[retPtr];
+  
+    if(success) {
+      let jsPtr = _xsGetJS(retPtr);
+      let js = UTF8ToString(jsPtr);
+      _destroyXstateResult(retPtr);
+      return js;
+    }
+  
+    let err = new Error('Compiler error');
+    throw err;
+  }
 
-export let init;
-if(Module.calledRun) {
-  init = Promise.resolve();
-} else {
-  init = new Promise(resolve => {
-    Module.addOnPostRun(() => resolve());
-  });
+  return {
+    compileXstate
+  };
 }

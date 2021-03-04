@@ -1,4 +1,4 @@
-[1m[37mtest/error_no_state_name/input.lucy[0m:2:8
+[1m[37mtest/snapshots/error_no_state_name/input.lucy[0m:2:8
 
  [1m[31m𝒙[0m[31m States must be given a name.
 

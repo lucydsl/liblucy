@@ -2,13 +2,27 @@
   "name": "@lucy/liblucy",
   "version": "0.0.7",
   "description": "Nothing to see here.",
-  "main": "liblucy.mjs",
   "exports": {
-    ".": "./liblucy.mjs"
+    ".": {
+      "node": {
+        "development": "./main-node-dev.mjs",
+        "production": "./main-node-prod.mjs",
+        "import": "./main-node-prod.mjs"
+      },
+      "browser": {
+        "development": "./main-browser-dev.js",
+        "production": "./main-browser-prod.js",
+        "import": "./main-browser-prod.js"
+      }
+    }
   },
   "files": [
+    "dist",
     "liblucy.mjs",
-    "dist"
+    "main-node-dev.mjs",
+    "main-node-prod.mjs",
+    "main-browser-dev.js",
+    "main-browser-prod.js"
   ],
   "scripts": {
     "test": "make test"

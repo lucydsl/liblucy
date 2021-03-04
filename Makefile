@@ -4,33 +4,40 @@ VERSION=$(shell cat package.json | jq -r '.version')
 SRC_FILES=$(shell find src -type f)
 CORE_C_FILES=$(shell find src/core -type f -name "*.c")
 BIN_C_FILES=$(shell find src/bin -type f -name "*.c")
+WASM_C_FILES=$(shell find src/wasm -type f -name "*.c")
 
-dist/liblucy-debug.js: $(SRC_FILES)
+all: dist/liblucy-debug.mjs dist/liblucy-release.mjs bin/lc
+.PHONY: all
+
+dist/liblucy-debug.mjs: $(SRC_FILES)
 	@mkdir -p dist
-	$(EMCC) src/wasm/main.c $(CORE_C_FILES) -o $@ \
+	$(EMCC) $(WASM_C_FILES) $(CORE_C_FILES) -o $@ \
 		--pre-js src/pre_js.js \
-		--js-transform scripts/transform \
-		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js"]' \
+		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_destroy_xstate_result"]' \
 		-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "addOnPostRun", "stringToUTF8", "UTF8ToString"]' \
+		-s EXPORT_ES6 \
 		-s TEXTDECODER=1
-	@rm -f $@.bu
+	scripts/post_transform debug
 
-dist/liblucy-release.js: $(SRC_FILES)
+dist/liblucy-release.mjs: $(SRC_FILES)
 	@mkdir -p dist
-	$(EMCC) $(CORE_C_FILES) -o $@ \
+	$(EMCC) $(WASM_C_FILES) $(CORE_C_FILES) -o $@ \
 		--pre-js src/pre_js.js \
-		--js-transform scripts/transform \
-		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js"]' \
+		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_destroy_xstate_result"]' \
 		-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "addOnPostRun", "stringToUTF8", "UTF8ToString"]' \
 		-s TEXTDECODER=1 \
 		-O3
+	scripts/post_transform release
 
 bin/lc: $(SRC_FILES)
 	@mkdir -p bin
-	$(CC) ${BIN_C_FILES} $(CORE_C_FILES) -DVERSION=\"$(VERSION)\" -o $@
+	$(CC) ${BIN_C_FILES} $(CORE_C_FILES) -o $@ \
+		-DVERSION=\"$(VERSION)\"
 
 clean:
-	@rm -f dist/liblucy-debug.js dist/liblucy-debug.wasm dist/liblucy-release.js dist/liblucy-release.wasm
+	@rm -f dist/liblucy-debug-browser.mjs dist/liblucy-debug-node.mjs \
+		dist/liblucy-debug.wasm dist/liblucy-release-browser.mjs \
+		dist/liblucy-release-node.mjs dist/liblucy-release.wasm
 	@rm -f bin/lc
 	@rmdir dist bin 2> /dev/null
 .PHONY: clean

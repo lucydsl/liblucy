@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<title>Demo page</title>
+<style>
+  #demo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #before {
+    width: 300px;
+    height: 200px;
+  }
+</style>
+
+<div id="demo">
+  <textarea id="before">
+state enabled {
+  toggle => disabled
+}
+
+initial state disabled {
+  toggle => enabled
+}
+  </textarea>
+  <pre><code id="output"></code></code>
+</div>
+
+<script type="module">
+  import { compileXstate, ready } from '../main-browser-dev.js';
+
+  async function run() {
+    await ready;
+
+    const input = before.value;
+    const js = compileXstate(input, 'input.lucy');
+
+    output.textContent = js;
+  }
+
+  run();
+</script>

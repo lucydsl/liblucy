@@ -1,4 +1,4 @@
-[1m[37mtest/error_double_digit/input.lucy[0m:10:18
+[1m[37mtest/snapshots/error_double_digit/input.lucy[0m:10:18
 
  [1m[31m𝒙[0m[31m Expected to pipe to a destination.
 

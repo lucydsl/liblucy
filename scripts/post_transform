@@ -1,0 +1,23 @@
+#!/bin/bash
+
+ver=$1
+mjs_file=dist/liblucy-$ver.mjs
+out_node=dist/liblucy-$ver-node.mjs
+out_browser=dist/liblucy-$ver-browser.mjs
+
+gsed -i "s/IMPORT_META_URL/import.meta.url/g" $mjs_file
+gsed -i "s/require(['\"]path['\"])/path/g" $mjs_file
+gsed -i "s/require(['\"]fs['\"])/fs/g" $mjs_file
+gsed -i "s/__dirname/new URL(import.meta.url)/g" $mjs_file
+
+cp $mjs_file $out_browser
+
+# Create Node.js version
+node_tmp=$(mktemp)
+echo "import fs from 'fs';" >> $node_tmp
+echo "import path from 'path';" >> $node_tmp
+cat $mjs_file >> $node_tmp
+mv $node_tmp $out_node
+
+# Remove temp files
+rm $mjs_file
