@@ -23,8 +23,8 @@ async function run() {
     const js = compileXstate(contents, filename);
     process.stdout.write(js);
     process.stdout.write("\n");
-  } catch(err) {
-    process.stderr.write(err);
+  } catch {
+    process.stderr.write("Compilation failed!\n");
     process.exit(1);
   }
 }

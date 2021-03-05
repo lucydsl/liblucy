@@ -132,7 +132,7 @@ void error_msg_with_code_block(State* state, Node* node, const char* msg) {
   error_file_info(state);
   error_message(msg);
   error_annotate(state, node);
-  printf("\n");
+  fprintf(stderr, "\n");
 }
 
 void error_unexpected_identifier(State* state, Node* node) {

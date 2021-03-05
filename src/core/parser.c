@@ -252,7 +252,8 @@ static int consume_transition(State* state) {
         guard_expression->ref = state_take_word(state);
         TransitionGuard* guard = node_transition_add_guard(transition_node, NULL);
         guard->expression = guard_expression;
-        continue;
+        free(identifier);
+        break;
       }
       case KW_ASSIGN: {
         token = consume_token(state);
@@ -266,6 +267,7 @@ static int consume_transition(State* state) {
         assign_expression->key = state_take_word(state);
         TransitionAction* action = node_transition_add_action(transition_node, NULL);
         action->expression = (Expression*)assign_expression;
+        free(identifier);
         break;
       }
       case KW_ACTION: {
@@ -273,6 +275,7 @@ static int consume_transition(State* state) {
         if(token != TOKEN_IDENTIFIER) {
           error_msg_with_code_block(state, NULL, "Expected a reference to an imported function after action.");
           err = 2;
+          free(identifier);
           goto end;
         }
 
@@ -280,6 +283,7 @@ static int consume_transition(State* state) {
         action_expression->ref = state_take_word(state);
         TransitionAction* action = node_transition_add_action(transition_node, NULL);
         action->expression = (Expression*)action_expression;
+        free(identifier);
         break;
       }
     }

@@ -38,11 +38,11 @@ run_test() {
 
   if [[ "$input" == *"error_"* ]]; then
     local output="${d}expected.error"
-    $LC $input >> $tmp 2>&1
   else
     local output="${d}expected.js"
-    $LC $input >> $tmp
   fi
+
+  $LC $input >> $tmp 2>&1
 
   if [ "$upd" -eq 1 ]; then
     mv $tmp $output

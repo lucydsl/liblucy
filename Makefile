@@ -58,6 +58,13 @@ clean:
 	@rmdir dist bin 2> /dev/null
 .PHONY: clean
 
-test: bin/lc
-	@scripts/test_snapshots $(ARGS)
+test-native:
+	@scripts/test_snapshots
+.PHONY: test-native
+
+test-wasm:
+	@LC=scripts/lucyc.mjs scripts/test_snapshots
+.PHONY: test-wasm
+
+test: test-native test-wasm
 .PHONY: test

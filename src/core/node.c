@@ -19,6 +19,8 @@ Node* node_create_type(unsigned short type, size_t size) {
 TransitionNode* node_create_transition() {
   Node* node = node_create_type(NODE_TRANSITION_TYPE, sizeof(TransitionNode));
   TransitionNode *tn = (TransitionNode*)node;
+  tn->event = NULL;
+  tn->dest = NULL;
   tn->guard = NULL;
   tn->action = NULL;
   return tn;
@@ -62,6 +64,7 @@ ImportSpecifier* node_create_import_specifier(char* imported) {
   Node* node = node_create_type(NODE_IMPORT_SPECIFIER_TYPE, sizeof(ImportSpecifier));
   ImportSpecifier* specifier = (ImportSpecifier*)node;
   specifier->imported = imported;
+  specifier->local = NULL;
   return specifier;
 }
 
