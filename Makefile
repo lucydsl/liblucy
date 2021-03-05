@@ -6,28 +6,44 @@ CORE_C_FILES=$(shell find src/core -type f -name "*.c")
 BIN_C_FILES=$(shell find src/bin -type f -name "*.c")
 WASM_C_FILES=$(shell find src/wasm -type f -name "*.c")
 
-all: dist/liblucy-debug.mjs dist/liblucy-release.mjs bin/lc
+all: dist/liblucy-debug-node.mjs dist/liblucy-debug-browser.mjs bin/lc
 .PHONY: all
 
-dist/liblucy-debug.mjs: $(SRC_FILES)
+build:
+	@mkdir -p build
+
+dist:
 	@mkdir -p dist
+
+build/liblucy-debug.mjs: build $(SRC_FILES)
 	$(EMCC) $(WASM_C_FILES) $(CORE_C_FILES) -o $@ \
 		--pre-js src/pre_js.js \
 		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_destroy_xstate_result"]' \
 		-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "addOnPostRun", "stringToUTF8", "UTF8ToString"]' \
 		-s EXPORT_ES6 \
 		-s TEXTDECODER=1
-	scripts/post_transform debug
+	scripts/post_compile_mjs $@
 
-dist/liblucy-release.mjs: $(SRC_FILES)
-	@mkdir -p dist
+build/liblucy-release.mjs: build $(SRC_FILES)
 	$(EMCC) $(WASM_C_FILES) $(CORE_C_FILES) -o $@ \
 		--pre-js src/pre_js.js \
 		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_destroy_xstate_result"]' \
 		-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "addOnPostRun", "stringToUTF8", "UTF8ToString"]' \
 		-s TEXTDECODER=1 \
 		-O3
-	scripts/post_transform release
+	scripts/post_compile_mjs $@
+
+dist/liblucy-debug.wasm: dist build/liblucy-debug.mjs
+	@mv build/liblucy-debug.wasm $@
+
+dist/liblucy-release.wasm: dist build/liblucy-release.mjs
+	@mv build/liblucy-release.wasm $@
+
+dist/liblucy-debug-node.mjs: dist build/liblucy-debug.mjs dist/liblucy-debug.wasm
+	scripts/mk_node_mjs build/liblucy-debug.mjs $@
+
+dist/liblucy-debug-browser.mjs: dist build/liblucy-debug.mjs dist/liblucy-debug.wasm
+	cp build/liblucy-debug.mjs $@
 
 bin/lc: $(SRC_FILES)
 	@mkdir -p bin

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+mjs_file=$1
+
+gsed -i "s/IMPORT_META_URL/import.meta.url/g" $mjs_file
+gsed -i "s/require(['\"]path['\"])/path/g" $mjs_file
+gsed -i "s/require(['\"]fs['\"])/fs/g" $mjs_file
+gsed -i "s/__dirname/new URL(import.meta.url)/g" $mjs_file

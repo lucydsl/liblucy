@@ -1,0 +1,9 @@
+#!/bin/bash
+
+in_mjs=$1
+out_node=$2
+
+# Create Node.js version
+echo "import fs from 'fs';" > $out_node
+echo "import path from 'path';" >> $out_node
+cat $in_mjs >> $out_node

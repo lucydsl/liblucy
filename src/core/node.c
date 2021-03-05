@@ -11,6 +11,8 @@ Node* node_create_type(unsigned short type, size_t size) {
   Node *node = malloc(size);
   node->type = type;
   node->child = NULL;
+  node->next = NULL;
+  node->parent = NULL;
   return node;
 }
 
@@ -39,12 +41,14 @@ static TransitionAction* create_transition_action() {
 MachineNode* node_create_machine() {
   Node* node = node_create_type(NODE_MACHINE_TYPE, sizeof(MachineNode));
   MachineNode *machine_node = (MachineNode*)node;
+  machine_node->initial = NULL;
   return machine_node;
 }
 
 StateNode* node_create_state() {
   Node* node = node_create_type(NODE_STATE_TYPE, sizeof(StateNode));
   StateNode* state_node = (StateNode*)node;
+  state_node->final = false;
   return state_node;
 }
 

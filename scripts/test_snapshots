@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LC=bin/lc
+LC="${LC:-bin/lc}"
 ret=0
 upd=0
 
@@ -34,11 +34,15 @@ run_test() {
   fi
 
   local input="${d}input.lucy"
-  local output="${d}expected.js"
-
   local tmp=$(mktemp)
 
-  $LC $input >> $tmp 2>&1
+  if [[ "$input" == *"error_"* ]]; then
+    local output="${d}expected.error"
+    $LC $input >> $tmp 2>&1
+  else
+    local output="${d}expected.js"
+    $LC $input >> $tmp
+  fi
 
   if [ "$upd" -eq 1 ]; then
     mv $tmp $output

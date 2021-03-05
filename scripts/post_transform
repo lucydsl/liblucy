@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ver=$1
-mjs_file=dist/liblucy-$ver.mjs
+mjs_file=build/liblucy-$ver.mjs
 out_node=dist/liblucy-$ver-node.mjs
 out_browser=dist/liblucy-$ver-browser.mjs
 
@@ -20,4 +20,4 @@ cat $mjs_file >> $node_tmp
 mv $node_tmp $out_node
 
 # Remove temp files
-rm $mjs_file
+# rm $mjs_file
