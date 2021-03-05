@@ -1,8 +1,14 @@
 #!/bin/bash
 
 mjs_file=$1
+SED=gsed
 
-gsed -i "s/IMPORT_META_URL/import.meta.url/g" $mjs_file
-gsed -i "s/require(['\"]path['\"])/path/g" $mjs_file
-gsed -i "s/require(['\"]fs['\"])/fs/g" $mjs_file
-gsed -i "s/__dirname/new URL(import.meta.url)/g" $mjs_file
+if ! command -v gsed &> /dev/null
+then
+    SED=sed
+fi
+
+$SED -i "s/IMPORT_META_URL/import.meta.url/g" $mjs_file
+$SED -i "s/require(['\"]path['\"])/path/g" $mjs_file
+$SED -i "s/require(['\"]fs['\"])/fs/g" $mjs_file
+$SED -i "s/__dirname/new URL(import.meta.url)/g" $mjs_file
