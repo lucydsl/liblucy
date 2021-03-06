@@ -6,7 +6,8 @@ CORE_C_FILES=$(shell find src/core -type f -name "*.c")
 BIN_C_FILES=$(shell find src/bin -type f -name "*.c")
 WASM_C_FILES=$(shell find src/wasm -type f -name "*.c")
 
-all: dist/liblucy-debug-node.mjs dist/liblucy-debug-browser.mjs bin/lc
+all: dist/liblucy-debug-node.mjs dist/liblucy-debug-browser.mjs \
+	dist/liblucy-release-node.mjs dist/liblucy-release-browser.mjs bin/lc
 .PHONY: all
 
 build:
@@ -44,6 +45,12 @@ dist/liblucy-debug-node.mjs: dist build/liblucy-debug.mjs dist/liblucy-debug.was
 
 dist/liblucy-debug-browser.mjs: dist build/liblucy-debug.mjs dist/liblucy-debug.wasm
 	cp build/liblucy-debug.mjs $@
+
+dist/liblucy-release-node.mjs: dist build/liblucy-release.mjs dist/liblucy-release.wasm
+	scripts/mk_node_mjs build/liblucy-release.mjs $@
+
+dist/liblucy-release-browser.mjs: dist build/liblucy-release.mjs dist/liblucy-release.wasm
+	cp build/liblucy-release.mjs $@
 
 bin/lc: $(SRC_FILES)
 	@mkdir -p bin

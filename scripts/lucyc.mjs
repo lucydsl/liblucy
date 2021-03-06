@@ -1,4 +1,4 @@
-#!/usr/bin/env node --no-warnings
+#!/usr/bin/env node
 import { promises as fsPromises } from 'fs';
 const { readFile } = fsPromises;
 
