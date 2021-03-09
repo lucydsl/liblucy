@@ -19,7 +19,7 @@ dist:
 build/liblucy-debug.mjs: build $(SRC_FILES)
 	$(EMCC) $(WASM_C_FILES) $(CORE_C_FILES) -o $@ \
 		--pre-js src/pre_js.js \
-		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_destroy_xstate_result"]' \
+		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_xs_init", "_xs_create", "_destroy_xstate_result"]' \
 		-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "addOnPostRun", "stringToUTF8", "UTF8ToString"]' \
 		-s EXPORT_ES6 \
 		-s TEXTDECODER=1
@@ -28,7 +28,7 @@ build/liblucy-debug.mjs: build $(SRC_FILES)
 build/liblucy-release.mjs: build $(SRC_FILES)
 	$(EMCC) $(WASM_C_FILES) $(CORE_C_FILES) -o $@ \
 		--pre-js src/pre_js.js \
-		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_destroy_xstate_result"]' \
+		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_xs_init", "_xs_create", "_destroy_xstate_result"]' \
 		-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "addOnPostRun", "stringToUTF8", "UTF8ToString"]' \
 		-s TEXTDECODER=1 \
 		-O3

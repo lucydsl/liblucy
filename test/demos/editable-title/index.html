@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<title>A title</title>
+<style>
+  #title:not(.edit) .edit-mode {
+    display: none;
+  }
+
+  #title.edit .show-mode {
+    display: none;
+  }
+</style>
+
+<div id="app"></div>
+
+<script type="module">
+  import { interpret } from 'https://cdn.skypack.dev/xstate';
+  import { h, html, render, Component } from 'https://cdn.skypack.dev/htm/preact';
+  import machine from './machine.js';
+
+  const editModeStates = new Set(['idle', 'invalid']);
+
+  class App extends Component {
+    state = {};
+
+    componentWillMount() {
+      const m = machine.withContext({
+        title: 'Some title'
+      });
+
+      const service = interpret(m).onTransition(state => {
+        this.setState({
+          context: state.context,
+          state: state.value
+        });
+      });
+      service.start();
+
+      this.setState({
+        service,
+        state: service.state.value
+      })
+    }
+
+    render({}, { service, state, context: { title } }) {
+      const disabledEditButtons = typeof state === 'object' && state.edit === 'invalid';
+      const showEditMode = typeof state === 'object' &&  editModeStates.has(state.edit);
+
+      return html`
+        <div id="title" class="${showEditMode ? 'edit' : ''}">
+          <h1 class="show-mode">
+            <span>${title}</span>
+            <button type="button" onClick=${() => service.send('edit')}>Edit</button>
+          </h1>
+          
+          <div class="edit-mode">
+            <input type="text" name="title"
+              value=${title}
+              onInput=${ev => service.send(ev)} />
+            <button type="button"
+              disabled=${disabledEditButtons}
+              onClick=${() => service.send('save')}>Save</button>
+            <button type="button"
+              disabled=${disabledEditButtons}
+              onClick=${() => service.send('cancel')}>Cancel</button>
+          </div>
+        </div>
+      `;
+    }
+  }
+  
+  render(html`<${App} />`, app);
+
+  /*
+  const service = interpret(machine).onTransition(state => {
+    console.log(state);
+  });
+  service.start();
+
+  editBtn.onclick = () => service.send('edit');
+  cancelBtn.onclick = () => service.send('cancel');
+  */
+</script>

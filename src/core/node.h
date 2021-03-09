@@ -131,6 +131,7 @@ GuardExpression* node_create_guardexpression();
 ActionExpression* node_create_actionexpression();
 
 bool node_machine_is_nested(Node*);
+bool node_transition_has_sibling_always(TransitionNode*);
 
 void node_append(Node*, Node*);
 void node_after_last(Node*, Node*);

@@ -145,6 +145,14 @@ bool node_machine_is_nested(Node* node) {
     node->parent->type == NODE_STATE_TYPE;
 }
 
+bool inline node_transition_has_sibling_always(TransitionNode* transition_node) {
+  Node* next = ((Node*)transition_node)->next;
+  if(next != NULL && next->type == NODE_TRANSITION_TYPE && ((TransitionNode*)next)->always) {
+    return true;
+  }
+  return false;
+}
+
 void node_append(Node* parent, Node* child) {
   if(parent == NULL) {
     return;
@@ -236,6 +244,9 @@ Expression* node_clone_expression(Expression* input) {
   return output;
 }
 
+/**
+ * Begin teardown code
+ */
 void node_destroy_transition(TransitionNode* transition_node) {
   if(transition_node->guard != NULL) {
     node_destroy_transition_guards(transition_node->guard);

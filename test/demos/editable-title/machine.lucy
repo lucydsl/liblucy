@@ -1,0 +1,32 @@
+import { setTitle, resetTitle, title, titleIsValid } from './logic.js'
+
+action assignTitle = assign title setTitle
+action assignOldTitle = assign oldTitle title
+action resetTitle = assign title resetTitle
+
+initial state preview {
+  edit => assignOldTitle => edit
+}
+
+state edit {
+  done => preview
+
+  machine internal {
+    initial state idle {
+      cancel => resetTitle => complete
+      save => validate
+      input => assignTitle => validate
+    }
+
+    state validate {
+      => guard titleIsValid => idle
+      => invalid
+    }
+
+    state invalid {
+      input => assignTitle => idle
+    }
+
+    final state complete {}
+  }
+}

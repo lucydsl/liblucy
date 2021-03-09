@@ -14,6 +14,8 @@ export default async function(createModule) {
 
   const _compileXstate = Module.asm.compile_xstate;
   const _xsGetJS = Module.asm.xs_get_js;
+  const _xsCreate = Module.asm.xs_create;
+  const _xsInit = Module.asm.xs_init;
   const _destroyXstateResult = Module.asm.destroy_xstate_result;
 
   function stringToPtr(str) {
@@ -31,9 +33,12 @@ export default async function(createModule) {
    * Compile Lucy source a module of XState machines.
    * @param source {String} the input Lucy source.
    * @param filename {String} the name of the Lucy file.
+   * @param options {Object}
    * @returns {String} The compiled JavaScript module.
    */
-  function compileXstate(source, filename) {
+  function compileXstate(source, filename, options = {
+    useRemote: false
+  }) {
     if(!source || !filename) {
       throw new Error('Source and filename are both required.');
     }
@@ -41,16 +46,18 @@ export default async function(createModule) {
     let stack = stackSave();
     let srcPtr = stringToPtr(source);
     let fnPtr = stringToPtr(filename);
-    let retPtr = _compileXstate(srcPtr, fnPtr);
+    let resPtr = _xsCreate();
+    _xsInit(resPtr, options.useRemote);
+    _compileXstate(resPtr, srcPtr, fnPtr);
     stackRestore(stack); 
   
     const HEAPU8 = Module.HEAPU8;  
-    let success = !!HEAPU8[retPtr];
+    let success = !!HEAPU8[resPtr];
   
     if(success) {
-      let jsPtr = _xsGetJS(retPtr);
+      let jsPtr = _xsGetJS(resPtr);
       let js = UTF8ToString(jsPtr);
-      _destroyXstateResult(retPtr);
+      _destroyXstateResult(resPtr);
       return js;
     }
   

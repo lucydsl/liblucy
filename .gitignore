@@ -1,3 +1,5 @@
 /bin/
 dist/
 build/
+
+test/demos/editable-title/machine.js

@@ -8,6 +8,8 @@
 #include "js_builder.h"
 #include "compiler_xstate.h"
 
+#define FLAG_USE_REMOTE 1 << 0
+
 typedef struct Ref {
   char* key;
   struct Ref* next;
@@ -290,6 +292,8 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
         js_builder_start_prop(jsb, "always");
         js_builder_start_array(jsb, true);
         js_builder_add_indent(jsb);
+      } else {
+        js_builder_add_str(jsb, ", ");
       }
     } else {
       if(!state->on_prop_added) {
@@ -373,7 +377,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
           switch(expression_type) {
             case EXPRESSION_ASSIGN: {
               AssignExpression* assign_expression = (AssignExpression*)action->expression;
-              js_builder_start_call(jsb, "action");
+              js_builder_start_call(jsb, "assign");
               js_builder_start_object(jsb);
               js_builder_start_prop(jsb, assign_expression->key);
               js_builder_add_str(jsb, "(context, event) => event.data");
@@ -407,7 +411,9 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_end_object(jsb);
 
     if(is_always) {
-      js_builder_end_array(jsb, true);
+      if(!node_transition_has_sibling_always(transition_node)) {
+        js_builder_end_array(jsb, true);
+      }
     }
   } else {
     js_builder_add_string(jsb, transition_node->dest);
@@ -417,10 +423,15 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
 static void exit_transition(PrintState* state, JSBuilder* jsb, Node* node) {
   if(node->next) {
     
-  } else if(state->on_prop_added) {
-    state->on_prop_added = false;
+  } else {
+    if(state->on_prop_added) {
+      state->on_prop_added = false;
+      js_builder_end_object(jsb);
+    }
 
-    js_builder_end_object(jsb);
+    if(state->always_prop_added) {
+      state->always_prop_added = false;
+    }    
   }
 }
 
@@ -439,18 +450,37 @@ static void enter_assignment(PrintState* state, JSBuilder* jsb, Node* node) {
   }
 }
 
-CompileResult* compile_xstate(char* source, char* filename) {
+CompileResult* xs_create() {
+  CompileResult* result = malloc(sizeof(*result));
+  return result;
+}
+
+void xs_init(CompileResult* result, int use_remote_source) {
+  result->success = false;
+  result->js = NULL;
+  result->flags = 0;
+  
+  if(use_remote_source) {
+    result->flags |= FLAG_USE_REMOTE;
+  }
+}
+
+void compile_xstate(CompileResult* result, char* source, char* filename) {
   ParseResult *parse_result = parse(source, filename);
 
   if(parse_result->success == false) {
-    CompileResult *result = malloc(sizeof(*result));
     result->success = false;
     result->js = NULL;
-    return result;
+    return;
   }
 
   Program *program = parse_result->program;
-  char* xstate_specifier = "xstate"; // TODO support "https://cdn.skypack.dev/xstate"
+  char* xstate_specifier;
+  if(result->flags & FLAG_USE_REMOTE) {
+    xstate_specifier = "https://cdn.skypack.dev/xstate";
+  } else {
+    xstate_specifier = "xstate";
+  }
 
   JSBuilder *jsb;
   Node* node;
@@ -458,7 +488,14 @@ CompileResult* compile_xstate(char* source, char* filename) {
   node = program->body;
 
   if(node != NULL) {
-    js_builder_add_str(jsb, "import { Machine } from '");
+    js_builder_add_str(jsb, "import { Machine");
+
+    if(program->flags & PROGRAM_USES_ASSIGN) {
+      js_builder_add_str(jsb, ", assign");
+    }
+
+    js_builder_add_str(jsb, " } from '");
+
     js_builder_add_str(jsb, xstate_specifier);
     js_builder_add_str(jsb, "';\n");
   }
@@ -565,7 +602,6 @@ CompileResult* compile_xstate(char* source, char* filename) {
   }
 
   char* js = js_builder_dump(jsb);
-  CompileResult* result = malloc(sizeof(*result));
   result->success = true;
   result->js = js;
 
@@ -573,7 +609,7 @@ CompileResult* compile_xstate(char* source, char* filename) {
   destroy_state(&state);
   js_builder_destroy(jsb);
 
-  return result;
+  return;
 }
 
 char* xs_get_js(CompileResult* result) {

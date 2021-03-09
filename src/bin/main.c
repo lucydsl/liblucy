@@ -21,6 +21,7 @@ static void usage(char* program_name) {
   fprintf(stderr, "USAGE:\n");
   fprintf(stderr, "%s%s [FLAGS] <file>\n\n", U_INDENT, program_name);
   fprintf(stderr, "FLAGS:\n");
+  fprintf(stderr, "%s--remote-imports      Specify remote import URLs.\n", U_INDENT);
   fprintf(stderr, "%s-h, --help            Prints help information\n", U_INDENT);
   fprintf(stderr, "%s-v, --version         Prints the version\n", U_INDENT);
 }
@@ -30,7 +31,7 @@ static void version() {
   fprintf(stderr, "\n");
 }
 
-int compile_file(char* filename) {
+int compile_file(char* filename, int use_remote_imports) {
   FILE *fp;
   if ((fp = fopen(filename, "r")) == NULL){
       printf("Error! opening file");
@@ -51,7 +52,9 @@ int compile_file(char* filename) {
   }
   fclose(fp);
 
-  CompileResult* result = compile_xstate(buffer, filename);
+  CompileResult* result = xs_create();
+  xs_init(result, use_remote_imports);
+  compile_xstate(result, buffer, filename);
 
   if(result->success) {
     printf("%s\n", result->js);
@@ -64,18 +67,25 @@ int compile_file(char* filename) {
 }
 
 static struct option long_options[] = {
+  {"remote-imports", no_argument, 0, 0},
   {"help", no_argument, 0, 'h'},
-  {"version", no_argument, 0, 'v'}
+  {"version", no_argument, 0, 'v'},
 };
 
 int main(int argc, char *argv[]) {
   identifier_init();
   parser_init();
 
+  int use_remote_imports = 0;
+
   int option_index = 0;
   int opt;
   while ((opt = getopt_long(argc, argv, "hv", long_options, &option_index)) != -1) {
     switch(opt) {
+      case 0: {
+        use_remote_imports = 1;
+        break;
+      }
       case 'h': {
         usage(argv[0]);
         exit(0);
@@ -106,7 +116,7 @@ int main(int argc, char *argv[]) {
       usage(program_name);
       return 1;
     } else if(S_ISREG(path_stat.st_mode)) {
-      int ret = compile_file(filename);
+      int ret = compile_file(filename, use_remote_imports);
       return ret;
     }
   } else {

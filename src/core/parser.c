@@ -267,6 +267,8 @@ static int consume_transition(State* state) {
         assign_expression->key = state_take_word(state);
         TransitionAction* action = node_transition_add_action(transition_node, NULL);
         action->expression = (Expression*)assign_expression;
+
+        program_add_flag(state->program, PROGRAM_USES_ASSIGN);
         free(identifier);
         break;
       }
@@ -610,6 +612,7 @@ static int consume_action(State* state) {
   }
 
   AssignExpression *expression = node_create_assignexpression();
+  program_add_flag(state->program, PROGRAM_USES_ASSIGN);
 
   token = consume_token(state);
 
