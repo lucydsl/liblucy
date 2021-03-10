@@ -33,6 +33,7 @@ typedef struct Node {
 typedef struct MachineNode {
   Node node;
 
+  int impl_flags;
   char* name;
   char* initial;
 } MachineNode;

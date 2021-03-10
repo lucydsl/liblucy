@@ -25,4 +25,6 @@ machine light {
       }
     }
   }
+
+  state another {}
 }

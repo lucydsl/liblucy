@@ -1,4 +1,4 @@
-import { Machine } from 'xstate';
+import { Machine, assign } from 'xstate';
 import { incrementCount, decrementCount, lessThanTen, greaterThanZero } from './actions.js';
 
 export default Machine({

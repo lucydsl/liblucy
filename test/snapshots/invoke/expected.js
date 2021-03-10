@@ -1,4 +1,4 @@
-import { Machine } from 'xstate';
+import { Machine, assign } from 'xstate';
 import { getUser, setUser } from './user.js';
 
 export default Machine({

@@ -33,6 +33,9 @@ export const light = Machine({
           type: 'final'
         }
       }
+    },
+    another: {
+
     }
   }
 });

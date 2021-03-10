@@ -8,7 +8,11 @@
 #include "js_builder.h"
 #include "compiler_xstate.h"
 
+// API flags
 #define FLAG_USE_REMOTE 1 << 0
+
+// Implementation flags
+#define XS_HAS_STATE_PROP 1 << 0
 
 typedef struct Ref {
   char* key;
@@ -17,7 +21,6 @@ typedef struct Ref {
 } Ref;
 
 typedef struct PrintState {
-  bool state_prop_added;
   bool on_prop_added;
   bool always_prop_added;
   Ref* guard;
@@ -104,11 +107,6 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_start_prop(jsb, "initial");
     js_builder_add_string(jsb, machine_node->initial);
   }
-
-  if(is_nested) {
-    js_builder_start_prop(jsb, "states");
-    js_builder_start_object(jsb);
-  }
 }
 
 static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
@@ -192,8 +190,6 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_end_call(jsb);
     js_builder_add_str(jsb, ";");
   }
-
-  state->state_prop_added = false;
 }
 
 static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
@@ -230,13 +226,13 @@ static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
 }
 
 static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
-  if(!state->state_prop_added) {
-    state->state_prop_added = true;
+  StateNode* state_node = (StateNode*)node;
+  MachineNode* machine_node = (MachineNode*)node->parent;
+  if(!(machine_node->impl_flags & XS_HAS_STATE_PROP)) {
+    machine_node->impl_flags |= XS_HAS_STATE_PROP;
     js_builder_start_prop(jsb, "states");
     js_builder_start_object(jsb);
   }
-
-  StateNode* state_node = (StateNode*)node;
 
   js_builder_start_prop(jsb, state_node->name);
   js_builder_start_object(jsb);
@@ -500,12 +496,12 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     js_builder_add_str(jsb, "';\n");
   }
 
-  PrintState state;
-  state.state_prop_added = false;
-  state.on_prop_added = false;
-  state.always_prop_added = false;
-  state.guard = NULL;
-  state.action = NULL;
+  PrintState state = {
+    .on_prop_added = false,
+    .always_prop_added = false,
+    .guard = NULL,
+    .action = NULL
+  };
 
   bool exit = false;
   while(node != NULL) {

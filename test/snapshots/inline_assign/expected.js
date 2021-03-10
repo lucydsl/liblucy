@@ -1,4 +1,4 @@
-import { Machine } from 'xstate';
+import { Machine, assign } from 'xstate';
 import { pet } from './util';
 
 export default Machine({
@@ -10,7 +10,7 @@ export default Machine({
         onDone: {
           target: 'goodBoy',
           actions: [
-            action({
+            assign({
               wilbur: (context, event) => event.data
             })
           ]
