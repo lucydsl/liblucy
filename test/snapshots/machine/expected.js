@@ -20,6 +20,7 @@ export const light = Machine({
     }
   }
 });
+
 export const two = Machine({
   states: {
     start: {

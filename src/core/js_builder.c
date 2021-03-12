@@ -5,8 +5,7 @@
 #include "js_builder.h"
 #include "str_builder.h"
 
-JSBuilder* js_builder_create()
-{
+JSBuilder* js_builder_create() {
   JSBuilder* jsb = malloc(sizeof(*jsb));
   jsb->indent_str = "  ";
   jsb->indent_len = strlen(jsb->indent_str);
@@ -21,6 +20,15 @@ void js_builder_destroy(JSBuilder* jsb) {
   str_builder_destroy(jsb->sb);
   str_builder_destroy(jsb->ib);
   free(jsb);
+}
+
+static bool current_is_newline(JSBuilder* jsb) {
+  int len = str_builder_len(jsb->sb);
+  char c = str_builder_char_at(jsb->sb, len - 1);
+  if(c == '\n') {
+    return true;
+  }
+  return false;
 }
 
 void js_builder_add_str(JSBuilder* jsb, char* str) {
@@ -108,6 +116,18 @@ void js_builder_end_array(JSBuilder* jsb, bool newline) {
     js_builder_add_indent(jsb);
   }
   js_builder_add_str(jsb, "]");
+}
+
+void js_builder_add_export(JSBuilder* jsb) {
+  if(!current_is_newline(jsb)) {
+    js_builder_add_str(jsb, "\n");
+  }
+  js_builder_add_str(jsb, "\nexport ");
+}
+
+void js_builder_add_const(JSBuilder* jsb, char* identifier) {
+  js_builder_add_str(jsb, "const ");
+  js_builder_add_str(jsb, identifier);
 }
 
 char* js_builder_dump(JSBuilder* jsb) {

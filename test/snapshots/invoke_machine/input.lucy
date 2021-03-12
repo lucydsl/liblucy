@@ -1,0 +1,18 @@
+
+machine minute {
+  initial state active {
+    timer => finished
+  }
+
+  final state finished {}
+}
+
+machine parent {
+  initial state pending {
+    invoke minute {
+      done => timesUp
+    }
+  }
+
+  final state timesUp {}
+}

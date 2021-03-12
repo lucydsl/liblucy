@@ -89,8 +89,8 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     if(machine_node->name == NULL) {
       js_builder_add_str(jsb, "\nexport default ");
     } else {
-      js_builder_add_str(jsb, "\nexport const ");
-      js_builder_add_str(jsb, machine_node->name);
+      js_builder_add_export(jsb);
+      js_builder_add_const(jsb, machine_node->name);
       js_builder_add_str(jsb, " = ");
     }
     js_builder_start_call(jsb, "Machine");

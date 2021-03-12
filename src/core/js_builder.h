@@ -29,6 +29,8 @@ void js_builder_start_call(JSBuilder*, char*);
 void js_builder_end_call(JSBuilder*);
 void js_builder_start_array(JSBuilder*, bool);
 void js_builder_end_array(JSBuilder*, bool);
+void js_builder_add_export(JSBuilder*);
+void js_builder_add_const(JSBuilder*, char*);
 
 char* js_builder_dump(JSBuilder*);
 
