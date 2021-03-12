@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include "node.h"
 #include "program.h"
 #include "parser.h"
@@ -11,7 +12,7 @@
 // API flags
 #define FLAG_USE_REMOTE 1 << 0
 
-// Implementation flags
+// Machine implementation flags
 #define XS_HAS_STATE_PROP 1 << 0
 
 typedef struct Ref {
@@ -271,7 +272,9 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
   TransitionNode* transition_node = (TransitionNode*)node;
   Node* parent_node = node->parent;
   char* event_name = transition_node->event;
-  bool is_always = transition_node->always;
+  int type = transition_node->type;
+
+  bool is_always = transition_node->type == TRANSITION_IMMEDIATE_TYPE;
 
   if(parent_node->type == NODE_INVOKE_TYPE) {
     if(strcmp(event_name, "done") == 0) {
@@ -282,23 +285,39 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
       printf("Regular events in invoke are not supported.\n");
     }
   } else {
-    if(is_always) {
-      if(!state->always_prop_added) {
-        state->always_prop_added = true;
-        js_builder_start_prop(jsb, "always");
-        js_builder_start_array(jsb, true);
-        js_builder_add_indent(jsb);
-      } else {
-        js_builder_add_str(jsb, ", ");
-      }
-    } else {
-      if(!state->on_prop_added) {
-        state->on_prop_added = true;
-        js_builder_start_prop(jsb, "on");
-        js_builder_start_object(jsb);
-      }
+    switch(type) {
+      case TRANSITION_EVENT_TYPE: {
+        if(!state->on_prop_added) {
+          state->on_prop_added = true;
+          js_builder_start_prop(jsb, "on");
+          js_builder_start_object(jsb);
+        }
 
-      js_builder_start_prop(jsb, event_name);
+        js_builder_start_prop(jsb, event_name);
+        break;
+      }
+      case TRANSITION_IMMEDIATE_TYPE: {
+        if(!state->always_prop_added) {
+          state->always_prop_added = true;
+          js_builder_start_prop(jsb, "always");
+          js_builder_start_array(jsb, true);
+          js_builder_add_indent(jsb);
+        } else {
+          js_builder_add_str(jsb, ", ");
+        }
+        break;
+      }
+      case TRANSITION_DELAY_TYPE: {
+        js_builder_start_prop(jsb, "delay");
+        js_builder_start_object(jsb);
+
+        int ms = transition_node->delay->ms;
+        int length = (int)((ceil(log10(ms))+1)*sizeof(char));
+        char str[length];
+        sprintf(str, "%i", ms);
+        js_builder_start_prop(jsb, str);
+        break;
+      }
     }
   }
 
@@ -420,6 +439,7 @@ static void exit_transition(PrintState* state, JSBuilder* jsb, Node* node) {
   if(node->next) {
     
   } else {
+    TransitionNode* transition_node = (TransitionNode*)node;
     if(state->on_prop_added) {
       state->on_prop_added = false;
       js_builder_end_object(jsb);
@@ -427,7 +447,11 @@ static void exit_transition(PrintState* state, JSBuilder* jsb, Node* node) {
 
     if(state->always_prop_added) {
       state->always_prop_added = false;
-    }    
+    }
+
+    if(transition_node->type == TRANSITION_DELAY_TYPE) {
+      js_builder_end_object(jsb);
+    }
   }
 }
 

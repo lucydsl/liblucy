@@ -20,7 +20,8 @@
 #define TOKEN_BEGIN_BLOCK 5
 #define TOKEN_END_BLOCK 6
 #define TOKEN_STRING 7
-#define TOKEN_UNKNOWN 8
+#define TOKEN_INTEGER 8
+#define TOKEN_UNKNOWN 9
 
 #define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
 
@@ -32,6 +33,11 @@ int is_newline(char c) {
 
 int is_whitespace(char c) {
   return c == ' ';
+}
+
+bool is_integer(char c) {
+  return c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' ||
+    c == '6' || c == '7' || c == '8' || c == '9';
 }
 
 static char* consume_string(State* state) {
@@ -75,6 +81,29 @@ static char* consume_identifier(State* state) {
     state_next(state);
     c = state_char(state);
   } while(state_inbounds(state) && is_valid_identifier_char(c));
+  state_prev(state);
+
+  char* str = str_builder_dump(sb, &len);
+  state_set_word(state, str);
+  str_builder_destroy(sb);
+
+  return str;
+}
+
+static char* consume_integer(State* state) {
+  char c = state_char(state);
+  str_builder_t *sb;
+  sb = str_builder_create();
+  size_t len = 0;
+
+  do {
+    str_builder_add_char(sb, c);
+    len++;
+
+    state_advance_column(state);
+    state_next(state);
+    c = state_char(state);
+  } while(state_inbounds(state) && is_integer(c));
   state_prev(state);
 
   char* str = str_builder_dump(sb, &len);
@@ -129,6 +158,11 @@ static int consume_token(State* state) {
       return TOKEN_EOF;
     }
 
+    if(is_integer(c)) {
+      consume_integer(state);
+      return TOKEN_INTEGER;
+    }
+
     return TOKEN_UNKNOWN;
   }
 
@@ -137,18 +171,46 @@ static int consume_token(State* state) {
 
 static int consume_transition(State* state) {
   int err = 0;
-  char* event = state_take_word(state);
-
   TransitionNode* transition_node = node_create_transition();
-  transition_node->event = event;
+
+  char* event = state_take_word(state);
 
   // Always transition
   if(event == NULL) {
-    transition_node->always = event == NULL;
+    transition_node->type = TRANSITION_IMMEDIATE_TYPE;
 
     // Currently in a call, so rewind to back out.
     state_prev(state);
     state_prev(state);
+  } else {
+    unsigned short key = keyword_get(event);
+
+    switch(key) {
+      case KW_DELAY: {
+        int token = consume_token(state);
+
+        if(token != TOKEN_INTEGER) {
+          error_msg_with_code_block(state, NULL, "delay expects an integer milliseconds to wait.");
+          err = 2;
+          goto end;
+        }
+
+        char* num_str = state_take_word(state);
+        int time = atoi(num_str);
+        free(num_str);
+
+        transition_node->type = TRANSITION_DELAY_TYPE;
+        DelayExpression* expression = node_create_delayexpression();
+        expression->time = time;
+        node_transition_add_delay(transition_node, NULL, expression);
+
+        break;
+      }
+      default: {
+        transition_node->event = event;
+        break;
+      }
+    }
   }
 
   // Parent should be a state node, should we check here? TODO

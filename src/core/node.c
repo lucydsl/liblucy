@@ -6,6 +6,7 @@
 static void node_destroy_guardexpression(GuardExpression*);
 static void node_destroy_actionexpression(ActionExpression*);
 static void node_destroy_assignexpression(AssignExpression*);
+static void node_destroy_delayexpression(DelayExpression*);
 
 Node* node_create_type(unsigned short type, size_t size) {
   Node *node = malloc(size);
@@ -19,10 +20,12 @@ Node* node_create_type(unsigned short type, size_t size) {
 TransitionNode* node_create_transition() {
   Node* node = node_create_type(NODE_TRANSITION_TYPE, sizeof(TransitionNode));
   TransitionNode *tn = (TransitionNode*)node;
+  tn->type = TRANSITION_EVENT_TYPE;
   tn->event = NULL;
   tn->dest = NULL;
   tn->guard = NULL;
   tn->action = NULL;
+  tn->delay = NULL;
   return tn;
 }
 
@@ -38,6 +41,14 @@ static TransitionAction* create_transition_action() {
   action->next = NULL;
   action->expression = NULL;
   return action;
+}
+
+static TransitionDelay* create_transition_delay() {
+  TransitionDelay* delay = malloc(sizeof(*delay));
+  delay->ms = 0;
+  delay->ref = NULL;
+  delay->expression = NULL;
+  return delay;
 }
 
 MachineNode* node_create_machine() {
@@ -108,6 +119,12 @@ ActionExpression* node_create_actionexpression() {
   return expression;
 }
 
+DelayExpression* node_create_delayexpression() {
+  DelayExpression* expression = malloc(sizeof *expression);
+  ((Expression*)expression)->type = EXPRESSION_DELAY;
+  return expression;
+}
+
 TransitionGuard* node_transition_add_guard(TransitionNode* transition_node, char* name) {
   TransitionGuard* guard = create_transition_guard();
   guard->name = name;
@@ -140,6 +157,13 @@ TransitionAction* node_transition_add_action(TransitionNode* transition_node, ch
   return action;
 }
 
+TransitionDelay* node_transition_add_delay(TransitionNode* transition_node, char* ref, DelayExpression* expression) {
+  TransitionDelay* delay = create_transition_delay();
+  delay->ms = expression->time;
+  transition_node->delay = delay;
+  return delay;
+}
+
 bool node_machine_is_nested(Node* node) {
   return node->type == NODE_MACHINE_TYPE &&
     node->parent != NULL &&
@@ -148,7 +172,7 @@ bool node_machine_is_nested(Node* node) {
 
 bool inline node_transition_has_sibling_always(TransitionNode* transition_node) {
   Node* next = ((Node*)transition_node)->next;
-  if(next != NULL && next->type == NODE_TRANSITION_TYPE && ((TransitionNode*)next)->always) {
+  if(next != NULL && next->type == NODE_TRANSITION_TYPE && ((TransitionNode*)next)->type == TRANSITION_IMMEDIATE_TYPE) {
     return true;
   }
   return false;
@@ -220,6 +244,17 @@ static void node_destroy_transition_actions(TransitionAction* action) {
   }
 }
 
+static void node_destroy_transition_delay(TransitionDelay* delay) {
+  if(delay->ref != NULL) {
+    free(delay->ref);
+  }
+  if(delay->expression != NULL) {
+    node_destroy_delayexpression(delay->expression);
+    free(delay->expression);
+  }
+  free(delay);
+}
+
 Expression* node_clone_expression(Expression* input) {
   Expression* output;
   switch(input->type) {
@@ -256,6 +291,10 @@ void node_destroy_transition(TransitionNode* transition_node) {
   if(transition_node->action != NULL) {
     node_destroy_transition_actions(transition_node->action);
   }
+
+  if(transition_node->delay != NULL) {
+    node_destroy_transition_delay(transition_node->delay);
+  }
 }
 
 static void node_destroy_assignexpression(AssignExpression* expression) {
@@ -282,6 +321,12 @@ static void node_destroy_guardexpression(GuardExpression* expression) {
 }
 
 static void node_destroy_actionexpression(ActionExpression* expression) {
+  if(expression != NULL) {
+    free(expression->ref);
+  }
+}
+
+static void node_destroy_delayexpression(DelayExpression* expression) {
   if(expression != NULL) {
     free(expression->ref);
   }

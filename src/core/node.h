@@ -12,6 +12,10 @@
 #define NODE_ASSIGNMENT_TYPE 5
 #define NODE_INVOKE_TYPE 6
 
+#define TRANSITION_EVENT_TYPE 0
+#define TRANSITION_IMMEDIATE_TYPE 1
+#define TRANSITION_DELAY_TYPE 2
+
 #define ASSIGNMENT_ACTION 0
 #define ASSIGNMENT_GUARD 1
 
@@ -19,6 +23,7 @@
 #define EXPRESSION_IDENTIFIER 1
 #define EXPRESSION_GUARD 2
 #define EXPRESSION_ACTION 3
+#define EXPRESSION_DELAY 4
 
 typedef struct Node {
   unsigned short type;
@@ -57,14 +62,21 @@ typedef struct TransitionAction {
   struct Expression* expression;
 } TransitionAction;
 
+typedef struct TransitionDelay {
+  int ms;
+  char* ref;
+  struct DelayExpression* expression;
+} TransitionDelay;
+
 typedef struct TransitionNode {
   Node node;
 
-  bool always;
+  unsigned short type;
   char* event;
   char* dest;
   TransitionGuard* guard;
   TransitionAction* action;
+  TransitionDelay* delay;
 } TransitionNode;
 
 typedef struct ImportSpecifier {
@@ -111,6 +123,12 @@ typedef struct ActionExpression {
   char* ref;
 } ActionExpression;
 
+typedef struct DelayExpression {
+  Expression expression;
+  int time;
+  char* ref;
+} DelayExpression;
+
 typedef struct Assignment {
   Node node;
   unsigned short binding_type;
@@ -130,6 +148,7 @@ AssignExpression* node_create_assignexpression();
 IdentifierExpression* node_create_identifierexpression();
 GuardExpression* node_create_guardexpression();
 ActionExpression* node_create_actionexpression();
+DelayExpression* node_create_delayexpression();
 
 bool node_machine_is_nested(Node*);
 bool node_transition_has_sibling_always(TransitionNode*);
@@ -139,6 +158,7 @@ void node_after_last(Node*, Node*);
 
 TransitionGuard* node_transition_add_guard(TransitionNode*, char*);
 TransitionAction* node_transition_add_action(TransitionNode*, char*);
+TransitionDelay* node_transition_add_delay(TransitionNode*, char*, DelayExpression*);
 
 Expression* node_clone_expression(Expression*);
 

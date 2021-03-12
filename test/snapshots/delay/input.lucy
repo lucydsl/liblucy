@@ -1,0 +1,12 @@
+
+initial state green {
+  delay 1000 => yellow
+}
+
+state yellow {
+  delay 500 => red
+}
+
+state red {
+  delay 2000 => green
+}
