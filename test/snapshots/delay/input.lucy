@@ -1,6 +1,6 @@
 
 initial state green {
-  delay 1000 => yellow
+  delay 1s => yellow
 }
 
 state yellow {

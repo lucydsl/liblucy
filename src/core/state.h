@@ -21,6 +21,7 @@ typedef struct State {
 
   size_t modifier;
   char* word;
+  size_t word_len;
 
   SimpleSet* guards;
   SimpleSet* actions;

@@ -9,6 +9,7 @@
 #include "program.h"
 #include "str_builder.h"
 #include "keyword.h"
+#include "timeframe.h"
 #include "parser.h"
 #include "error.h"
 
@@ -21,7 +22,8 @@
 #define TOKEN_END_BLOCK 6
 #define TOKEN_STRING 7
 #define TOKEN_INTEGER 8
-#define TOKEN_UNKNOWN 9
+#define TOKEN_TIMEFRAME 9
+#define TOKEN_UNKNOWN 10
 
 #define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
 
@@ -35,21 +37,42 @@ int is_whitespace(char c) {
   return c == ' ';
 }
 
-bool is_integer(char c) {
-  return c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' ||
-    c == '6' || c == '7' || c == '8' || c == '9';
+typedef bool (*consume_condition)(State*, char);
+
+static void consume_while(State* state, consume_condition cond) {
+  char c = state_char(state);
+
+  str_builder_t *sb;
+  sb = str_builder_create();
+  size_t len = 0;
+
+  do {
+    str_builder_add_char(sb, c);
+    len++;
+
+    state_advance_column(state);
+    state_next(state);
+
+    c = state_char(state);
+  } while(state_inbounds(state) && cond(state, c));
+
+  char* str = str_builder_dump(sb, NULL);
+  state_set_word(state, str);
+  state->word_len = len;
+  str_builder_destroy(sb);
 }
 
 static char* consume_string(State* state) {
   char c = state_char(state);
   char quote = c;
-  bool in_quote = true;
+  size_t len = 0;
 
   str_builder_t *sb;
   sb = str_builder_create();
 
   do {
     str_builder_add_char(sb, c);
+    len++;
 
     state_advance_column(state);
     state_next(state);
@@ -60,7 +83,7 @@ static char* consume_string(State* state) {
 
   str_builder_add_char(sb, quote);
 
-  char* str = str_builder_dump(sb, NULL);
+  char* str = str_builder_dump(sb, &len);
   state_set_word(state, str);
   str_builder_destroy(sb);
   
@@ -90,27 +113,12 @@ static char* consume_identifier(State* state) {
   return str;
 }
 
-static char* consume_integer(State* state) {
-  char c = state_char(state);
-  str_builder_t *sb;
-  sb = str_builder_create();
-  size_t len = 0;
+static bool timeframe_consume_condition(State* state, char c) {
+  return is_timeframe_char(c);
+}
 
-  do {
-    str_builder_add_char(sb, c);
-    len++;
-
-    state_advance_column(state);
-    state_next(state);
-    c = state_char(state);
-  } while(state_inbounds(state) && is_integer(c));
-  state_prev(state);
-
-  char* str = str_builder_dump(sb, &len);
-  state_set_word(state, str);
-  str_builder_destroy(sb);
-
-  return str;
+static void consume_timeframe(State* state) {
+  consume_while(state, &timeframe_consume_condition);
 }
 
 static int consume_token(State* state) {
@@ -159,8 +167,13 @@ static int consume_token(State* state) {
     }
 
     if(is_integer(c)) {
-      consume_integer(state);
-      return TOKEN_INTEGER;
+      consume_timeframe(state);
+      char last = state->word[state->word_len - 1];
+      if(is_integer(last)) {
+        return TOKEN_INTEGER;
+      } else {
+        return TOKEN_TIMEFRAME;
+      }
     }
 
     return TOKEN_UNKNOWN;
@@ -189,15 +202,34 @@ static int consume_transition(State* state) {
       case KW_DELAY: {
         int token = consume_token(state);
 
-        if(token != TOKEN_INTEGER) {
-          error_msg_with_code_block(state, NULL, "delay expects an integer milliseconds to wait.");
-          err = 2;
-          goto end;
-        }
+        int time;
+        switch(token) {
+          case TOKEN_INTEGER: {
+            char* num_str = state_take_word(state);
+            time = atoi(num_str);
+            free(num_str);
+            break;
+          }
+          case TOKEN_TIMEFRAME: {
+            char* num_str = state_take_word(state);
+            Timeframe tf = timeframe_parse(num_str, state->word_len);
+            free(num_str);
 
-        char* num_str = state_take_word(state);
-        int time = atoi(num_str);
-        free(num_str);
+            if(tf.error != NULL) {
+              error_msg_with_code_block(state, NULL, tf.error);
+              err = 2;
+              goto end;
+            }
+
+            time = tf.time;
+            break;
+          }
+          default: {
+            error_msg_with_code_block(state, NULL, "Expected either an integer time (in milliseconds) or a timeframe such as 200ms.");
+            err = 2;
+            goto end;
+          }
+        }
 
         transition_node->type = TRANSITION_DELAY_TYPE;
         DelayExpression* expression = node_create_delayexpression();
@@ -925,4 +957,5 @@ ParseResult* parse(char* source, char* filename) {
 
 void parser_init() {
   keyword_init();
+  timeframe_init();
 }
