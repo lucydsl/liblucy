@@ -18,7 +18,7 @@ jobs:
     - name: build
       run: |
         make bin/lc
-        tar -cjf ${{ matrix.name }}.tar.gz -C bin bin/lc
+        cd bin && tar -zcvf ../${{ matrix.name }}.tar.gz lc && cd -
     - uses: ncipollo/release-action@v1
       with:
         artifacts: "bin/lc"
