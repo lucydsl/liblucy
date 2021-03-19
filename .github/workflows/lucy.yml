@@ -25,4 +25,5 @@ jobs:
     - name: make test
       run: |
         make bin/lc
-        make test-native
+        make dist/liblucy-debug-node.mjs
+        make test
