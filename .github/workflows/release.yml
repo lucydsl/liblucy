@@ -1,0 +1,20 @@
+name: Releases
+
+on: 
+  push:
+    tags:
+    - '*'
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: build
+      run: |
+        make bin/lc
+    - uses: ncipollo/release-action@v1
+      with:
+        artifacts: "bin/lc"
+        token: ${{ secrets.GITHUB_TOKEN }}
