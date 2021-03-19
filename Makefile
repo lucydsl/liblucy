@@ -55,7 +55,8 @@ dist/liblucy-release-browser.mjs: dist build/liblucy-release.mjs dist/liblucy-re
 bin/lc: $(SRC_FILES)
 	@mkdir -p bin
 	$(CC) ${BIN_C_FILES} $(CORE_C_FILES) -o $@ \
-		-DVERSION=\"$(VERSION)\"
+		-DVERSION=\"$(VERSION)\" \
+		-lm
 
 clean:
 	@rm -f dist/liblucy-debug-browser.mjs dist/liblucy-debug-node.mjs \
