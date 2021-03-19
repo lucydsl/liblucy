@@ -9,6 +9,6 @@ Program * new_program() {
   return program;
 }
 
-__attribute__((always_inline)) void program_add_flag(Program* program, int flag) {
+__attribute__((always_inline)) inline void program_add_flag(Program* program, int flag) {
   program->flags |= flag;
 }
