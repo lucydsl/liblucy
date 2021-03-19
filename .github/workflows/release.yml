@@ -13,6 +13,8 @@ jobs:
         include:
           - os: ubuntu-latest
             name: linux
+          - os: macos-latest
+            name: mac
     steps:
     - uses: actions/checkout@v1
     - name: build
