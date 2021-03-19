@@ -25,4 +25,4 @@ jobs:
     - name: make test
       run: |
         make dist/liblucy-debug-node.mjs
-        make test-wasm
+        make test-native
