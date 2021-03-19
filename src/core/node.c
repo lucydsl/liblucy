@@ -45,7 +45,6 @@ static TransitionAction* create_transition_action() {
 
 static TransitionDelay* create_transition_delay() {
   TransitionDelay* delay = malloc(sizeof(*delay));
-  delay->ms = 0;
   delay->ref = NULL;
   delay->expression = NULL;
   return delay;
@@ -122,6 +121,7 @@ ActionExpression* node_create_actionexpression() {
 DelayExpression* node_create_delayexpression() {
   DelayExpression* expression = malloc(sizeof *expression);
   ((Expression*)expression)->type = EXPRESSION_DELAY;
+  expression->ref = NULL;
   return expression;
 }
 
@@ -159,7 +159,7 @@ TransitionAction* node_transition_add_action(TransitionNode* transition_node, ch
 
 TransitionDelay* node_transition_add_delay(TransitionNode* transition_node, char* ref, DelayExpression* expression) {
   TransitionDelay* delay = create_transition_delay();
-  delay->ms = expression->time;
+  delay->expression = expression;
   transition_node->delay = delay;
   return delay;
 }
@@ -273,6 +273,16 @@ Expression* node_clone_expression(Expression* input) {
       output = (Expression*)out_ae;
       break;
     }
+    case EXPRESSION_DELAY: {
+      DelayExpression* in_de = (DelayExpression*)input;
+      DelayExpression* out_de = node_create_delayexpression();
+      out_de->time = in_de->time;
+      if(in_de->ref != NULL) {
+        out_de->ref = strdup(in_de->ref);
+      }
+      output = (Expression*)out_de;
+      break;
+    }
     default: {
       output = NULL;
     }
@@ -328,7 +338,9 @@ static void node_destroy_actionexpression(ActionExpression* expression) {
 
 static void node_destroy_delayexpression(DelayExpression* expression) {
   if(expression != NULL) {
-    free(expression->ref);
+    if(expression->ref != NULL) {
+      free(expression->ref);
+    }
   }
 }
 

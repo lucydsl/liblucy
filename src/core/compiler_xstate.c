@@ -26,18 +26,21 @@ typedef struct PrintState {
   bool always_prop_added;
   Ref* guard;
   Ref* action;
+  Ref* delay;
 } PrintState;
 
-static void add_action_ref(PrintState* state, char* key, Expression* value) {
+typedef void (*set_ref)(PrintState*, Ref*);
+
+static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, set_ref set) {
   Ref *ref = malloc(sizeof(Ref));
   ref->key = key;
   ref->value = node_clone_expression(value);
   ref->next = NULL;
 
-  if(state->action == NULL) {
-    state->action = ref;
+  if(head == NULL) {
+    set(state, ref);
   } else {
-    Ref* cur = state->action;
+    Ref* cur = head;
     while(cur->next != NULL) {
       cur = cur->next;
     }
@@ -45,21 +48,28 @@ static void add_action_ref(PrintState* state, char* key, Expression* value) {
   }
 }
 
-static void add_guard_ref(PrintState* state, char* key, Expression* value) {
-  Ref *ref = malloc(sizeof(Ref));
-  ref->key = key;
-  ref->value = node_clone_expression(value);
-  ref->next = NULL;
+static void set_action_ref(PrintState* state, Ref* ref) {
+  state->action = ref;
+}
 
-  if(state->guard == NULL) {
-    state->guard = ref;
-  } else {
-    Ref* cur = state->guard;
-    while(cur->next != NULL) {
-      cur = cur->next;
-    }
-    cur->next = ref;
-  }
+static void add_action_ref(PrintState* state, char* key, Expression* value) {
+  add_ref(state, key, value, state->action, *set_action_ref);
+}
+
+static void set_guard_ref(PrintState* state, Ref* ref) {
+  state->guard = ref;
+}
+
+static void add_guard_ref(PrintState* state, char* key, Expression* value) {
+  add_ref(state, key, value, state->guard, *set_guard_ref);
+}
+
+static void set_delay_ref(PrintState* state, Ref* ref) {
+  state->delay = ref;
+}
+
+static void add_delay_ref(PrintState* state, char* key, Expression* value) {
+  add_ref(state, key, value, state->delay, *set_delay_ref);
 }
 
 static void destroy_ref(Ref* ref) {
@@ -78,6 +88,9 @@ static void destroy_state(PrintState *state) {
   }
   if(state->action != NULL) {
     destroy_ref(state->action);
+  }
+  if(state->delay != NULL) {
+    destroy_ref(state->delay);
   }
 }
 
@@ -113,7 +126,8 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
 static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
   bool has_guard = state->guard != NULL;
   bool has_action = state->action != NULL;
-  bool needs_options = has_guard || has_action;
+  bool has_delay = state->delay != NULL;
+  bool needs_options = has_guard || has_action || has_delay;
   bool is_nested = node_machine_is_nested(node);
 
   if(!is_nested && needs_options) {
@@ -175,6 +189,23 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
             break;
           }
         }
+
+        ref = ref->next;
+      }
+
+      js_builder_end_object(jsb);
+    }
+
+    if(has_delay) {
+      js_builder_start_prop(jsb, "delays");
+      js_builder_start_object(jsb);
+
+      Ref* ref = state->delay;
+      while(ref != NULL) {
+        DelayExpression* expression = (DelayExpression*)ref->value;
+
+        js_builder_start_prop(jsb, expression->ref);
+        js_builder_add_str(jsb, expression->ref);
 
         ref = ref->next;
       }
@@ -311,11 +342,18 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
         js_builder_start_prop(jsb, "delay");
         js_builder_start_object(jsb);
 
-        int ms = transition_node->delay->ms;
-        int length = (int)((ceil(log10(ms))+1)*sizeof(char));
-        char str[length];
-        sprintf(str, "%i", ms);
-        js_builder_start_prop(jsb, str);
+        DelayExpression* delay = transition_node->delay->expression;
+        if(delay->ref == NULL) {
+          int ms = delay->time;
+          int length = (int)((ceil(log10(ms))+1)*sizeof(char));
+          char str[length];
+          sprintf(str, "%i", ms);
+          js_builder_start_prop(jsb, str);
+        } else {
+          add_delay_ref(state, delay->ref, (Expression*)delay);
+          js_builder_start_prop(jsb, delay->ref);
+        }
+
         break;
       }
     }

@@ -63,7 +63,6 @@ typedef struct TransitionAction {
 } TransitionAction;
 
 typedef struct TransitionDelay {
-  int ms;
   char* ref;
   struct DelayExpression* expression;
 } TransitionDelay;

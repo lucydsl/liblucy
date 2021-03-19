@@ -202,7 +202,8 @@ static int consume_transition(State* state) {
       case KW_DELAY: {
         int token = consume_token(state);
 
-        int time;
+        int time = 0;
+        char* ref = NULL;
         switch(token) {
           case TOKEN_INTEGER: {
             char* num_str = state_take_word(state);
@@ -224,6 +225,10 @@ static int consume_transition(State* state) {
             time = tf.time;
             break;
           }
+          case TOKEN_IDENTIFIER: {
+            ref = state_take_word(state);
+            break;
+          }
           default: {
             error_msg_with_code_block(state, NULL, "Expected either an integer time (in milliseconds) or a timeframe such as 200ms.");
             err = 2;
@@ -234,6 +239,7 @@ static int consume_transition(State* state) {
         transition_node->type = TRANSITION_DELAY_TYPE;
         DelayExpression* expression = node_create_delayexpression();
         expression->time = time;
+        expression->ref = ref;
         node_transition_add_delay(transition_node, NULL, expression);
 
         break;

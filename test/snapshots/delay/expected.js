@@ -1,4 +1,5 @@
 import { Machine } from 'xstate';
+import { calcLightDelay } from './util';
 
 export default Machine({
   initial: 'green',
@@ -15,8 +16,12 @@ export default Machine({
     },
     red: {
       delay: {
-        2000: 'green'
+        calcLightDelay: 'green'
       }
     }
+  }
+}, {
+  delays: {
+    calcLightDelay: calcLightDelay
   }
 });

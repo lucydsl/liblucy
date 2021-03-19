@@ -1,3 +1,4 @@
+import { calcLightDelay } from './util'
 
 initial state green {
   delay 1s => yellow
@@ -8,5 +9,5 @@ state yellow {
 }
 
 state red {
-  delay 2000 => green
+  delay calcLightDelay => green
 }
