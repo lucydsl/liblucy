@@ -68,6 +68,7 @@ clean:
 
 test-native:
 	@scripts/test_snapshots
+	@scripts/test_unit
 .PHONY: test-native
 
 test-wasm:

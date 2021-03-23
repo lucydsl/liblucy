@@ -1,0 +1,34 @@
+#!/bin/bash
+
+LC="${LC:-bin/lc}"
+ret=0
+
+run_test() {
+  local d=$1
+  local skip="${d}.skip"
+
+  if [ -f $skip ]; then
+    return 0
+  fi
+
+  local test="${d}test.sh"
+  LC="$LC" $test
+  local r=$?
+
+  if [ $ret -eq 0 ]; then
+    ret=$r
+  fi
+}
+
+# Allow specifying a folder
+folder=$@
+
+if [ -z "$folder" ]; then
+  for d in test/unit/*/ ; do
+    run_test $d
+  done
+else
+  run_test $folder
+fi
+
+exit $ret
