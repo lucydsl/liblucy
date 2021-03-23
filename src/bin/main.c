@@ -200,9 +200,9 @@ int compile_dir(char* rootdir, char* dirname, unsigned long dirlen,
     str_builder_t *sb = str_builder_create();
     str_builder_add_str(sb, dirname, dirlen);
     str_builder_add_char(sb, '/');
-    str_builder_add_str(sb, in_file->d_name, in_file->d_namlen);
+    str_builder_add_str(sb, in_file->d_name, strlen(in_file->d_name));
     
-    unsigned long fplen = dirlen + 1 + in_file->d_namlen;
+    unsigned long fplen = dirlen + 1 + strlen(in_file->d_name);
     char* fp = str_builder_dump(sb, &fplen);    
 
     if(ends_with(in_file->d_name, ".lucy")) {
