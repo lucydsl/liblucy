@@ -3,7 +3,7 @@
 #include "dict.h"
 #include "keyword.h"
 
-dict *keywords;
+static dict *keywords;
 
 bool is_keyword(char* key) {
   return dict_search(keywords, key) > 0;
@@ -16,7 +16,7 @@ unsigned short keyword_get(char* key) {
 void keyword_init() {
   keywords = dict_create();
 
-  dict_insert(keywords, "import", KW_IMPORT);
+  dict_insert(keywords, "use", KW_USE);
   dict_insert(keywords, "state", KW_STATE);
   dict_insert(keywords, "initial", KW_INITIAL);
   dict_insert(keywords, "final", KW_FINAL);

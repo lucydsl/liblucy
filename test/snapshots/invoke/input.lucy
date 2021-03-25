@@ -1,4 +1,4 @@
-import { getUser, setUser } from './user.js'
+use './user.js' { getUser, setUser }
 
 action assignUser = assign user setUser
 

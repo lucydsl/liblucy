@@ -2,7 +2,7 @@
 
 #include <stdbool.h>
 
-#define KW_IMPORT 1
+#define KW_USE 1
 #define KW_STATE 2
 #define KW_INITIAL 3
 #define KW_FINAL 4

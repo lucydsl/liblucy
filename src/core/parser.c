@@ -564,7 +564,7 @@ static int consume_state(State* state) {
   }
 }
 
-static int consume_import_specifiers(ImportNode* import_node, State* state) {
+static int consume_use_specifiers(ImportNode* import_node, State* state) {
   int err = 0;
   int token;
 
@@ -588,6 +588,9 @@ static int consume_import_specifiers(ImportNode* import_node, State* state) {
         node_append((Node*)import_node, (Node*)specifier);
         goto end;
       }
+      case TOKEN_EOL: {
+        break;
+      }
       case TOKEN_UNKNOWN: {
         char c = state_char(state);
 
@@ -610,21 +613,35 @@ static int consume_import_specifiers(ImportNode* import_node, State* state) {
   }
 }
 
-static int consume_import(State* state) {
+static int consume_use(State* state) {
   int err = 0;
   Node *current_node = state->node;
 
   if(current_node != NULL) {
+    printf("CURRENT NODE %i\n", current_node->type);
     error_msg_with_code_block(state, current_node, "Import statement must be at the top of the file.");
-    return 2;
+    err = 1;
+    goto end;
   }
 
   ImportNode *import_node = node_create_import_statement();
   Node *node = (Node*)import_node;
-  state_node_start_pos(state, node, 6);
+  state_node_start_pos(state, node, 4);
   state_node_set(state, node);
 
   int token;
+
+  token = consume_token(state);
+
+  // use './util'
+  if(token != TOKEN_STRING) {
+    error_msg_with_code_block(state, current_node, "Expected a string.");
+    err = 1;
+    goto end;
+  }
+  import_node->from = state_take_word(state);
+
+  // Start grabbing specififers
   bool consumed_loc = false;
   bool consumed_specifiers = false;
   bool consumed_from = false;
@@ -633,29 +650,20 @@ static int consume_import(State* state) {
 
     switch(token) {
       case TOKEN_EOL: {
-        if(consumed_loc) {
+        if(consumed_specifiers) {
           goto end;
         }
       };
       case TOKEN_BEGIN_BLOCK: {
-        _check(consume_import_specifiers(import_node, state));
+        _check(consume_use_specifiers(import_node, state));
         consumed_specifiers = true;
 
         break;
       }
       case TOKEN_IDENTIFIER: {
-        if(strcmp(state->word, "from") == 0) {
-          consumed_from = true;
-          break;
-        }
         error_unexpected_identifier(state, node);
-        err = 2;
+        err = 1;
         goto end;
-      }
-      case TOKEN_STRING: {
-        import_node->from = state_take_word(state);
-        consumed_loc = true;
-        goto loop;
       }
       case TOKEN_UNKNOWN: {
         error_unexpected_identifier(state, node);
@@ -817,8 +825,8 @@ static int consume_machine_inner(State* state, bool is_implicit, int initial_tok
             _check(consume_state(state));
             break;
           }
-          case KW_IMPORT: {
-            _check(consume_import(state));
+          case KW_USE: {
+            _check(consume_use(state));
             break;
           }
           case KW_ACTION: {
@@ -917,8 +925,8 @@ static int consume_program(State* state) {
 
         unsigned short key = keyword_get(identifier);
         switch(key) {
-          case KW_IMPORT: {
-            _check(consume_import(state));
+          case KW_USE: {
+            _check(consume_use(state));
             break;
           }
           case KW_MACHINE: {

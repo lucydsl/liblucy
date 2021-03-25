@@ -1,4 +1,4 @@
-import { pet } from './util'
+use './util' { pet }
 
 initial state idle {
   invoke pet {

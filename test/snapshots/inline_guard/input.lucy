@@ -1,4 +1,4 @@
-import { isDog } from './util'
+use './util' { isDog }
 
 initial state idle {
   pet => guard isDog => pet

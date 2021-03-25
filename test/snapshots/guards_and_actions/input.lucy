@@ -1,4 +1,9 @@
-import { incrementCount, decrementCount, lessThanTen, greaterThanZero } from './actions.js'
+use './actions.js' {
+  incrementCount,
+  decrementCount,
+  lessThanTen,
+  greaterThanZero
+}
 
 action increment = assign count incrementCount
 action decrement = assign count decrementCount

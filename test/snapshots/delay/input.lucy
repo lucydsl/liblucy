@@ -1,4 +1,4 @@
-import { calcLightDelay } from './util'
+use './util' { calcLightDelay }
 
 initial state green {
   delay 1s => yellow
