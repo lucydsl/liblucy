@@ -2,7 +2,7 @@ use './util' { pet }
 
 initial state idle {
   invoke pet {
-    done => assign wilbur => goodBoy
+    done => assign(wilbur) => goodBoy
   }
 }
 

@@ -1,13 +1,13 @@
 use './util' { calcLightDelay }
 
 initial state green {
-  delay 1s => yellow
+  delay(1s) => yellow
 }
 
 state yellow {
-  delay 500 => red
+  delay(500) => red
 }
 
 state red {
-  delay calcLightDelay => green
+  delay(calcLightDelay) => green
 }

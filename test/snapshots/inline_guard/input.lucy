@@ -1,7 +1,7 @@
 use './util' { isDog }
 
 initial state idle {
-  pet => guard isDog => pet
+  pet => guard(isDog) => pet
 }
 
 state pet {
