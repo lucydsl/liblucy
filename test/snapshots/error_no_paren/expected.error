@@ -1,0 +1,13 @@
+[1m[37mtest/snapshots/error_no_paren/input.lucy[0m:4:18
+
+ [1m[31m𝒙[0m[31m assign must be called like a function. Expected assign(update)
+
+[0m[1m[37m    2[0m │ 
+[1m[37m    3[0m │ state idle {
+[1m[37m    4[0m │   next => assign update => finished
+                         [1m[31m˄[0m
+[1m[37m    5[0m │ }
+[1m[37m    6[0m │ 
+
+
+Compilation failed!

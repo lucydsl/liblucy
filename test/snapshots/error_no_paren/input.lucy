@@ -1,0 +1,9 @@
+use './stuff' { update }
+
+state idle {
+  next => assign update => finished
+}
+
+final state finished {
+
+}

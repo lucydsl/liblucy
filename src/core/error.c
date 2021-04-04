@@ -41,10 +41,10 @@ static int num_places (int n) {
     return 10;
 }
 
-void error_file_info(State* state) {
-  unsigned short line = state->line + 1;
-  unsigned short col = state->column;
-  fprintf(stderr, BOLDWHITE "%s" RESET ":%hu:%hu\n", state->filename, line, col);
+static void error_file_info(State* state, pos_t* pos) {
+  int line = pos->line + 1;
+  int col = pos->column;
+  fprintf(stderr, BOLDWHITE "%s" RESET ":%i:%i\n", state->filename, line, col);
 }
 
 void error_message(const char* msg) {
@@ -64,11 +64,13 @@ static void print_code_line(str_builder_t *sb, size_t line, int max_spaces) {
   fprintf(stderr, BOLDWHITE "    %zu" RESET "%s│ %s", line, spaces, str_builder_dump(sb, NULL));
 }
 
-void error_annotate(State* state, Node* node) {
+static void error_annotate(State* state, pos_t* pos) {
   char* source = state->source;
   size_t source_len = state->source_len;
 
-  unsigned short problem_line = node == NULL ? state->line : node->line;
+  int problem_line = pos->line;
+  int problem_col =  pos->column;
+
   unsigned short start_line = problem_line > 2 ? (problem_line - 2) : 0;
   unsigned short end_line = problem_line + 2;
   unsigned int max_num_places = num_places(end_line);
@@ -88,13 +90,13 @@ void error_annotate(State* state, Node* node) {
     }
 
     if(in_block) {
-      str_builder_add_char(sb, c);
-
       if(line > end_line) {
         in_block = false;
         break;
       }
-    }
+
+      str_builder_add_char(sb, c);
+    } 
 
     if(c == '\n') {
       if(in_block) {
@@ -103,7 +105,7 @@ void error_annotate(State* state, Node* node) {
       }
 
       if(line == problem_line) {
-        unsigned short places = CODE_BLOCK_INDENT + max_num_places + 1 + col + 1;
+        unsigned short places = CODE_BLOCK_INDENT + max_num_places + 1 + problem_col + 1;
         char spaces[places + 1];
         for(int pi = 0; pi < places; pi++) {
           spaces[pi] = ' ';
@@ -122,17 +124,39 @@ void error_annotate(State* state, Node* node) {
     i++;
   }
 
-  print_code_line(sb, line + 1, max_num_places);
+  // Want at least 4 lines, so print this if not.
+  if(line <= 3) {
+    print_code_line(sb, line + 1, max_num_places);
+  }
+
   fprintf(stderr, "\n");
 
   str_builder_destroy(sb);
 }
 
 void error_msg_with_code_block(State* state, Node* node, const char* msg) {
-  error_file_info(state);
+  pos_t pos = {
+    .line = state->line + 1,
+    .column = state->column
+  };
+
+  error_file_info(state, &pos);
   error_message(msg);
-  error_annotate(state, node);
+  error_annotate(state, &pos);
   fprintf(stderr, "\n");
+}
+
+void error_msg_with_code_block_pos(State* state, pos_t* pos, const char* msg) {
+  error_file_info(state, pos);
+  error_message(msg);
+  error_annotate(state, pos);
+  fprintf(stderr, "\n");
+}
+
+void error_msg_with_code_block_dec(State* state, int dec, const char* msg) {
+  pos_t pos;
+  state_find_position(state, &pos, dec);
+  error_msg_with_code_block_pos(state, &pos, msg);
 }
 
 void error_unexpected_identifier(State* state, Node* node) {
