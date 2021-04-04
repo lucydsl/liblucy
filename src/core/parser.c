@@ -40,7 +40,7 @@ int is_whitespace(char c) {
 }
 
 typedef bool (*consume_condition)(State*, char);
-typedef int (*consume_call_expr_args)(State*, void*, char*);
+typedef int (*consume_call_expr_args)(State*, void*, int, char*);
 
 static void consume_while(State* state, consume_condition cond) {
   char c = state_char(state);
@@ -106,31 +106,6 @@ static bool identifier_consume_condition(State* state, char c) {
 static void consume_identifier(State* state) {
   consume_while(state, &identifier_consume_condition);
 }
-
-/*
-static char* consume_identifier(State* state) {
-  char c = state_char(state);
-  str_builder_t *sb;
-  sb = str_builder_create();
-  size_t len = 0;
-
-  do {
-    str_builder_add_char(sb, c);
-    len++;
-
-    state_advance_column(state);
-    state_next(state);
-    c = state_char(state);
-  } while(state_inbounds(state) && is_valid_identifier_char(c));
-  state_prev(state);
-
-  char* str = str_builder_dump(sb, &len);
-  state_set_word(state, str);
-  str_builder_destroy(sb);
-
-  return str;
-}
-*/
 
 static bool timeframe_consume_condition(State* state, char c) {
   return is_timeframe_char(c);
@@ -244,13 +219,19 @@ static int consume_call_expression(State* state, const char* fn_name, void* expr
 
   // TODO support multiple args
   char* identifier = NULL;
-  if(token != TOKEN_IDENTIFIER) {
-    error_msg_with_code_block(state, NULL, "Expected a property to assign to.");
-    err = 2;
-    goto end;
-  } else {
-    identifier = state_take_word(state);
-    _check(on_args(state, expr, identifier));
+  switch(token) {
+    case TOKEN_IDENTIFIER:
+    case TOKEN_TIMEFRAME:
+    case TOKEN_INTEGER: {
+      identifier = state_take_word(state);
+      _check(on_args(state, expr, token, identifier));
+      break;
+    }
+    default: {
+      error_msg_with_code_block(state, NULL, "Expected a property to assign to.");
+      err = 2;
+      goto end;
+    }
   }
 
   token = consume_token(state);
@@ -274,41 +255,26 @@ static int consume_call_expression(State* state, const char* fn_name, void* expr
   }
 }
 
+static int consume_inline_guard_args(State* state, void* expr, int _token, char* arg) {
+  GuardExpression* guard_expression = (GuardExpression*)expr;
+  guard_expression->ref = arg;
+  return 0;
+}
+
 static int consume_inline_guard(State* state, TransitionNode* transition_node) {
   int err = 0;
-  int token = consume_token(state);
-
-  if(token != TOKEN_BEGIN_CALL) {
-    error_msg_with_code_block(state, NULL, "Inline guards must be called.");
-    err = 2;
-    goto end;
-  }
-
-  token = consume_token(state);
-  if(token != TOKEN_IDENTIFIER) {
-    error_msg_with_code_block(state, NULL, "Expected a reference to an imported function after guard.");
-    err = 2;
-    goto end;
-  }
-
-  token = consume_token(state);
-  if(token != TOKEN_END_CALL) {
-    error_msg_with_code_block(state, NULL, "Expected 1 argument for guard");
-    err = 2;
-    goto end;
-  }
-
   GuardExpression* guard_expression = node_create_guardexpression();
   guard_expression->ref = state_take_word(state);
+  
+  _check(consume_call_expression(state, "guard", guard_expression, &consume_inline_guard_args));
+
   TransitionGuard* guard = node_transition_add_guard(transition_node, NULL);
   guard->expression = guard_expression;
 
-  end: {
-    return err;
-  }
+  return err;
 }
 
-static int consume_inline_assign_args(State* state, void* expr, char* arg) {
+static int consume_inline_assign_args(State* state, void* expr, int _token, char* arg) {
   AssignExpression* assign_expression = (AssignExpression*)expr;
   assign_expression->key = arg;
   return 0;
@@ -328,148 +294,76 @@ static int consume_inline_assign(State* state, TransitionNode* transition_node) 
   return err;
 }
 
-static int consume_inline_assign2(State* state, TransitionNode* transition_node) {
-  int err = 0;
-  int token = consume_token(state);
-
-  if(token != TOKEN_BEGIN_CALL) {
-    if(token == TOKEN_IDENTIFIER) {
-      char buffer[100];
-      sprintf(buffer, "Inline assigns must be called like a function. Expected assign(%s)", state->word);
-      error_msg_with_code_block_dec(state, state->word_len, buffer);
-    } else {
-      // What should this be?
-      error_msg_with_code_block(state, NULL, "Expected a (");
-    }
-    err = 1;
-  } else {
-    token = consume_token(state);
-  }
-  
-  char* identifier = NULL;
-  if(token != TOKEN_IDENTIFIER) {
-    error_msg_with_code_block(state, NULL, "Expected a property to assign to.");
-    err = 2;
-    goto end;
-  } else {
-    identifier = state_take_word(state);
-  }
-
-  token = consume_token(state);
-  if(token != TOKEN_END_CALL) {
-    char buffer[100];
-    char* key = identifier == NULL ? "" : identifier;
-    sprintf(buffer, "Inline assigns must be called like a function. Expected assign(%s)", key);
-    error_msg_with_code_block_dec(state, state->token_len, buffer);
-
-    // TODO rewind
-
-    err = 1;
-  }
-
-  AssignExpression* assign_expression = node_create_assignexpression();
-  assign_expression->key = identifier;
-  TransitionAction* action = node_transition_add_action(transition_node, NULL);
-  action->expression = (Expression*)assign_expression;
-
-  program_add_flag(state->program, PROGRAM_USES_ASSIGN);
-
-  end: {
-    return err;
-  }
+static int consume_inline_action_args(State* state, void* expr, int _token, char* arg) {
+  ActionExpression* action_expression = (ActionExpression*)expr;
+  action_expression->ref = arg;
+  return 0;
 }
 
 static int consume_inline_action(State* state, TransitionNode* transition_node) {
   int err = 0;
 
-  int token = consume_token(state);
-  if(token != TOKEN_BEGIN_CALL) {
-    error_msg_with_code_block(state, NULL, "Expected a )");
-    err = 1;
-  }
-
-  token = consume_token(state);
-  if(token != TOKEN_IDENTIFIER) {
-    error_msg_with_code_block(state, NULL, "Expected a reference to an imported function after action.");
-    err = 1;
-  }
-
-  token = consume_token(state);
-  if(token != TOKEN_END_CALL) {
-    error_msg_with_code_block(state, NULL, "Expected a )");
-    err = 1;
-  }
-
   ActionExpression* action_expression = node_create_actionexpression();
-  action_expression->ref = state_take_word(state);
+
+  _check(consume_call_expression(state, "action", action_expression, &consume_inline_action_args));
+
   TransitionAction* action = node_transition_add_action(transition_node, NULL);
   action->expression = (Expression*)action_expression;
 
-  end: {
-    return err;
-  }
+  return err;
 }
 
-static int consume_inline_delay(State* state, TransitionNode* transition_node) {
-  int err = 0;
-
-  int token = consume_token(state);
-  if(token != TOKEN_BEGIN_CALL) {
-    error_msg_with_code_block(state, NULL, "Expected a (");
-    err = 1;
-  }
+static int consume_inline_delay_args(State* state, void* expr, int token, char* arg) {
+  DelayExpression* delay_expression = (DelayExpression*)expr;
 
   int time = 0;
   char* ref = NULL;
 
-  token = consume_token(state);
   switch(token) {
     case TOKEN_INTEGER: {
-      char* num_str = state_take_word(state);
-      time = atoi(num_str);
-      free(num_str);
+      time = atoi(arg);
+      free(arg);
       break;
     }
     case TOKEN_TIMEFRAME: {
-      char* num_str = state_take_word(state);
-      Timeframe tf = timeframe_parse(num_str, state->word_len);
-      free(num_str);
+      Timeframe tf = timeframe_parse(arg, state->word_len);
+      free(arg);
 
       if(tf.error != NULL) {
         error_msg_with_code_block(state, NULL, tf.error);
-        err = 2;
-        goto end;
+        return 2;
       }
 
       time = tf.time;
       break;
     }
     case TOKEN_IDENTIFIER: {
-      ref = state_take_word(state);
+      ref = arg;
       break;
     }
     default: {
       error_msg_with_code_block(state, NULL, "Expected either an integer time (in milliseconds) or a timeframe such as 200ms.");
-      err = 2;
-      goto end;
+      return 2;
     }
   }
 
+  delay_expression->time = time;
+  delay_expression->ref = ref;
+
+  return 0;
+}
+
+static int consume_inline_delay(State* state, TransitionNode* transition_node) {
+  int err = 0;
+
   transition_node->type = TRANSITION_DELAY_TYPE;
   DelayExpression* expression = node_create_delayexpression();
-  expression->time = time;
-  expression->ref = ref;
+
+  _check(consume_call_expression(state, "delay", expression, &consume_inline_delay_args));
+
   node_transition_add_delay(transition_node, NULL, expression);
 
-  token = consume_token(state);
-  if(token != TOKEN_END_CALL) {
-    error_msg_with_code_block(state, NULL, "Expected a )");
-    err = 1;
-  }
-
-  end: {
-    return err;
-  }
+  return err;
 }
 
 static int consume_transition(State* state) {
