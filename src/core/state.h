@@ -22,6 +22,7 @@ typedef struct State {
   size_t modifier;
   char* word;
   size_t word_len;
+  size_t token_len;
 
   SimpleSet* guards;
   SimpleSet* actions;
@@ -33,11 +34,17 @@ typedef struct State {
   Scope* scope;
 } State;
 
+typedef struct pos_t {
+  int line;
+  int column;
+} pos_t;
+
 int state_inbounds(State*);
 char state_char(State*);
 char state_peek(State*);
 char state_next(State*);
-char state_prev(State*);
+void state_rewind(State*, int);
+void state_find_position(State*, pos_t*, int);
 
 State* state_new_state(char*, char*);
 void state_advance_line(State*);

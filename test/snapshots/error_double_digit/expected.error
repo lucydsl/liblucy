@@ -1,4 +1,4 @@
-[1m[37mtest/snapshots/error_double_digit/input.lucy[0m:10:18
+[1m[37mtest/snapshots/error_double_digit/input.lucy[0m:10:17
 
  [1m[31m𝒙[0m[31m Expected to pipe to a destination.
 
@@ -8,6 +8,6 @@
                          [1m[31m˄[0m
 [1m[37m    11[0m │       AreWeReallySure =>
 [1m[37m    12[0m │       end
-[1m[37m    13[0m │  
+
 
 Compilation failed!

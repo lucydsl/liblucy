@@ -40,6 +40,7 @@ int is_whitespace(char c) {
 }
 
 typedef bool (*consume_condition)(State*, char);
+typedef int (*consume_call_expr_args)(State*, void*, char*);
 
 static void consume_while(State* state, consume_condition cond) {
   char c = state_char(state);
@@ -57,10 +58,16 @@ static void consume_while(State* state, consume_condition cond) {
 
     c = state_char(state);
   } while(state_inbounds(state) && cond(state, c));
+  state_rewind(state, 1);
+
+  if(is_newline(c)) {
+    state_advance_line(state);
+  }
 
   char* str = str_builder_dump(sb, NULL);
   state_set_word(state, str);
   state->word_len = len;
+  state->token_len = len;
   str_builder_destroy(sb);
 }
 
@@ -92,6 +99,15 @@ static char* consume_string(State* state) {
   return str;
 }
 
+static bool identifier_consume_condition(State* state, char c) {
+  return is_valid_identifier_char(c);
+}
+
+static void consume_identifier(State* state) {
+  consume_while(state, &identifier_consume_condition);
+}
+
+/*
 static char* consume_identifier(State* state) {
   char c = state_char(state);
   str_builder_t *sb;
@@ -114,6 +130,7 @@ static char* consume_identifier(State* state) {
 
   return str;
 }
+*/
 
 static bool timeframe_consume_condition(State* state, char c) {
   return is_timeframe_char(c);
@@ -121,10 +138,10 @@ static bool timeframe_consume_condition(State* state, char c) {
 
 static void consume_timeframe(State* state) {
   consume_while(state, &timeframe_consume_condition);
-  state_prev(state);
 }
 
 static int consume_token(State* state) {
+  int len = 0;
   while(state_inbounds(state)) {
     state_next(state);
     state_advance_column(state);
@@ -136,30 +153,39 @@ static int consume_token(State* state) {
 
     if(is_newline(c)) {
       state_advance_line(state);
+      state->token_len = 1;
       return TOKEN_EOL;
     }
 
+    len++;
+
     if(c == '{') {
+      state->token_len = 1;
       return TOKEN_BEGIN_BLOCK;
     }
 
     if(c == '}') {
+      state->token_len = 1;
       return TOKEN_END_BLOCK;
     }
 
     if(c == '(') {
+      state->token_len = 1;
       return TOKEN_BEGIN_CALL;
     }
 
     if(c == ')') {
+      state->token_len = 1;
       return TOKEN_END_CALL;
     }
 
     if(c == '=') {
       if(state_peek(state) == '>') {
         state_next(state);
+        state->token_len = 2;
         return TOKEN_CALL;
       }
+      state->token_len = 1;
       return TOKEN_ASSIGNMENT;
     }
 
@@ -174,6 +200,7 @@ static int consume_token(State* state) {
     }
 
     if(c == '\0') {
+      state->token_len = 1;
       return TOKEN_EOF;
     }
 
@@ -187,10 +214,64 @@ static int consume_token(State* state) {
       }
     }
 
+    state->token_len = len;
     return TOKEN_UNKNOWN;
   }
 
+  state->token_len = len;
   return TOKEN_EOF;
+}
+
+static int consume_call_expression(State* state, const char* fn_name, void* expr, consume_call_expr_args on_args) {
+  int err = 0;
+  int token = consume_token(state);
+
+  bool in_call = false;
+  if(token != TOKEN_BEGIN_CALL) {
+    if(token == TOKEN_IDENTIFIER) {
+      char buffer[100];
+      sprintf(buffer, "%s must be called like a function. Expected %s(%s)", fn_name, fn_name, state->word);
+      error_msg_with_code_block_dec(state, state->word_len, buffer);
+    } else {
+      // What should this be?
+      error_msg_with_code_block(state, NULL, "Expected a (");
+    }
+    err = 1;
+  } else {
+    in_call = true;
+    token = consume_token(state);
+  }
+
+  // TODO support multiple args
+  char* identifier = NULL;
+  if(token != TOKEN_IDENTIFIER) {
+    error_msg_with_code_block(state, NULL, "Expected a property to assign to.");
+    err = 2;
+    goto end;
+  } else {
+    identifier = state_take_word(state);
+    _check(on_args(state, expr, identifier));
+  }
+
+  token = consume_token(state);
+  if(token != TOKEN_END_CALL) {
+    // Only show this error message if we are currently within a call.
+    if(in_call) {
+      char buffer[100];
+      char* key = identifier == NULL ? "" : identifier;
+      sprintf(buffer, "Inline assigns must be called like a function. Expected assign(%s)", key);
+      error_msg_with_code_block_dec(state, state->token_len, buffer);
+    }
+
+    // Rewind back out, so the next thing consumes this token.
+    state_rewind(state, state->token_len);
+
+    err = 1;
+  }
+
+  end: {
+    return err;
+  }
 }
 
 static int consume_inline_guard(State* state, TransitionNode* transition_node) {
@@ -227,30 +308,67 @@ static int consume_inline_guard(State* state, TransitionNode* transition_node) {
   }
 }
 
+static int consume_inline_assign_args(State* state, void* expr, char* arg) {
+  AssignExpression* assign_expression = (AssignExpression*)expr;
+  assign_expression->key = arg;
+  return 0;
+}
+
 static int consume_inline_assign(State* state, TransitionNode* transition_node) {
+  int err = 0;
+  AssignExpression* assign_expression = node_create_assignexpression();
+
+  _check(consume_call_expression(state, "assign", assign_expression, &consume_inline_assign_args));
+
+  TransitionAction* action = node_transition_add_action(transition_node, NULL);
+  action->expression = (Expression*)assign_expression;
+
+  program_add_flag(state->program, PROGRAM_USES_ASSIGN);
+
+  return err;
+}
+
+static int consume_inline_assign2(State* state, TransitionNode* transition_node) {
   int err = 0;
   int token = consume_token(state);
 
   if(token != TOKEN_BEGIN_CALL) {
-    error_msg_with_code_block(state, NULL, "Expected a (");
+    if(token == TOKEN_IDENTIFIER) {
+      char buffer[100];
+      sprintf(buffer, "Inline assigns must be called like a function. Expected assign(%s)", state->word);
+      error_msg_with_code_block_dec(state, state->word_len, buffer);
+    } else {
+      // What should this be?
+      error_msg_with_code_block(state, NULL, "Expected a (");
+    }
     err = 1;
+  } else {
+    token = consume_token(state);
   }
-
-  token = consume_token(state);
+  
+  char* identifier = NULL;
   if(token != TOKEN_IDENTIFIER) {
     error_msg_with_code_block(state, NULL, "Expected a property to assign to.");
     err = 2;
     goto end;
+  } else {
+    identifier = state_take_word(state);
   }
 
   token = consume_token(state);
   if(token != TOKEN_END_CALL) {
-    error_msg_with_code_block(state, NULL, "Expected a )");
+    char buffer[100];
+    char* key = identifier == NULL ? "" : identifier;
+    sprintf(buffer, "Inline assigns must be called like a function. Expected assign(%s)", key);
+    error_msg_with_code_block_dec(state, state->token_len, buffer);
+
+    // TODO rewind
+
     err = 1;
   }
 
   AssignExpression* assign_expression = node_create_assignexpression();
-  assign_expression->key = state_take_word(state);
+  assign_expression->key = identifier;
   TransitionAction* action = node_transition_add_action(transition_node, NULL);
   action->expression = (Expression*)assign_expression;
 
@@ -365,8 +483,7 @@ static int consume_transition(State* state) {
     transition_node->type = TRANSITION_IMMEDIATE_TYPE;
 
     // Currently in a call, so rewind to back out.
-    state_prev(state);
-    state_prev(state);
+    state_rewind(state, 2);
   } else {
     unsigned short key = keyword_get(event);
 
@@ -441,7 +558,7 @@ static int consume_transition(State* state) {
     }
 
     if(token != TOKEN_CALL) {
-      error_msg_with_code_block(state, NULL, "Expected to pipe to a destination.");
+      error_msg_with_code_block_dec(state, state->token_len, "Expected to pipe to a destination.");
       err = 2;
       goto end;
     }
@@ -605,7 +722,7 @@ static int consume_state(State* state) {
     }
     default: {
       err = 1;
-      error_msg_with_code_block(state, state_node_node, "States must be given a name.");
+      error_msg_with_code_block_dec(state, state->token_len, "States must be given a name.");
       break;
     }
   }

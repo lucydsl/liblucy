@@ -59,6 +59,10 @@ int state_inbounds(State* state) {
   return state->index < state->source_len;
 }
 
+static inline char state_char_at(State* state, unsigned short index) {
+  return state->source[index];
+}
+
 char state_char(State* state) {
   return state->source[state->index];
 }
@@ -77,9 +81,42 @@ char state_next(State* state) {
   return state_char(state);
 }
 
-char state_prev(State* state) {
-  state->index--;
-  return state_char(state);
+void state_find_position(State* state, pos_t* pos, int inc) {
+  size_t index = state->index;
+  int col = 0;
+  int line = state->line;
+  int i = inc;
+  char c;
+  while(index > 0) {
+    c = state_char_at(state, index);
+
+    if(i <= 0) {
+      col++;
+    }
+
+    if(c == '\n') {
+      if(i <= 0) {
+        // Reached the beginning of the line.
+        break;
+      } else {
+        line--;
+      }
+    }
+
+    i--;
+    index--;
+  }
+
+  pos->line = line;
+  pos->column = col;
+}
+
+void state_rewind(State* state, int inc) {
+  pos_t pos;
+  state_find_position(state, &pos, inc);
+  state->index = state->index - inc;
+  state->line = pos.line;
+  state->column = pos.column;
 }
 
 void state_node_set(State* state, Node* node) {
