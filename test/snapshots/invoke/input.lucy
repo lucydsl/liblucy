@@ -1,6 +1,6 @@
 use './user.js' { getUser, setUser }
 
-action assignUser = assign user setUser
+action assignUser = assign(user, setUser)
 
 state loading {
   invoke getUser {

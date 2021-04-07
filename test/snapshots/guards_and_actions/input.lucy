@@ -5,8 +5,8 @@ use './actions.js' {
   greaterThanZero
 }
 
-action increment = assign count incrementCount
-action decrement = assign count decrementCount
+action increment = assign(count, incrementCount)
+action decrement = assign(count, decrementCount)
 
 guard isNotMax = lessThanTen
 guard isNotMin = greaterThanZero

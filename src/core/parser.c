@@ -26,6 +26,7 @@
 #define TOKEN_UNKNOWN 10
 #define TOKEN_BEGIN_CALL 11
 #define TOKEN_END_CALL 12
+#define TOKEN_COMMA 13
 
 #define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
 
@@ -40,7 +41,7 @@ int is_whitespace(char c) {
 }
 
 typedef bool (*consume_condition)(State*, char);
-typedef int (*consume_call_expr_args)(State*, void*, int, char*);
+typedef int (*consume_call_expr_args)(State*, void*, int, char*, int);
 
 static void consume_while(State* state, consume_condition cond) {
   char c = state_char(state);
@@ -174,6 +175,11 @@ static int consume_token(State* state) {
       return TOKEN_STRING;
     }
 
+    if(c == ',') {
+      state->token_len = 1;
+      return TOKEN_COMMA;
+    }
+
     if(c == '\0') {
       state->token_len = 1;
       return TOKEN_EOF;
@@ -217,37 +223,46 @@ static int consume_call_expression(State* state, const char* fn_name, void* expr
     token = consume_token(state);
   }
 
-  // TODO support multiple args
   char* identifier = NULL;
-  switch(token) {
-    case TOKEN_IDENTIFIER:
-    case TOKEN_TIMEFRAME:
-    case TOKEN_INTEGER: {
-      identifier = state_take_word(state);
-      _check(on_args(state, expr, token, identifier));
-      break;
+  int argi = 0;
+  while(token != TOKEN_END_CALL) {
+    switch(token) {
+      case TOKEN_COMMA: break;
+      case TOKEN_IDENTIFIER:
+      case TOKEN_TIMEFRAME:
+      case TOKEN_INTEGER: {
+        identifier = state_take_word(state);
+        _check(on_args(state, expr, token, identifier, argi));
+        break;
+      }
+      default: {
+        if(in_call) {
+          error_msg_with_code_block_dec(state, state->token_len, "Unknown function argument.");
+          err = 2;
+          goto end;
+        }
+        goto end_args;
+      }
     }
-    default: {
-      error_msg_with_code_block(state, NULL, "Expected a property to assign to.");
-      err = 2;
-      goto end;
-    }
+    token = consume_token(state);
+    argi++;
   }
 
-  token = consume_token(state);
-  if(token != TOKEN_END_CALL) {
-    // Only show this error message if we are currently within a call.
-    if(in_call) {
-      char buffer[100];
-      char* key = identifier == NULL ? "" : identifier;
-      sprintf(buffer, "Inline assigns must be called like a function. Expected assign(%s)", key);
-      error_msg_with_code_block_dec(state, state->token_len, buffer);
+  end_args: {
+    if(token != TOKEN_END_CALL) {
+      // Only show this error message if we are currently within a call.
+      if(in_call) {
+        char buffer[100];
+        char* key = identifier == NULL ? "" : identifier;
+        sprintf(buffer, "Inline assigns must be called like a function. Expected assign(%s)", key);
+        error_msg_with_code_block_dec(state, state->token_len, buffer);
+      }
+
+      // Rewind back out, so the next thing consumes this token.
+      state_rewind(state, state->token_len);
+
+      err = 1;
     }
-
-    // Rewind back out, so the next thing consumes this token.
-    state_rewind(state, state->token_len);
-
-    err = 1;
   }
 
   end: {
@@ -255,7 +270,7 @@ static int consume_call_expression(State* state, const char* fn_name, void* expr
   }
 }
 
-static int consume_inline_guard_args(State* state, void* expr, int _token, char* arg) {
+static int consume_inline_guard_args(State* state, void* expr, int _token, char* arg, int _argi) {
   GuardExpression* guard_expression = (GuardExpression*)expr;
   guard_expression->ref = arg;
   return 0;
@@ -274,9 +289,15 @@ static int consume_inline_guard(State* state, TransitionNode* transition_node) {
   return err;
 }
 
-static int consume_inline_assign_args(State* state, void* expr, int _token, char* arg) {
+static int consume_inline_assign_args(State* state, void* expr, int _token, char* arg, int argi) {
   AssignExpression* assign_expression = (AssignExpression*)expr;
-  assign_expression->key = arg;
+
+  if(argi == 0) {
+    assign_expression->key = arg;
+  } else {
+    assign_expression->identifier = arg;
+  }
+  
   return 0;
 }
 
@@ -294,7 +315,7 @@ static int consume_inline_assign(State* state, TransitionNode* transition_node) 
   return err;
 }
 
-static int consume_inline_action_args(State* state, void* expr, int _token, char* arg) {
+static int consume_inline_action_args(State* state, void* expr, int _token, char* arg, int _argi) {
   ActionExpression* action_expression = (ActionExpression*)expr;
   action_expression->ref = arg;
   return 0;
@@ -313,7 +334,7 @@ static int consume_inline_action(State* state, TransitionNode* transition_node) 
   return err;
 }
 
-static int consume_inline_delay_args(State* state, void* expr, int token, char* arg) {
+static int consume_inline_delay_args(State* state, void* expr, int token, char* arg, int _argi) {
   DelayExpression* delay_expression = (DelayExpression*)expr;
 
   int time = 0;
@@ -700,14 +721,8 @@ static int consume_use_specifiers(ImportNode* import_node, State* state) {
       case TOKEN_EOL: {
         break;
       }
-      case TOKEN_UNKNOWN: {
-        char c = state_char(state);
-
-        // Getting into another specifier, close out this one.
-        if(c == ',') {
-          node_append((Node*)import_node, (Node*)specifier);
-        }
-
+      case TOKEN_COMMA: {
+        node_append((Node*)import_node, (Node*)specifier);
         break;
       }
       default: {
@@ -809,14 +824,12 @@ static int consume_action(State* state) {
   assignment->binding_name = binding_name;
 
   token = consume_token(state);
-
   if(token != TOKEN_ASSIGNMENT) {
     error_msg_with_code_block(state, node, "Expected an assignment");
     return 2;
   }
 
   token = consume_token(state);
-
   if(token != TOKEN_IDENTIFIER) {
     error_msg_with_code_block(state, node, "Expected an identifier");
     return 2;
@@ -828,26 +841,11 @@ static int consume_action(State* state) {
   }
 
   AssignExpression *expression = node_create_assignexpression();
-  program_add_flag(state->program, PROGRAM_USES_ASSIGN);
 
-  token = consume_token(state);
+  consume_call_expression(state, "assign", expression, &consume_inline_assign_args);
 
-  if(token != TOKEN_IDENTIFIER) {
-    error_unexpected_identifier(state, node);
-    return 2;
-  }
-
-  expression->key = state_take_word(state);
-
-  token = consume_token(state);
-
-  if(token != TOKEN_IDENTIFIER) {
-    error_unexpected_identifier(state, node);
-    return 2;
-  }
-
-  expression->identifier = state_take_word(state);
   assignment->value = (Expression*)expression;
+  program_add_flag(state->program, PROGRAM_USES_ASSIGN);
 
   state_add_action(state, assignment->binding_name);
   state_node_up(state);
