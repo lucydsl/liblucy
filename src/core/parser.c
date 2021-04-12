@@ -387,6 +387,22 @@ static int consume_inline_delay(State* state, TransitionNode* transition_node) {
   return err;
 }
 
+static int consume_on_args(State* state, void* expr, int _token, char* arg, int _argi) {
+  OnExpression* on_expression = (OnExpression*)expr;
+  on_expression->name = arg;
+  return 0;
+}
+
+static int consume_on(State* state, TransitionNode* transition_node) {
+  int err = 0;
+
+  OnExpression* expression = node_create_onexpression();
+  _check(consume_call_expression(state, "on", expression, &consume_on_args));
+  transition_node->event = (Expression*)expression;
+
+  return err;
+}
+
 static int consume_transition(State* state) {
   int err = 0;
   TransitionNode* transition_node = node_create_transition();
@@ -407,8 +423,14 @@ static int consume_transition(State* state) {
         _check(consume_inline_delay(state, transition_node));
         break;
       }
+      case KW_ON: {
+        _check(consume_on(state, transition_node));
+        break;
+      }
       default: {
-        transition_node->event = event;
+        IdentifierExpression* identifier_expression = node_create_identifierexpression();
+        identifier_expression->name = event;
+        transition_node->event = (Expression*)identifier_expression;
         break;
       }
     }
@@ -473,7 +495,7 @@ static int consume_transition(State* state) {
     }
 
     if(token != TOKEN_CALL) {
-      error_msg_with_code_block_dec(state, state->token_len, "Expected to pipe to a destination.");
+      error_msg_with_code_block_dec(state, state->token_len, "Expected a destination state for this event.");
       err = 2;
       goto end;
     }

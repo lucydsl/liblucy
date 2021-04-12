@@ -7,6 +7,8 @@ static void node_destroy_guardexpression(GuardExpression*);
 static void node_destroy_actionexpression(ActionExpression*);
 static void node_destroy_assignexpression(AssignExpression*);
 static void node_destroy_delayexpression(DelayExpression*);
+static void node_destroy_identifierexpression(IdentifierExpression*);
+static void node_destroy_onexpression(OnExpression*);
 
 Node* node_create_type(unsigned short type, size_t size) {
   Node *node = malloc(size);
@@ -122,6 +124,13 @@ DelayExpression* node_create_delayexpression() {
   DelayExpression* expression = malloc(sizeof *expression);
   ((Expression*)expression)->type = EXPRESSION_DELAY;
   expression->ref = NULL;
+  return expression;
+}
+
+OnExpression* node_create_onexpression() {
+  OnExpression* expression = malloc(sizeof *expression);
+  ((Expression*)expression)->type = EXPRESSION_ON;
+  expression->name = NULL;
   return expression;
 }
 
@@ -294,6 +303,21 @@ Expression* node_clone_expression(Expression* input) {
  * Begin teardown code
  */
 void node_destroy_transition(TransitionNode* transition_node) {
+  if(transition_node->event != NULL) {
+    Expression* event = transition_node->event;
+    switch(event->type) {
+      case EXPRESSION_ON: {
+        node_destroy_onexpression((OnExpression*)event);
+        break;
+      }
+      case EXPRESSION_IDENTIFIER: {
+        node_destroy_identifierexpression((IdentifierExpression*)event);
+        break;
+      }
+    }
+    free(event);
+  }
+
   if(transition_node->guard != NULL) {
     node_destroy_transition_guards(transition_node->guard);
   }
@@ -341,6 +365,12 @@ static void node_destroy_delayexpression(DelayExpression* expression) {
     if(expression->ref != NULL) {
       free(expression->ref);
     }
+  }
+}
+
+static void node_destroy_onexpression(OnExpression* expression) {
+  if(expression != NULL) {
+    free(expression->name);
   }
 }
 

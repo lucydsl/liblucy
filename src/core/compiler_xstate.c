@@ -302,7 +302,14 @@ static void exit_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
 static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
   TransitionNode* transition_node = (TransitionNode*)node;
   Node* parent_node = node->parent;
-  char* event_name = transition_node->event;
+
+  char* event_name = NULL;
+  if(transition_node->event != NULL) {
+    event_name = transition_node->event->type == EXPRESSION_ON ?
+      ((OnExpression*)transition_node->event)->name :
+      ((IdentifierExpression*)transition_node->event)->name;
+  }
+
   int type = transition_node->type;
 
   bool is_always = transition_node->type == TRANSITION_IMMEDIATE_TYPE;
