@@ -1,0 +1,7 @@
+
+initial state idle {
+  on(purchase) => end
+  on(delay) => end
+}
+
+final state end {}

@@ -1,6 +1,6 @@
 [1m[37mtest/snapshots/error_double_digit/input.lucy[0m:10:17
 
- [1m[31m𝒙[0m[31m Expected to pipe to a destination.
+ [1m[31m𝒙[0m[31m Expected a destination state for this event.
 
 [0m[1m[37m    8[0m  │   go => {
 [1m[37m    9[0m  │     canGo =>
