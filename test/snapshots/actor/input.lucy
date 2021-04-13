@@ -1,0 +1,19 @@
+
+machine other {
+  state only {
+    run => only
+  }
+}
+
+action makeThing = assign(second, spawn(other))
+action sendThing = send(second, run)
+
+state idle {
+  on(event) => assign(first, spawn(other)) => idle
+  another => makeThing => idle
+}
+
+state end {
+  click => send(first, run) => end
+  dblclick => sendThing => end
+}

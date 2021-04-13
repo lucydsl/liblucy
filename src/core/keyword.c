@@ -27,4 +27,6 @@ void keyword_init() {
   dict_insert(keywords, "machine", KW_MACHINE);
   dict_insert(keywords, "delay", KW_DELAY);
   dict_insert(keywords, "on", KW_ON);
+  dict_insert(keywords, "spawn", KW_SPAWN);
+  dict_insert(keywords, "send", KW_SEND);
 }

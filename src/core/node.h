@@ -25,6 +25,8 @@
 #define EXPRESSION_ACTION 3
 #define EXPRESSION_DELAY 4
 #define EXPRESSION_ON 5
+#define EXPRESSION_SPAWN 6
+#define EXPRESSION_SEND 7
 
 typedef struct Node {
   unsigned short type;
@@ -110,7 +112,7 @@ typedef struct IdentifierExpression {
 typedef struct AssignExpression {
   Expression expression;
   char* key;
-  char* identifier;
+  Expression* value;
 } AssignExpression;
 
 typedef struct GuardExpression {
@@ -134,6 +136,17 @@ typedef struct OnExpression {
   char* name;
 } OnExpression;
 
+typedef struct SpawnExpression {
+  Expression expression;
+  char* target;
+} SpawnExpression;
+
+typedef struct SendExpression {
+  Expression expression;
+  char* actor;
+  char* event;
+} SendExpression;
+
 typedef struct Assignment {
   Node node;
   unsigned short binding_type;
@@ -155,6 +168,8 @@ GuardExpression* node_create_guardexpression();
 ActionExpression* node_create_actionexpression();
 DelayExpression* node_create_delayexpression();
 OnExpression* node_create_onexpression();
+SpawnExpression* node_create_spawnexpression();
+SendExpression* node_create_sendexpression();
 
 bool node_machine_is_nested(Node*);
 bool node_transition_has_sibling_always(TransitionNode*);
