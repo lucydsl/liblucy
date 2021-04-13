@@ -2,13 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "node.h"
-
-static void node_destroy_guardexpression(GuardExpression*);
-static void node_destroy_actionexpression(ActionExpression*);
-static void node_destroy_assignexpression(AssignExpression*);
-static void node_destroy_delayexpression(DelayExpression*);
-static void node_destroy_identifierexpression(IdentifierExpression*);
-static void node_destroy_onexpression(OnExpression*);
+#include "node/expression.h"
 
 Node* node_create_type(unsigned short type, size_t size) {
   Node *node = malloc(size);
@@ -92,46 +86,6 @@ InvokeNode* node_create_invoke() {
   Node* node = node_create_type(NODE_INVOKE_TYPE, sizeof(InvokeNode));
   InvokeNode* invoke_node = (InvokeNode*)node;
   return invoke_node;
-}
-
-AssignExpression* node_create_assignexpression() {
-  AssignExpression* expression = malloc(sizeof *expression);
-  ((Expression*)expression)->type = EXPRESSION_ASSIGN;
-  expression->identifier = NULL;
-  expression->key = NULL;
-  return expression;
-}
-
-IdentifierExpression* node_create_identifierexpression() {
-  IdentifierExpression* expression = malloc(sizeof *expression);
-  ((Expression*)expression)->type = EXPRESSION_IDENTIFIER;
-  return expression;
-}
-
-GuardExpression* node_create_guardexpression() {
-  GuardExpression* expression = malloc(sizeof *expression);
-  ((Expression*)expression)->type = EXPRESSION_GUARD;
-  return expression;
-}
-
-ActionExpression* node_create_actionexpression() {
-  ActionExpression* expression = malloc(sizeof *expression);
-  ((Expression*)expression)->type = EXPRESSION_ACTION;
-  return expression;
-}
-
-DelayExpression* node_create_delayexpression() {
-  DelayExpression* expression = malloc(sizeof *expression);
-  ((Expression*)expression)->type = EXPRESSION_DELAY;
-  expression->ref = NULL;
-  return expression;
-}
-
-OnExpression* node_create_onexpression() {
-  OnExpression* expression = malloc(sizeof *expression);
-  ((Expression*)expression)->type = EXPRESSION_ON;
-  expression->name = NULL;
-  return expression;
 }
 
 TransitionGuard* node_transition_add_guard(TransitionNode* transition_node, char* name) {
@@ -240,8 +194,12 @@ static void node_destroy_transition_actions(TransitionAction* action) {
           node_destroy_assignexpression((AssignExpression*)action->expression);
           break;
         }
+        case EXPRESSION_SEND: {
+          node_destroy_sendexpression((SendExpression*)action->expression);
+          break;
+        }
         default: {
-          printf("Unknown expression type.\n");
+          printf("Unknown expression type: %i.\n", action->expression->type);
         }
       }
     }
@@ -277,7 +235,9 @@ Expression* node_clone_expression(Expression* input) {
     case EXPRESSION_ASSIGN: {
       AssignExpression *in_ae = (AssignExpression*)input;
       AssignExpression *out_ae = node_create_assignexpression();
-      out_ae->identifier = strdup(in_ae->identifier);
+      if(in_ae->value != NULL) {
+        out_ae->value = node_clone_expression(in_ae->value);
+      }
       out_ae->key = strdup(in_ae->key);
       output = (Expression*)out_ae;
       break;
@@ -292,7 +252,23 @@ Expression* node_clone_expression(Expression* input) {
       output = (Expression*)out_de;
       break;
     }
+    case EXPRESSION_SPAWN: {
+      SpawnExpression* in_se = (SpawnExpression*)input;
+      SpawnExpression* out_se = node_create_spawnexpression();
+      out_se->target = strdup(in_se->target);
+      output = (Expression*)out_se;
+      break;
+    }
+    case EXPRESSION_SEND: {
+      SendExpression* in_se = (SendExpression*)input;
+      SendExpression* out_se = node_create_sendexpression();
+      out_se->actor = strdup(in_se->actor);
+      out_se->event = strdup(in_se->event);
+      output = (Expression*)out_se;
+      break;
+    }
     default: {
+      fprintf(stderr, "Cannot clone expressions of type %i\n", input->type);
       output = NULL;
     }
   }
@@ -331,49 +307,6 @@ void node_destroy_transition(TransitionNode* transition_node) {
   }
 }
 
-static void node_destroy_assignexpression(AssignExpression* expression) {
-  if(expression != NULL) {
-    if(expression->identifier != NULL) {
-      free(expression->identifier);
-    }
-    if(expression->key != NULL) {
-      free(expression->key);
-    }
-  }
-}
-
-static void node_destroy_identifierexpression(IdentifierExpression* expression) {
-  if(expression != NULL) {
-    free(expression->name);
-  }
-}
-
-static void node_destroy_guardexpression(GuardExpression* expression) {
-  if(expression != NULL) {
-    free(expression->ref);
-  }
-}
-
-static void node_destroy_actionexpression(ActionExpression* expression) {
-  if(expression != NULL) {
-    free(expression->ref);
-  }
-}
-
-static void node_destroy_delayexpression(DelayExpression* expression) {
-  if(expression != NULL) {
-    if(expression->ref != NULL) {
-      free(expression->ref);
-    }
-  }
-}
-
-static void node_destroy_onexpression(OnExpression* expression) {
-  if(expression != NULL) {
-    free(expression->name);
-  }
-}
-
 void node_destroy_assignment(Assignment* assignment) {
   Expression *expression = assignment->value;
 
@@ -383,6 +316,7 @@ void node_destroy_assignment(Assignment* assignment) {
       node_destroy_assignexpression(assign_expression);
       break;
     }
+    // Guards simply assign a value
     case EXPRESSION_IDENTIFIER: {
       node_destroy_identifierexpression((IdentifierExpression*)expression);
       break;
@@ -414,23 +348,6 @@ void node_destroy_machine(MachineNode* machine_node) {
 
 void node_destroy_state(StateNode* state_node) {
   free(state_node->name);
-}
-
-void node_destroy_expression(Expression* expression) {
-  switch(expression->type) {
-    case EXPRESSION_IDENTIFIER: {
-      IdentifierExpression *identifier_expression = (IdentifierExpression*)expression;
-      free(identifier_expression->name);
-      break;
-    }
-    case EXPRESSION_ASSIGN: {
-      AssignExpression *assign_expression = (AssignExpression*)expression;
-      free(assign_expression->identifier);
-      free(assign_expression->key);
-      break;
-    }
-  }
-  free(expression);
 }
 
 void node_destroy_invoke(InvokeNode* invoke_node) {

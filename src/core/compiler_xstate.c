@@ -94,6 +94,26 @@ static void destroy_state(PrintState *state) {
   }
 }
 
+static void add_spawn_call(JSBuilder* jsb, SpawnExpression* spawn_expression) {
+  js_builder_start_call(jsb, "spawn");
+  js_builder_add_str(jsb, spawn_expression->target);
+  js_builder_add_str(jsb, ", ");
+  js_builder_add_string(jsb, spawn_expression->target);
+  js_builder_end_call(jsb);
+}
+
+static void add_send_call(JSBuilder* jsb, SendExpression* send_expression) {
+  js_builder_start_call(jsb, "send");
+  js_builder_add_string(jsb, send_expression->event);
+  js_builder_add_str(jsb, ", ");
+  js_builder_start_object(jsb);
+  js_builder_start_prop(jsb, "to");
+  js_builder_add_str(jsb, "(context) => context.");
+  js_builder_add_str(jsb, send_expression->actor);
+  js_builder_end_object(jsb);
+  js_builder_end_call(jsb);
+}
+
 static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
   MachineNode *machine_node = (MachineNode*)node;
   Node* parent_node = node->parent;
@@ -177,11 +197,28 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
             js_builder_start_call(jsb, "assign");
             js_builder_start_object(jsb);
             js_builder_start_prop(jsb, assign->key);
-            js_builder_add_str(jsb, assign->identifier);
+
+            char* identifier;
+            switch(assign->value->type) {
+              case EXPRESSION_IDENTIFIER: {
+                char* identifier = ((IdentifierExpression*)assign->value)->name;
+                js_builder_add_str(jsb, identifier);
+                break;
+              }
+              case EXPRESSION_SPAWN: {
+                SpawnExpression* spawn_expression = (SpawnExpression*)assign->value;
+                add_spawn_call(jsb, spawn_expression);
+                break;
+              }
+            }
+
             js_builder_end_object(jsb);
             js_builder_end_call(jsb);
-
-            //js_builder_add_string(jsb, assign->identifier);
+            break;
+          }
+          case EXPRESSION_SEND: {
+            SendExpression* send_expression = (SendExpression*)expression;
+            add_send_call(jsb, send_expression);
             break;
           }
           default: {
@@ -419,7 +456,8 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
       TransitionAction* inner = action;
       bool use_multiline = false;
       while(inner && !use_multiline) {
-        if(action->expression && action->expression->type == EXPRESSION_ASSIGN) {
+        if(action->expression && (action->expression->type == EXPRESSION_ASSIGN || 
+          action->expression->type == EXPRESSION_SEND)) {
           use_multiline = true;
           break;
         }
@@ -440,7 +478,22 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
               js_builder_start_call(jsb, "assign");
               js_builder_start_object(jsb);
               js_builder_start_prop(jsb, assign_expression->key);
-              js_builder_add_str(jsb, "(context, event) => event.data");
+
+              if(assign_expression->value != NULL) {
+                switch(assign_expression->value->type) {
+                  case EXPRESSION_IDENTIFIER: {
+                    fprintf(stderr, "Not supported at this time\n"); // TODO
+                    break;
+                  }
+                  case EXPRESSION_SPAWN: {
+                    add_spawn_call(jsb, (SpawnExpression*)assign_expression->value);
+                    break;
+                  }
+                }
+              } else {
+                js_builder_add_str(jsb, "(context, event) => event.data");
+              }
+
               js_builder_end_object(jsb);
               js_builder_end_call(jsb);
               break;
@@ -451,6 +504,14 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
                 js_builder_add_indent(jsb);
               }
               js_builder_add_str(jsb, action_expression->ref);
+              break;
+            }
+            case EXPRESSION_SEND: {
+              if(use_multiline) {
+                js_builder_add_indent(jsb);
+              }
+              SendExpression* send_expression = (SendExpression*)action->expression;
+              add_send_call(jsb, send_expression);
               break;
             }
           }

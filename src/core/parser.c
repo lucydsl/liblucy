@@ -289,16 +289,69 @@ static int consume_inline_guard(State* state, TransitionNode* transition_node) {
   return err;
 }
 
+static int consume_inline_spawn_args(State* state, void* expr, int _token, char* arg, int _argi) {
+  SpawnExpression* spawn_expression = (SpawnExpression*)expr;
+  spawn_expression->target = arg;
+  return 0;
+}
+
+static int consume_inline_spawn(State* state, AssignExpression* assign_expression) {
+  int err = 0;
+
+  SpawnExpression* spawn_expression = node_create_spawnexpression();
+  _check(consume_call_expression(state, "spawn", spawn_expression, &consume_inline_spawn_args));
+  assign_expression->value = (Expression*)spawn_expression;
+
+  return err;
+}
+
+static int consume_inline_send_args(State* state, void* expr, int _token, char* arg, int argi) {
+  SendExpression* send_expression = (SendExpression*)expr;
+
+  if(argi == 0) {
+    send_expression->actor = arg;
+  } else {
+    send_expression->event = arg;
+  }
+
+  return 0;
+}
+
+static int consume_inline_send(State* state, TransitionNode* transition_node) {
+  int err = 0;
+
+  SendExpression* send_expression = node_create_sendexpression();
+  _check(consume_call_expression(state, "send", send_expression, &consume_inline_send_args));
+  TransitionAction* action = node_transition_add_action(transition_node, NULL);
+  action->expression = (Expression*)send_expression;
+
+  return err;
+}
+
 static int consume_inline_assign_args(State* state, void* expr, int _token, char* arg, int argi) {
+  int err = 0;
   AssignExpression* assign_expression = (AssignExpression*)expr;
 
   if(argi == 0) {
     assign_expression->key = arg;
   } else {
-    assign_expression->identifier = arg;
+    unsigned short key = keyword_get(arg);
+    switch(key) {
+      case KW_SPAWN: {
+        _check(consume_inline_spawn(state, assign_expression));
+        break;
+      }
+      default: {
+        IdentifierExpression* identifier_expression = node_create_identifierexpression();
+        identifier_expression->name = arg;
+        assign_expression->value = (Expression*)identifier_expression;
+        // Not a keyword
+        break;
+      }
+    }
   }
   
-  return 0;
+  return err;
 }
 
 static int consume_inline_assign(State* state, TransitionNode* transition_node) {
@@ -537,6 +590,11 @@ static int consume_transition(State* state) {
       }
       case KW_ACTION: {
         _check(consume_inline_action(state, transition_node));
+        free(identifier);
+        break;
+      }
+      case KW_SEND: {
+        _check(consume_inline_send(state, transition_node));
         free(identifier);
         break;
       }
@@ -830,6 +888,8 @@ static int consume_use(State* state) {
 }
 
 static int consume_action(State* state) {
+  int err = 0;
+
   Assignment* assignment = node_create_assignment(ASSIGNMENT_ACTION);
   Node *node = (Node*)assignment;
   state_node_set(state, node);
@@ -857,21 +917,33 @@ static int consume_action(State* state) {
     return 2;
   }
 
-  if(keyword_get(state->word) != KW_ASSIGN) {
-    error_msg_with_code_block(state, node, "Only assign expressions are supported at this time");
-    return 2;
+  unsigned short key = keyword_get(state->word);
+  switch(key) {
+    case KW_ASSIGN: {
+      AssignExpression *expression = node_create_assignexpression();
+      consume_call_expression(state, "assign", expression, &consume_inline_assign_args);
+      assignment->value = (Expression*)expression;
+      program_add_flag(state->program, PROGRAM_USES_ASSIGN);
+      break;
+    }
+    case KW_SEND: {
+      SendExpression* expression = node_create_sendexpression();
+      consume_call_expression(state, "send", expression, &consume_inline_send_args);
+      assignment->value = (Expression*)expression;
+      break;
+    }
+    default: {
+      error_msg_with_code_block(state, node, "Only assign expressions are supported at this time");
+      err = 2;
+      goto end;
+    }
   }
 
-  AssignExpression *expression = node_create_assignexpression();
-
-  consume_call_expression(state, "assign", expression, &consume_inline_assign_args);
-
-  assignment->value = (Expression*)expression;
-  program_add_flag(state->program, PROGRAM_USES_ASSIGN);
-
-  state_add_action(state, assignment->binding_name);
-  state_node_up(state);
-  return 0;
+  end: {
+    state_add_action(state, assignment->binding_name);
+    state_node_up(state);
+    return err;
+  }
 }
 
 static int consume_guard(State* state) {
