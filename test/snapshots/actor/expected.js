@@ -1,4 +1,4 @@
-import { Machine, assign } from 'xstate';
+import { Machine, assign, send, spawn } from 'xstate';
 
 export const other = Machine({
   states: {

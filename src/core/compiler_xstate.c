@@ -651,6 +651,12 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     if(program->flags & PROGRAM_USES_ASSIGN) {
       js_builder_add_str(jsb, ", assign");
     }
+    if(program->flags & PROGRAM_USES_SEND) {
+      js_builder_add_str(jsb, ", send");
+    }
+    if(program->flags & PROGRAM_USES_SPAWN) {
+      js_builder_add_str(jsb, ", spawn");
+    }
 
     js_builder_add_str(jsb, " } from '");
 
