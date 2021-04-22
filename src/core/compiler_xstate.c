@@ -8,6 +8,7 @@
 #include "str_builder.h"
 #include "js_builder.h"
 #include "compiler_xstate.h"
+#include "local.h"
 
 // API flags
 #define FLAG_USE_REMOTE 1 << 0
@@ -30,6 +31,8 @@ typedef struct PrintState {
 } PrintState;
 
 typedef void (*set_ref)(PrintState*, Ref*);
+static void compile_transition_action(PrintState*, JSBuilder*, TransitionAction*, const char*);
+static void compile_local_node(PrintState*, JSBuilder*, LocalNode*);
 
 static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, set_ref set) {
   Ref *ref = malloc(sizeof(Ref));
@@ -221,6 +224,11 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
             add_send_call(jsb, send_expression);
             break;
           }
+          case EXPRESSION_IDENTIFIER: {
+            IdentifierExpression* identifier_expression = (IdentifierExpression*)expression;
+            js_builder_add_str(jsb, identifier_expression->name);
+            break;
+          }
           default: {
             printf("This type of expression is not currently supported.\n");
             break;
@@ -310,12 +318,33 @@ static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_start_prop(jsb, "type");
     js_builder_add_string(jsb, "final");
   }
+
+  if(state_node->entry != NULL) {
+    compile_local_node(state, jsb, state_node->entry);
+  }
+  if(state_node->exit != NULL) {
+    compile_local_node(state, jsb, state_node->exit);
+  }
+}
+
+static void compile_local_node(PrintState* state, JSBuilder* jsb, LocalNode* local_node) {
+  switch(local_node->key) {
+    case LOCAL_ENTRY: {
+      compile_transition_action(state, jsb, local_node->action, "entry");
+      break;
+    }
+    case LOCAL_EXIT: {
+      compile_transition_action(state, jsb, local_node->action, "exit");
+      break;
+    }
+  }
 }
 
 static void exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
-  js_builder_end_object(jsb);
-
   StateNode* state_node = (StateNode*)node;
+
+  // Close out this state node.
+  js_builder_end_object(jsb);
 
   // End of all state nodes
   if(!node->next || node->next->type != NODE_STATE_TYPE) {
@@ -334,6 +363,83 @@ static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
 
 static void exit_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_end_object(jsb);
+}
+
+static void compile_transition_action(PrintState* state, JSBuilder* jsb, TransitionAction* action, const char* actions_property) {
+  TransitionAction* inner = action;
+  bool use_multiline = false;
+  while(inner && !use_multiline) {
+    if(action->expression && (action->expression->type == EXPRESSION_ASSIGN || 
+      action->expression->type == EXPRESSION_SEND)) {
+      use_multiline = true;
+      break;
+    }
+    inner = inner->next;
+  }
+  js_builder_start_prop(jsb, (char*)actions_property);
+  js_builder_start_array(jsb, use_multiline);
+
+  while(true) {
+    if(action->name != NULL) {
+      js_builder_add_string(jsb, action->name);
+    } else {
+      // Inline assign!
+      unsigned short expression_type = action->expression->type;
+      switch(expression_type) {
+        case EXPRESSION_ASSIGN: {
+          AssignExpression* assign_expression = (AssignExpression*)action->expression;
+          js_builder_start_call(jsb, "assign");
+          js_builder_start_object(jsb);
+          js_builder_start_prop(jsb, assign_expression->key);
+
+          if(assign_expression->value != NULL) {
+            switch(assign_expression->value->type) {
+              case EXPRESSION_IDENTIFIER: {
+                fprintf(stderr, "Not supported at this time\n"); // TODO
+                break;
+              }
+              case EXPRESSION_SPAWN: {
+                add_spawn_call(jsb, (SpawnExpression*)assign_expression->value);
+                break;
+              }
+            }
+          } else {
+            js_builder_add_str(jsb, "(context, event) => event.data");
+          }
+
+          js_builder_end_object(jsb);
+          js_builder_end_call(jsb);
+          break;
+        }
+        case EXPRESSION_ACTION: {
+          ActionExpression* action_expression = (ActionExpression*)action->expression;
+          if(use_multiline) {
+            js_builder_add_indent(jsb);
+          }
+          js_builder_add_str(jsb, action_expression->ref);
+          break;
+        }
+        case EXPRESSION_SEND: {
+          if(use_multiline) {
+            js_builder_add_indent(jsb);
+          }
+          SendExpression* send_expression = (SendExpression*)action->expression;
+          add_send_call(jsb, send_expression);
+          break;
+        }
+      }
+    }
+
+    action = action->next;
+
+    if(action == NULL) {
+      break;
+    }
+
+    js_builder_add_str(jsb, ", ");
+  }
+
+  js_builder_end_array(jsb, use_multiline);
 }
 
 static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
@@ -452,81 +558,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
     }
 
     if(has_action) {
-      TransitionAction* action = transition_node->action;
-      TransitionAction* inner = action;
-      bool use_multiline = false;
-      while(inner && !use_multiline) {
-        if(action->expression && (action->expression->type == EXPRESSION_ASSIGN || 
-          action->expression->type == EXPRESSION_SEND)) {
-          use_multiline = true;
-          break;
-        }
-        inner = inner->next;
-      }
-      js_builder_start_prop(jsb, "actions");
-      js_builder_start_array(jsb, use_multiline);
-
-      while(true) {
-        if(action->name != NULL) {
-          js_builder_add_string(jsb, action->name);
-        } else {
-          // Inline assign!
-          unsigned short expression_type = action->expression->type;
-          switch(expression_type) {
-            case EXPRESSION_ASSIGN: {
-              AssignExpression* assign_expression = (AssignExpression*)action->expression;
-              js_builder_start_call(jsb, "assign");
-              js_builder_start_object(jsb);
-              js_builder_start_prop(jsb, assign_expression->key);
-
-              if(assign_expression->value != NULL) {
-                switch(assign_expression->value->type) {
-                  case EXPRESSION_IDENTIFIER: {
-                    fprintf(stderr, "Not supported at this time\n"); // TODO
-                    break;
-                  }
-                  case EXPRESSION_SPAWN: {
-                    add_spawn_call(jsb, (SpawnExpression*)assign_expression->value);
-                    break;
-                  }
-                }
-              } else {
-                js_builder_add_str(jsb, "(context, event) => event.data");
-              }
-
-              js_builder_end_object(jsb);
-              js_builder_end_call(jsb);
-              break;
-            }
-            case EXPRESSION_ACTION: {
-              ActionExpression* action_expression = (ActionExpression*)action->expression;
-              if(use_multiline) {
-                js_builder_add_indent(jsb);
-              }
-              js_builder_add_str(jsb, action_expression->ref);
-              break;
-            }
-            case EXPRESSION_SEND: {
-              if(use_multiline) {
-                js_builder_add_indent(jsb);
-              }
-              SendExpression* send_expression = (SendExpression*)action->expression;
-              add_send_call(jsb, send_expression);
-              break;
-            }
-          }
-        }
-
-        action = action->next;
-
-        if(action == NULL) {
-          break;
-        }
-
-        js_builder_add_str(jsb, ", ");
-      }
-
-      js_builder_end_array(jsb, use_multiline);
+      compile_transition_action(state, jsb, transition_node->action, "actions");
     }
 
     js_builder_end_object(jsb);
@@ -630,7 +662,8 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     .on_prop_added = false,
     .always_prop_added = false,
     .guard = NULL,
-    .action = NULL
+    .action = NULL,
+    .delay = NULL
   };
 
   bool exit = false;
@@ -696,6 +729,12 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
         }
         case NODE_INVOKE_TYPE: {
           enter_invoke(&state, jsb, node);
+          break;
+        }
+        case NODE_LOCAL_TYPE: {
+          // Do not walk down local nodes.
+          exit = true;
+          node_destroy_local((LocalNode*)node);
           break;
         }
         case NODE_MACHINE_TYPE: {
