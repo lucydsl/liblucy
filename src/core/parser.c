@@ -308,6 +308,7 @@ static int consume_inline_spawn(State* state, AssignExpression* assign_expressio
   SpawnExpression* spawn_expression = node_create_spawnexpression();
   _check(consume_call_expression(state, "spawn", spawn_expression, &consume_inline_spawn_args));
   assign_expression->value = (Expression*)spawn_expression;
+  program_add_flag(state->program, PROGRAM_USES_SPAWN);
 
   return err;
 }
@@ -345,6 +346,8 @@ static int consume_inline_send(State* state, Node* node) {
       break;
     }
   }
+
+  program_add_flag(state->program, PROGRAM_USES_SEND);
 
   return err;
 }
@@ -1100,6 +1103,7 @@ static int consume_action(State* state) {
       SendExpression* expression = node_create_sendexpression();
       consume_call_expression(state, "send", expression, &consume_inline_send_args);
       assignment->value = (Expression*)expression;
+      program_add_flag(state->program, PROGRAM_USES_SEND);
       free(identifier);
       break;
     }
