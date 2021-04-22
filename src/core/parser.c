@@ -716,6 +716,7 @@ static int consume_state(State* state) {
       break;
     }
     default: {
+      printf("TOKEN IS %i - %s\n", token, state->word);
       err = 1;
       error_msg_with_code_block_dec(state, state->token_len, "States must be given a name.");
       break;
