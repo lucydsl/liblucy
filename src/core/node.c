@@ -32,8 +32,9 @@ static TransitionGuard* create_transition_guard() {
   return guard;
 }
 
-static TransitionAction* create_transition_action() {
+TransitionAction* create_transition_action() {
   TransitionAction* action = malloc(sizeof(*action));
+  action->name = NULL;
   action->next = NULL;
   action->expression = NULL;
   return action;
@@ -58,7 +59,17 @@ StateNode* node_create_state() {
   Node* node = node_create_type(NODE_STATE_TYPE, sizeof(StateNode));
   StateNode* state_node = (StateNode*)node;
   state_node->final = false;
+  state_node->entry = NULL;
+  state_node->exit = NULL;
   return state_node;
+}
+
+LocalNode* node_create_local() {
+  Node* node = node_create_type(NODE_LOCAL_TYPE, sizeof(LocalNode));
+  LocalNode* local_node = (LocalNode*)node;
+  local_node->key = 0;
+  local_node->action = NULL;
+  return local_node;
 }
 
 ImportNode* node_create_import_statement() {
@@ -118,6 +129,18 @@ TransitionAction* node_transition_add_action(TransitionNode* transition_node, ch
     cur->next = action;
   }
   return action;
+}
+
+void node_local_add_action(LocalNode* local_node, TransitionAction* action) {
+  if(local_node->action == NULL) {
+    local_node->action = action;
+  } else {
+    TransitionAction* cur = local_node->action;
+    while(cur->next != NULL) {
+      cur = cur->next;
+    }
+    cur->next = action;
+  }
 }
 
 TransitionDelay* node_transition_add_delay(TransitionNode* transition_node, char* ref, DelayExpression* expression) {
@@ -352,6 +375,12 @@ void node_destroy_state(StateNode* state_node) {
 
 void node_destroy_invoke(InvokeNode* invoke_node) {
   free(invoke_node->call);
+}
+
+void node_destroy_local(LocalNode* local_node) {
+  if(local_node->action != NULL) {
+    node_destroy_transition_actions(local_node->action);
+  }
 }
 
 void node_destroy(Node* node) {

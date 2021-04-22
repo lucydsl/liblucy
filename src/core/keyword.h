@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 
+#define KW_NOT_A_KEYWORD 0
 #define KW_USE 1
 #define KW_STATE 2
 #define KW_INITIAL 3

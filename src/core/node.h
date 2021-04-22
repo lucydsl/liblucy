@@ -11,6 +11,7 @@
 #define NODE_IMPORT_SPECIFIER_TYPE 4
 #define NODE_ASSIGNMENT_TYPE 5
 #define NODE_INVOKE_TYPE 6
+#define NODE_LOCAL_TYPE 7
 
 #define TRANSITION_EVENT_TYPE 0
 #define TRANSITION_IMMEDIATE_TYPE 1
@@ -51,6 +52,8 @@ typedef struct StateNode {
   char* name;
 
   bool final;
+  struct LocalNode* entry;
+  struct LocalNode* exit;
 } StateNode;
 
 typedef struct TransitionGuard {
@@ -75,11 +78,18 @@ typedef struct TransitionNode {
 
   unsigned short type;
   struct Expression* event;
-  char* dest;
-  TransitionGuard* guard;
-  TransitionAction* action;
   TransitionDelay* delay;
+
+  char* dest;
+  TransitionAction* action;
+  TransitionGuard* guard;
 } TransitionNode;
+
+typedef struct LocalNode {
+  Node node;
+  unsigned short key;
+  TransitionAction* action;
+} LocalNode;
 
 typedef struct ImportSpecifier {
   Node node;
@@ -170,6 +180,9 @@ DelayExpression* node_create_delayexpression();
 OnExpression* node_create_onexpression();
 SpawnExpression* node_create_spawnexpression();
 SendExpression* node_create_sendexpression();
+LocalNode* node_create_local();
+
+TransitionAction* create_transition_action();
 
 bool node_machine_is_nested(Node*);
 bool node_transition_has_sibling_always(TransitionNode*);
@@ -180,6 +193,7 @@ void node_after_last(Node*, Node*);
 TransitionGuard* node_transition_add_guard(TransitionNode*, char*);
 TransitionAction* node_transition_add_action(TransitionNode*, char*);
 TransitionDelay* node_transition_add_delay(TransitionNode*, char*, DelayExpression*);
+void node_local_add_action(LocalNode*, TransitionAction*);
 
 Expression* node_clone_expression(Expression*);
 
@@ -191,4 +205,5 @@ void node_destroy_state(StateNode*);
 void node_destroy_transition(TransitionNode*);
 void node_destroy_expression(Expression*);
 void node_destroy_invoke(InvokeNode*);
+void node_destroy_local(LocalNode*);
 void node_destroy(Node*);

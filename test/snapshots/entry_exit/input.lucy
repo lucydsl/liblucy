@@ -1,0 +1,10 @@
+use './util' { logger }
+
+action logSomething = logger
+
+state idle {
+  @entry => logSomething
+  @exit => assign(wilbur)
+}
+
+final state end {}

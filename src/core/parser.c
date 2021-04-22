@@ -9,6 +9,7 @@
 #include "program.h"
 #include "str_builder.h"
 #include "keyword.h"
+#include "local.h"
 #include "timeframe.h"
 #include "parser.h"
 #include "error.h"
@@ -27,6 +28,7 @@
 #define TOKEN_BEGIN_CALL 11
 #define TOKEN_END_CALL 12
 #define TOKEN_COMMA 13
+#define TOKEN_LOCAL 14
 
 #define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
 
@@ -185,6 +187,11 @@ static int consume_token(State* state) {
       return TOKEN_EOF;
     }
 
+    if(c == '@') {
+      consume_identifier(state);
+      return TOKEN_LOCAL;
+    }
+
     if(is_integer(c)) {
       consume_timeframe(state);
       char last = state->word[state->word_len - 1];
@@ -317,13 +324,27 @@ static int consume_inline_send_args(State* state, void* expr, int _token, char* 
   return 0;
 }
 
-static int consume_inline_send(State* state, TransitionNode* transition_node) {
+static int consume_inline_send(State* state, Node* node) {
   int err = 0;
 
   SendExpression* send_expression = node_create_sendexpression();
   _check(consume_call_expression(state, "send", send_expression, &consume_inline_send_args));
-  TransitionAction* action = node_transition_add_action(transition_node, NULL);
-  action->expression = (Expression*)send_expression;
+
+  switch(node->type) {
+    case NODE_TRANSITION_TYPE: {
+      TransitionNode* transition_node = (TransitionNode*)node;
+      TransitionAction* action = node_transition_add_action(transition_node, NULL);
+      action->expression = (Expression*)send_expression;
+      break;
+    }
+    case NODE_LOCAL_TYPE: {
+      LocalNode* local_node = (LocalNode*)node;
+      TransitionAction* action = create_transition_action();
+      action->expression = (Expression*)send_expression;
+      node_local_add_action(local_node, action);
+      break;
+    }
+  }
 
   return err;
 }
@@ -354,14 +375,27 @@ static int consume_inline_assign_args(State* state, void* expr, int _token, char
   return err;
 }
 
-static int consume_inline_assign(State* state, TransitionNode* transition_node) {
+static int consume_inline_assign(State* state, Node* node) {
   int err = 0;
   AssignExpression* assign_expression = node_create_assignexpression();
 
   _check(consume_call_expression(state, "assign", assign_expression, &consume_inline_assign_args));
 
-  TransitionAction* action = node_transition_add_action(transition_node, NULL);
-  action->expression = (Expression*)assign_expression;
+  switch(node->type) {
+    case NODE_TRANSITION_TYPE: {
+      TransitionNode* transition_node = (TransitionNode*)node;
+      TransitionAction* action = node_transition_add_action(transition_node, NULL);
+      action->expression = (Expression*)assign_expression;
+      break;
+    }
+    case NODE_LOCAL_TYPE: {
+      LocalNode* local_node = (LocalNode*)node;
+      TransitionAction* action = create_transition_action();
+      action->expression = (Expression*)assign_expression;
+      node_local_add_action(local_node, action);
+      break;
+    }
+  }
 
   program_add_flag(state->program, PROGRAM_USES_ASSIGN);
 
@@ -374,15 +408,28 @@ static int consume_inline_action_args(State* state, void* expr, int _token, char
   return 0;
 }
 
-static int consume_inline_action(State* state, TransitionNode* transition_node) {
+static int consume_inline_action(State* state, Node* node) {
   int err = 0;
 
   ActionExpression* action_expression = node_create_actionexpression();
 
   _check(consume_call_expression(state, "action", action_expression, &consume_inline_action_args));
 
-  TransitionAction* action = node_transition_add_action(transition_node, NULL);
-  action->expression = (Expression*)action_expression;
+  switch(node->type) {
+    case NODE_TRANSITION_TYPE: {
+      TransitionNode* transition_node = (TransitionNode*)node;
+      TransitionAction* action = node_transition_add_action(transition_node, NULL);
+      action->expression = (Expression*)action_expression;
+      break;
+    }
+    case NODE_LOCAL_TYPE: {
+      LocalNode* local_node = (LocalNode*)node;
+      TransitionAction* action = create_transition_action();
+      action->expression = (Expression*)action_expression;
+      node_local_add_action(local_node, action);
+      break;
+    }
+  }
 
   return err;
 }
@@ -584,17 +631,17 @@ static int consume_transition(State* state) {
         break;
       }
       case KW_ASSIGN: {
-        _check(consume_inline_assign(state, transition_node));
+        _check(consume_inline_assign(state, transition_node_node));
         free(identifier);
         break;
       }
       case KW_ACTION: {
-        _check(consume_inline_action(state, transition_node));
+        _check(consume_inline_action(state, transition_node_node));
         free(identifier);
         break;
       }
       case KW_SEND: {
-        _check(consume_inline_send(state, transition_node));
+        _check(consume_inline_send(state, transition_node_node));
         free(identifier);
         break;
       }
@@ -666,6 +713,108 @@ static int consume_invoke(State* state) {
         error_unexpected_identifier(state, node);
         err = 2;
         goto end;
+      }
+    }
+  }
+
+  end: {
+    state_node_up(state);
+    return err;
+  }
+}
+
+static int consume_local(State* state, unsigned short key) {
+  int err = 0;
+
+  LocalNode* local_node = node_create_local();
+  Node* node = (Node*)local_node;
+  local_node->key = key;
+  state_node_start_pos(state, node, state->token_len);
+
+  Node* parent_node = state->node;
+  if(parent_node->type != NODE_STATE_TYPE) {
+    char buffer[100];
+    sprintf(buffer, "Unexpected parent of %s", local_get_name(key));
+    error_msg_with_code_block_dec(state, state->token_len, buffer);
+    err = 1;
+  }
+
+  state_node_set(state, node);
+
+  StateNode* parent_state_node = (StateNode*)parent_node;
+  if(key == LOCAL_ENTRY) {
+    parent_state_node->entry = local_node;
+  } else {
+    parent_state_node->exit = local_node;
+  }
+
+  int token;
+  while(true) {
+    token = consume_token(state);
+
+    if(token == TOKEN_EOL) {
+      break;
+    }
+
+    if(token != TOKEN_CALL) {
+      error_msg_with_code_block_dec(state, state->token_len, "Expected a => here.");
+      err = 1;
+    }
+
+    token = consume_token(state);
+
+    if(token != TOKEN_IDENTIFIER) {
+      error_msg_with_code_block_dec(state, state->token_len, "Expected an action.");
+      err = 2;
+      goto end;
+    }
+
+    char* identifier = state_take_word(state);
+    unsigned short key = keyword_get(identifier);
+    switch(key) {
+      case KW_ACTION: {
+        _check(consume_inline_action(state, node));
+        free(identifier);
+        break;
+      }
+      case KW_ASSIGN: {
+        _check(consume_inline_assign(state, node));
+        free(identifier);
+        break;
+      }
+      case KW_SEND: {
+        _check(consume_inline_send(state, node));
+        free(identifier);
+        break;
+      }
+      case KW_GUARD: {
+        err = 1;
+        char buffer[100];
+        sprintf(buffer, "Guards are not allowed in %s", local_get_name(key));
+        error_msg_with_code_block_dec(state, state->token_len, buffer);
+        free(identifier);
+        break;
+      }
+      // Not a keyword
+      case KW_NOT_A_KEYWORD: {
+        if(state_has_action(state, identifier)) {
+          TransitionAction* action = create_transition_action();
+          action->name = identifier;
+          node_local_add_action(local_node, action);
+        } else {
+          err = 1;
+          char buffer[100];
+          sprintf(buffer, "Unknown action [%s]. Did you mean to declare this action at the top of the machine?", identifier);
+          error_msg_with_code_block_dec(state, state->token_len, buffer);
+          free(identifier);
+        }
+        break;
+      }
+      default: {
+        error_msg_with_code_block_dec(state, state->token_len, "Unexpected keyword in action assignment.");
+        err = 1;
+        free(identifier);
+        break;
       }
     }
   }
@@ -759,6 +908,25 @@ static int consume_state(State* state) {
           }
         }
 
+        break;
+      }
+      case TOKEN_LOCAL: {
+        char* local = state_take_word(state);
+        unsigned short key = local_get(local);
+        switch(key) {
+          case LOCAL_ENTRY:
+          case LOCAL_EXIT: {
+            _check(consume_local(state, key));
+            break;
+          }
+          default: {
+            char buffer[100];
+            sprintf(buffer, "Unknown local variable (%s)", state->word);
+            error_msg_with_code_block_dec(state, state->token_len, buffer);
+            err = 1;
+            break;
+          }
+        }
         break;
       }
       default: {
@@ -917,25 +1085,28 @@ static int consume_action(State* state) {
     return 2;
   }
 
-  unsigned short key = keyword_get(state->word);
+  char* identifier = state_take_word(state);
+  unsigned short key = keyword_get(identifier);
   switch(key) {
     case KW_ASSIGN: {
       AssignExpression *expression = node_create_assignexpression();
       consume_call_expression(state, "assign", expression, &consume_inline_assign_args);
       assignment->value = (Expression*)expression;
       program_add_flag(state->program, PROGRAM_USES_ASSIGN);
+      free(identifier);
       break;
     }
     case KW_SEND: {
       SendExpression* expression = node_create_sendexpression();
       consume_call_expression(state, "send", expression, &consume_inline_send_args);
       assignment->value = (Expression*)expression;
+      free(identifier);
       break;
     }
     default: {
-      error_msg_with_code_block(state, node, "Only assign expressions are supported at this time");
-      err = 2;
-      goto end;
+      IdentifierExpression* expression = node_create_identifierexpression();
+      expression->name = identifier;
+      assignment->value = (Expression*)expression;
     }
   }
 
@@ -1156,10 +1327,6 @@ ParseResult* parse(char* source, char* filename) {
   State* state = state_new_state(source, filename);
   state->program = program;
 
-  /*MachineNode* machine_node = node_create_machine();
-  program->body = (Node*)machine_node;
-  state->node = (Node*)machine_node;*/
-
   err = consume_program(state);
 
   ParseResult *result = malloc(sizeof(*result));
@@ -1171,5 +1338,6 @@ ParseResult* parse(char* source, char* filename) {
 
 void parser_init() {
   keyword_init();
+  local_init();
   timeframe_init();
 }
