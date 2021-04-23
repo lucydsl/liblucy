@@ -220,6 +220,10 @@ static int consume_call_expression(State* state, const char* fn_name, void* expr
       char buffer[100];
       sprintf(buffer, "%s must be called like a function. Expected %s(%s)", fn_name, fn_name, state->word);
       error_msg_with_code_block_dec(state, state->word_len, buffer);
+    } else if(token == TOKEN_CALL) {
+      char buffer[100];
+      sprintf(buffer, "%s must be called like a function.", fn_name);
+      error_msg_with_code_block_dec(state, state->token_len, buffer);
     } else {
       // What should this be?
       error_msg_with_code_block(state, NULL, "Expected a (");
