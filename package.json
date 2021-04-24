@@ -1,6 +1,6 @@
 {
   "name": "@lucy/liblucy",
-  "version": "0.0.28",
+  "version": "0.1.0",
   "description": "Nothing to see here.",
   "exports": {
     ".": {
