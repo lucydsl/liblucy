@@ -12,11 +12,11 @@ export default async function(createModule) {
     UTF8ToString
   } = Module;
 
-  const _compileXstate = Module.asm.compile_xstate;
-  const _xsGetJS = Module.asm.xs_get_js;
-  const _xsCreate = Module.asm.xs_create;
-  const _xsInit = Module.asm.xs_init;
-  const _destroyXstateResult = Module.asm.destroy_xstate_result;
+  const _compileXstate = Module._compile_xstate;
+  const _xsGetJS = Module._xs_get_js;
+  const _xsCreate = Module._xs_create;
+  const _xsInit = Module._xs_init;
+  const _destroyXstateResult = Module._destroy_xstate_result;
 
   function stringToPtr(str) {
     var ret = 0;
