@@ -24,6 +24,6 @@ jobs:
     - uses: ncipollo/release-action@v1
       with:
         allowUpdates: true
-        prerelease: true
+        prerelease: false
         artifacts: ${{ matrix.name }}.tar.gz
         token: ${{ secrets.GITHUB_TOKEN }}
