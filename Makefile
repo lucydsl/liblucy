@@ -75,5 +75,9 @@ test-wasm:
 	@LC=scripts/lucyc.mjs scripts/test_snapshots
 .PHONY: test-wasm
 
-test: test-native test-wasm
+test-wasm-release:
+	@LC=scripts/lucyc.mjs NODE_ENV=production scripts/test_snapshots
+.PHONY: test-wasm-release
+
+test: test-native test-wasm test-wasm-release
 .PHONY: test
