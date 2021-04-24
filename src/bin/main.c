@@ -50,8 +50,8 @@ static void usage(char* program_name) {
 }
 
 static void version() {
-  fprintf(stderr, PROGRAM_VERSION);
-  fprintf(stderr, "\n");
+  fprintf(stdout, PROGRAM_VERSION);
+  fprintf(stdout, "\n");
 }
 
 int mkdirp(const char *path, int is_file) {
