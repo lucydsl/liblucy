@@ -1,7 +1,7 @@
 {
   "name": "@lucy/liblucy",
   "version": "0.1.2",
-  "description": "Nothing to see here.",
+  "description": "The Lucy compiler project.",
   "exports": {
     ".": {
       "node": {
@@ -31,7 +31,7 @@
     "type": "git",
     "url": "git+https://github.com/matthewp/liblucy.git"
   },
-  "keywords": [],
+  "keywords": ["Lucy", "compiler", "wasm"],
   "author": "Matthew Phillips <matthew@matthewphillips.info>",
   "license": "BSD-2-Clause",
   "bugs": {
