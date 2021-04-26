@@ -5,17 +5,17 @@ export default Machine({
   initial: 'green',
   states: {
     green: {
-      delay: {
+      after: {
         1000: 'yellow'
       }
     },
     yellow: {
-      delay: {
+      after: {
         500: 'red'
       }
     },
     red: {
-      delay: {
+      after: {
         calcLightDelay: 'green'
       }
     }
