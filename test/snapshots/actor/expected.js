@@ -1,6 +1,6 @@
-import { Machine, assign, send, spawn } from 'xstate';
+import { createMachine, assign, send, spawn } from 'xstate';
 
-export const other = Machine({
+export const other = createMachine({
   states: {
     only: {
       on: {
@@ -9,7 +9,7 @@ export const other = Machine({
     }
   }
 });
-export default Machine({
+export default createMachine({
   states: {
     idle: {
       on: {

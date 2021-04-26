@@ -1,6 +1,6 @@
-import { Machine } from 'xstate';
+import { createMachine } from 'xstate';
 
-export default Machine({
+export default createMachine({
   initial: 'disabled',
   states: {
     enabled: {

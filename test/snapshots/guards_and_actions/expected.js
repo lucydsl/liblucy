@@ -1,7 +1,7 @@
-import { Machine, assign } from 'xstate';
+import { createMachine, assign } from 'xstate';
 import { incrementCount, decrementCount, lessThanTen, greaterThanZero } from './actions.js';
 
-export default Machine({
+export default createMachine({
   initial: 'active',
   states: {
     active: {
