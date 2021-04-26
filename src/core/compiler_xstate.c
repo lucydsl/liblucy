@@ -489,7 +489,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
         break;
       }
       case TRANSITION_DELAY_TYPE: {
-        js_builder_start_prop(jsb, "delay");
+        js_builder_start_prop(jsb, "after");
         js_builder_start_object(jsb);
 
         DelayExpression* delay = transition_node->delay->expression;
