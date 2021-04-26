@@ -1,7 +1,7 @@
-import { Machine, assign } from 'xstate';
+import { createMachine, assign } from 'xstate';
 import { logger } from './util';
 
-export default Machine({
+export default createMachine({
   states: {
     idle: {
       entry: ['logSomething'],

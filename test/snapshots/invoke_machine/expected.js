@@ -1,6 +1,6 @@
-import { Machine } from 'xstate';
+import { createMachine } from 'xstate';
 
-export const minute = Machine({
+export const minute = createMachine({
   initial: 'active',
   states: {
     active: {
@@ -14,7 +14,7 @@ export const minute = Machine({
   }
 });
 
-export const parent = Machine({
+export const parent = createMachine({
   initial: 'pending',
   states: {
     pending: {

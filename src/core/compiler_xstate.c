@@ -130,7 +130,7 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
       js_builder_add_const(jsb, machine_node->name);
       js_builder_add_str(jsb, " = ");
     }
-    js_builder_start_call(jsb, "Machine");
+    js_builder_start_call(jsb, "createMachine");
     js_builder_start_object(jsb);
   } else {
     // Close out the on prop
@@ -646,7 +646,7 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   node = program->body;
 
   if(node != NULL) {
-    js_builder_add_str(jsb, "import { Machine");
+    js_builder_add_str(jsb, "import { createMachine");
 
     if(program->flags & PROGRAM_USES_ASSIGN) {
       js_builder_add_str(jsb, ", assign");

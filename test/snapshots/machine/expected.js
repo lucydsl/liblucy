@@ -1,6 +1,6 @@
-import { Machine } from 'xstate';
+import { createMachine } from 'xstate';
 
-export const light = Machine({
+export const light = createMachine({
   initial: 'green',
   states: {
     green: {
@@ -21,7 +21,7 @@ export const light = Machine({
   }
 });
 
-export const two = Machine({
+export const two = createMachine({
   states: {
     start: {
       on: {

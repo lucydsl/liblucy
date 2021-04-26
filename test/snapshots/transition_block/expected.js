@@ -1,7 +1,7 @@
-import { Machine } from 'xstate';
+import { createMachine } from 'xstate';
 import { check } from './stuff.js';
 
-export default Machine({
+export default createMachine({
   initial: 'start',
   states: {
     start: {

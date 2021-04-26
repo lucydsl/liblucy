@@ -1,7 +1,7 @@
-import { Machine, assign } from 'xstate';
+import { createMachine, assign } from 'xstate';
 import { pet } from './util';
 
-export default Machine({
+export default createMachine({
   initial: 'idle',
   states: {
     idle: {

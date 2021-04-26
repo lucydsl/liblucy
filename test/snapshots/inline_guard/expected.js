@@ -1,7 +1,7 @@
-import { Machine } from 'xstate';
+import { createMachine } from 'xstate';
 import { isDog } from './util';
 
-export default Machine({
+export default createMachine({
   initial: 'idle',
   states: {
     idle: {
