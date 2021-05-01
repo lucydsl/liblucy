@@ -1,0 +1,3 @@
+initial state initial {
+  test => assign(someValue)
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<title>Test environment</title>
+
+<script type="module">
+
+import { createMachine, assign } from 'https://cdn.skypack.dev/xstate';
+import { interpret } from 'https://cdn.skypack.dev/xstate';
+
+const TestMachine = createMachine({
+  initial: 'initial',
+  states: {
+    initial: {
+      on: {
+        test: {
+          //target: 'initial',
+          actions: [
+            assign({
+              someValue: (context, event) => event.data
+            })
+          ]
+        }
+      }
+    }
+  }
+});
+
+const service = interpret(TestMachine).onTransition(state => {
+  console.log('State', state.value);
+});
+
+service.start();
+
+service.send('test');
+
+service.stop();
+</script>

@@ -652,19 +652,17 @@ static int consume_transition(State* state) {
         free(identifier);
         break;
       }
+      default: {
+        if(state_has_guard(state, identifier)) {
+          node_transition_add_guard(transition_node, identifier);
+        } else if(state_has_action(state, identifier)) {
+          node_transition_add_action(transition_node, identifier);
+        } else {
+          transition_node->dest = identifier;
+        }
+        break;
+      }
     }
-
-    if(state_has_guard(state, identifier)) {
-      node_transition_add_guard(transition_node, identifier);
-    } else if(state_has_action(state, identifier)) {
-      node_transition_add_action(transition_node, identifier);
-    } else {
-      transition_node->dest = identifier;
-    }
-  }
-
-  if(transition_node->dest == NULL) {
-    transition_node->dest = state_node->name;
   }
 
   end: {
