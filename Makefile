@@ -7,7 +7,7 @@ BIN_C_FILES=$(shell find src/bin -type f -name "*.c")
 WASM_C_FILES=$(shell find src/wasm -type f -name "*.c")
 
 all: dist/liblucy-debug-node.mjs dist/liblucy-debug-browser.mjs \
-	dist/liblucy-release-node.mjs dist/liblucy-release-browser.mjs bin/lc
+	dist/liblucy-release-node.mjs dist/liblucy-release-browser.mjs bin/lucyc
 .PHONY: all
 
 build:
@@ -52,7 +52,7 @@ dist/liblucy-release-node.mjs: dist build/liblucy-release.mjs dist/liblucy-relea
 dist/liblucy-release-browser.mjs: dist build/liblucy-release.mjs dist/liblucy-release.wasm
 	cp build/liblucy-release.mjs $@
 
-bin/lc: $(SRC_FILES)
+bin/lucyc: $(SRC_FILES)
 	@mkdir -p bin
 	$(CC) ${BIN_C_FILES} $(CORE_C_FILES) -o $@ \
 		-DVERSION=\"$(VERSION)\" \
@@ -62,7 +62,7 @@ clean:
 	@rm -f dist/liblucy-debug-browser.mjs dist/liblucy-debug-node.mjs \
 		dist/liblucy-debug.wasm dist/liblucy-release-browser.mjs \
 		dist/liblucy-release-node.mjs dist/liblucy-release.wasm
-	@rm -f bin/lc
+	@rm -f bin/lucyc
 	@rmdir dist bin 2> /dev/null
 .PHONY: clean
 
@@ -72,11 +72,11 @@ test-native:
 .PHONY: test-native
 
 test-wasm:
-	@LC=scripts/lucyc.mjs scripts/test_snapshots
+	@LUCYC=scripts/lucyc.mjs scripts/test_snapshots
 .PHONY: test-wasm
 
 test-wasm-release:
-	@LC=scripts/lucyc.mjs NODE_ENV=production scripts/test_snapshots
+	@LUCYC=scripts/lucyc.mjs NODE_ENV=production scripts/test_snapshots
 .PHONY: test-wasm-release
 
 test: test-native test-wasm test-wasm-release

@@ -1,6 +1,6 @@
 # liblucy
 
-__liblucy__ is the core piece of [Lucy](https://lucylang.org/) the DSL. It contains the core compiler that is compiled to wasm for usage in JavaScript environments such as Node.js. It also includes the CLI compiler, `lc`.
+__liblucy__ is the core piece of [Lucy](https://lucylang.org/) the DSL. It contains the core compiler that is compiled to wasm for usage in JavaScript environments such as Node.js. It also includes the CLI compiler, `lucyc`.
 
 ## Contributing
 

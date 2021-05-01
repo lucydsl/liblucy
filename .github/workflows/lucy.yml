@@ -24,7 +24,7 @@ jobs:
 
     - name: make test
       run: |
-        make bin/lc
+        make bin/lucyc
         make dist/liblucy-debug-node.mjs
         make dist/liblucy-release-node.mjs
         make test

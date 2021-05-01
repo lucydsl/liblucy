@@ -9,7 +9,7 @@ srcdir="$dir/src"
 rm -rf $outdir
 
 # Run compiler
-$LC --out-dir $outdir $srcdir
+$LUCYC --out-dir $outdir $srcdir
 
 # Test to see if expected files exist.
 if [ ! -f "$outdir/machine.js" ]; then

@@ -19,8 +19,8 @@ jobs:
     - uses: actions/checkout@v1
     - name: build
       run: |
-        make bin/lc
-        cd bin && tar -zcvf ../${{ matrix.name }}.tar.gz lc && cd -
+        make bin/lucyc
+        cd bin && tar -zcvf ../${{ matrix.name }}.tar.gz lucyc && cd -
     - uses: ncipollo/release-action@v1
       with:
         allowUpdates: true

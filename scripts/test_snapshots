@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LC="${LC:-bin/lc}"
+LUCYC="${LUCYC:-bin/lucyc}"
 NODE_ENV="${NODE_ENV:-development}"
 ret=0
 upd=0
@@ -43,7 +43,7 @@ run_test() {
     local output="${d}expected.js"
   fi
 
-  NODE_ENV=$NODE_ENV $LC $input >> $tmp 2>&1
+  NODE_ENV=$NODE_ENV $LUCYC $input >> $tmp 2>&1
 
   if [ "$upd" -eq 1 ]; then
     mv $tmp $output

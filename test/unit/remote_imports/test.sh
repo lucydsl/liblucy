@@ -10,7 +10,7 @@ expected="$dir/expected.js"
 tmp=$(mktemp)
 
 # Run compiler
-$LC --remote-imports --out-file $tmp $input
+$LUCYC --remote-imports --out-file $tmp $input
 
 d=$(diff $expected $tmp | colordiff)
 
