@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LC="${LC:-bin/lc}"
+LUCYC="${LUCYC:-bin/lucyc}"
 ret=0
 
 run_test() {
@@ -12,7 +12,7 @@ run_test() {
   fi
 
   local test="${d}test.sh"
-  LC="$LC" $test
+  LUCYC="$LUCYC" $test
   local r=$?
 
   if [ $ret -eq 0 ]; then
