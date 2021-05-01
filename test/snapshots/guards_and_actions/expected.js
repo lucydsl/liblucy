@@ -7,12 +7,10 @@ export default createMachine({
     active: {
       on: {
         inc: {
-          target: 'active',
           cond: 'isNotMax',
           actions: ['increment']
         },
         dec: {
-          target: 'active',
           cond: 'isNotMin',
           actions: ['decrement']
         }

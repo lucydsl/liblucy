@@ -516,8 +516,11 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
 
   if(use_object_notation) {
     js_builder_start_object(jsb);
-    js_builder_start_prop(jsb, "target");
-    js_builder_add_string(jsb, transition_node->dest);
+
+    if(transition_node->dest != NULL) {
+      js_builder_start_prop(jsb, "target");
+      js_builder_add_string(jsb, transition_node->dest);
+    }
 
     if(has_guard) {
       js_builder_start_prop(jsb, "cond");
