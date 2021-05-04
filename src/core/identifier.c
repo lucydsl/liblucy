@@ -66,5 +66,5 @@ void identifier_init() {
   set_add(valid_chars, "X");
   set_add(valid_chars, "Y");
   set_add(valid_chars, "Z");
-
+  set_add(valid_chars, "_");
 }
