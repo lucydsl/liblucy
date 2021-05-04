@@ -6,7 +6,9 @@ export default createMachine({
     idle: {
       on: {
         purchase: 'end',
-        delay: 'end'
+        delay: 'end',
+        SNAKE_CASE: 'end',
+        ANOTHER_SNAKE: 'end'
       }
     },
     end: {

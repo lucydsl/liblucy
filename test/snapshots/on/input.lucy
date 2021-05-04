@@ -2,6 +2,8 @@
 initial state idle {
   on(purchase) => end
   on(delay) => end
+  SNAKE_CASE => end
+  on(ANOTHER_SNAKE) => end
 }
 
 final state end {}
