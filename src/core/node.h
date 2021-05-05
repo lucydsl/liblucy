@@ -83,6 +83,7 @@ typedef struct TransitionNode {
   char* dest;
   TransitionAction* action;
   TransitionGuard* guard;
+  struct TransitionNode* link;
 } TransitionNode;
 
 typedef struct LocalNode {

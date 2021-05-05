@@ -9,6 +9,7 @@
 #include "js_builder.h"
 #include "compiler_xstate.h"
 #include "local.h"
+#include "set.h"
 
 // API flags
 #define FLAG_USE_REMOTE 1 << 0
@@ -28,6 +29,7 @@ typedef struct PrintState {
   Ref* guard;
   Ref* action;
   Ref* delay;
+  SimpleSet* events;
 } PrintState;
 
 typedef void (*set_ref)(PrintState*, Ref*);
@@ -95,6 +97,7 @@ static void destroy_state(PrintState *state) {
   if(state->delay != NULL) {
     destroy_ref(state->delay);
   }
+  set_destroy(state->events);
 }
 
 static void add_spawn_call(JSBuilder* jsb, SpawnExpression* spawn_expression) {
@@ -350,6 +353,7 @@ static void exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
   if(!node->next || node->next->type != NODE_STATE_TYPE) {
     js_builder_end_object(jsb);
   }
+  set_clear(state->events);
 }
 
 static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
@@ -442,20 +446,11 @@ static void compile_transition_action(PrintState* state, JSBuilder* jsb, Transit
   js_builder_end_array(jsb, use_multiline);
 }
 
-static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
+static inline void compile_transition_key(PrintState* state, JSBuilder* jsb, Node* node, char* event_name) {
   TransitionNode* transition_node = (TransitionNode*)node;
-  Node* parent_node = node->parent;
-
-  char* event_name = NULL;
-  if(transition_node->event != NULL) {
-    event_name = transition_node->event->type == EXPRESSION_ON ?
-      ((OnExpression*)transition_node->event)->name :
-      ((IdentifierExpression*)transition_node->event)->name;
-  }
-
   int type = transition_node->type;
 
-  bool is_always = transition_node->type == TRANSITION_IMMEDIATE_TYPE;
+  Node* parent_node = node->parent;
 
   if(parent_node->type == NODE_INVOKE_TYPE) {
     if(strcmp(event_name, "done") == 0) {
@@ -475,6 +470,13 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
         }
 
         js_builder_start_prop(jsb, event_name);
+
+        // If there is another event with this name, use an array.
+        if(transition_node->link != NULL) {
+          js_builder_start_array(jsb, true);
+          js_builder_add_indent(jsb);
+        }
+
         break;
       }
       case TRANSITION_IMMEDIATE_TYPE: {
@@ -508,7 +510,10 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
       }
     }
   }
+}
 
+static inline void compile_inner_transition(PrintState* state, JSBuilder* jsb, TransitionNode* transition_node) {
+  bool is_always = transition_node->type == TRANSITION_IMMEDIATE_TYPE;
   bool has_guard = transition_node->guard != NULL;
   bool has_action = transition_node->action != NULL;
   bool has_guard_or_action = has_guard || has_action;
@@ -576,9 +581,44 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
   }
 }
 
+static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
+  TransitionNode* transition_node = (TransitionNode*)node;
+
+  char* event_name = NULL;
+  if(transition_node->event != NULL) {
+    event_name = transition_node->event->type == EXPRESSION_ON ?
+      ((OnExpression*)transition_node->event)->name :
+      ((IdentifierExpression*)transition_node->event)->name;
+  }
+
+  // If this transition was already compiled from a previous link.
+  if(event_name != NULL && set_contains(state->events, event_name) == SET_TRUE) {
+    return;
+  }
+
+  compile_transition_key(state, jsb, node, event_name);
+
+  compile_inner_transition(state, jsb, transition_node);
+  TransitionNode* cur = transition_node->link;
+  while(cur != NULL) {
+    js_builder_add_str(jsb, ", \n");
+    js_builder_add_indent(jsb);
+    compile_inner_transition(state, jsb, cur);
+    cur = cur->link;
+  }
+
+  if(transition_node->link != NULL) {
+    js_builder_end_array(jsb, true);
+  }
+
+  if(event_name != NULL) {
+    set_add(state->events, event_name);
+  }
+}
+
 static void exit_transition(PrintState* state, JSBuilder* jsb, Node* node) {
   if(node->next) {
-    
+
   } else {
     TransitionNode* transition_node = (TransitionNode*)node;
     if(state->on_prop_added) {
@@ -672,8 +712,10 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     .always_prop_added = false,
     .guard = NULL,
     .action = NULL,
-    .delay = NULL
+    .delay = NULL,
+    .events = malloc(sizeof(SimpleSet))
   };
+  set_init(state.events);
 
   bool exit = false;
   while(node != NULL) {

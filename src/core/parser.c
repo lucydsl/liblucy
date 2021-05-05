@@ -510,9 +510,48 @@ static int consume_on(State* state, TransitionNode* transition_node) {
   return err;
 }
 
+static char* get_event_name(TransitionNode* transition_node) {
+  char* name = NULL;
+  Expression* event_expression = transition_node->event;
+  if(event_expression->type == EXPRESSION_IDENTIFIER) {
+    IdentifierExpression* idexpr = (IdentifierExpression*)event_expression;
+    name = idexpr->name;
+  } else if(event_expression->type == EXPRESSION_ON) {
+    OnExpression* onexpr = (OnExpression*)event_expression;
+    name = onexpr->name;
+  }
+  return name;
+}
+
+static void link_event_transition(Node* state_node_node, TransitionNode* transition_node) {
+  char* event_name = get_event_name(transition_node);
+  Node* child = state_node_node->child;
+  while(child != NULL) {
+    if(child->type == NODE_TRANSITION_TYPE) {
+      TransitionNode* child_transition_node = (TransitionNode*)child;
+      char* name = get_event_name(child_transition_node);
+
+      if(strcmp(name, event_name) == 0) {
+        TransitionNode* linked = child_transition_node;
+        while(linked->link != NULL) {
+          linked = linked->link;
+        }
+        linked->link = transition_node;
+        return;
+      }
+    }
+    child = child->next;
+  }
+}
+
 static int consume_transition(State* state) {
   int err = 0;
   TransitionNode* transition_node = node_create_transition();
+
+  // Parent should be a state node, should we check here? TODO
+  Node* current_node = state->node;
+  StateNode* state_node = (StateNode*)current_node;
+  size_t current_node_type = current_node->type;
 
   char* event = state_take_word(state);
 
@@ -532,20 +571,18 @@ static int consume_transition(State* state) {
       }
       case KW_ON: {
         _check(consume_on(state, transition_node));
+        link_event_transition(current_node, transition_node);
         break;
       }
       default: {
         IdentifierExpression* identifier_expression = node_create_identifierexpression();
         identifier_expression->name = event;
         transition_node->event = (Expression*)identifier_expression;
+        link_event_transition(current_node, transition_node);
         break;
       }
     }
   }
-
-  // Parent should be a state node, should we check here? TODO
-  Node* current_node = state->node;
-  size_t current_node_type = current_node->type;
 
   Node* transition_node_node = (Node*)transition_node;
   int rewind_to_start = event == NULL ? 2 : strlen(event);
@@ -571,8 +608,6 @@ static int consume_transition(State* state) {
       return 2;
     }
   }
-
-  StateNode* state_node = (StateNode*)current_node;
 
   state->node = transition_node_node;
 

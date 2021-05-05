@@ -22,6 +22,7 @@ TransitionNode* node_create_transition() {
   tn->guard = NULL;
   tn->action = NULL;
   tn->delay = NULL;
+  tn->link = NULL;
   return tn;
 }
 
