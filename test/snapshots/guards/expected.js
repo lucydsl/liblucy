@@ -1,5 +1,5 @@
 import { createMachine } from 'xstate';
-import { isValidCard, isInvalidCard } from './util';
+import { isValidCard, isInvalidCard, moneyWithdrawn } from './util';
 
 export default createMachine({
   initial: 'idle',
@@ -19,10 +19,22 @@ export default createMachine({
       }
     },
     purchase: {
+      always: [
+        {
+          target: 'purchased',
+          cond: 'isMoneyWithdrawn'
+        }
+      ]
+    },
+    purchased: {
       type: 'final'
     },
     error: {
       type: 'final'
     }
+  }
+}, {
+  guards: {
+    isMoneyWithdrawn: moneyWithdrawn
   }
 });
