@@ -1,10 +1,16 @@
-use './util' { isValidCard, isInvalidCard }
+use './util' { isValidCard, isInvalidCard, moneyWithdrawn }
+
+guard isMoneyWithdrawn = moneyWithdrawn
 
 initial state idle {
   next => guard(isValidCard) => purchase
   next => guard(isInvalidCard) => error
 }
 
-final state purchase {}
+state purchase {
+  => isMoneyWithdrawn => purchased
+}
+
+final state purchased {}
 
 final state error {}
