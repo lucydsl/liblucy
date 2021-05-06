@@ -34,11 +34,11 @@
 
 static int consume_machine(State*);
 
-int is_newline(char c) {
+static inline int is_newline(char c) {
   return c == '\n';
 }
 
-int is_whitespace(char c) {
+static inline int is_whitespace(char c) {
   return c == ' ';
 }
 
@@ -199,6 +199,34 @@ static int consume_token(State* state) {
         return TOKEN_INTEGER;
       } else {
         return TOKEN_TIMEFRAME;
+      }
+    }
+
+    if(c == '/') {
+      char nc = state_peek(state);
+      if(nc == '/') {
+        // single-line
+        do {
+          state_next(state);
+          state_advance_column(state);
+          nc = state_char(state);
+        } while(state_inbounds(state) && !is_newline(nc));
+        if(is_newline(state_char(state))) {
+          state_advance_line(state);
+        }
+        continue;
+      } else if(nc == '*') {
+        // multi-line
+        char lc = c;
+        do {
+          state_next(state);
+          state_advance_column(state);
+          nc = state_char(state);
+          if(is_newline(nc)) {
+            state_advance_line(state);
+          }
+        } while(state_inbounds(state) && (lc != '*' && nc != '/'));
+        continue;
       }
     }
 
