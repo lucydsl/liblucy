@@ -63,7 +63,8 @@ clean:
 		dist/liblucy-debug.wasm dist/liblucy-release-browser.mjs \
 		dist/liblucy-release-node.mjs dist/liblucy-release.wasm
 	@rm -f bin/lucyc
-	@rmdir dist bin 2> /dev/null
+	@rm -f build/liblucy-debug.mjs
+	@rmdir dist bin build 2> /dev/null
 .PHONY: clean
 
 test-native:
