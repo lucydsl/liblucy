@@ -1,0 +1,16 @@
+
+state one {
+  // Comment here
+
+  go => another
+}
+
+// Comment about this state.
+state another {
+  last => third
+}
+
+/**
+ * Some comments about the state go here.
+ */
+state third {}
