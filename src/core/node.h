@@ -28,6 +28,14 @@
 #define EXPRESSION_ON 5
 #define EXPRESSION_SPAWN 6
 #define EXPRESSION_SEND 7
+#define EXPRESSION_SYMBOL 8
+#define EXPRESSION_INVOKE 9
+
+#define MACHINE_USES_GUARD 1 << 0
+#define MACHINE_USES_ACTION 1 << 1
+#define MACHINE_USES_ASSIGN 1 << 2
+#define MACHINE_USES_DELAY 1 << 3
+#define MACHINE_USES_SERVICE 1 << 4
 
 typedef struct Node {
   unsigned short type;
@@ -43,6 +51,7 @@ typedef struct MachineNode {
   Node node;
 
   int impl_flags;
+  int flags;
   char* name;
   char* initial;
 } MachineNode;
@@ -107,8 +116,7 @@ typedef struct ImportNode {
 
 typedef struct InvokeNode {
   Node node;
-
-  char* call;
+  struct InvokeExpression* expr;
 } InvokeNode;
 
 typedef struct Expression {
@@ -128,18 +136,18 @@ typedef struct AssignExpression {
 
 typedef struct GuardExpression {
   Expression expression;
-  char* ref;
+  Expression* ref;
 } GuardExpression;
 
 typedef struct ActionExpression {
   Expression expression;
-  char* ref;
+  Expression* ref;
 } ActionExpression;
 
 typedef struct DelayExpression {
   Expression expression;
   int time;
-  char* ref;
+  Expression* ref;
 } DelayExpression;
 
 typedef struct OnExpression {
@@ -158,6 +166,16 @@ typedef struct SendExpression {
   char* event;
 } SendExpression;
 
+typedef struct SymbolExpression {
+  Expression expression;
+  char* name;
+} SymbolExpression;
+
+typedef struct InvokeExpression {
+  Expression expression;
+  Expression* ref;
+} InvokeExpression;
+
 typedef struct Assignment {
   Node node;
   unsigned short binding_type;
@@ -175,12 +193,14 @@ Assignment* node_create_assignment(unsigned short);
 InvokeNode* node_create_invoke();
 AssignExpression* node_create_assignexpression();
 IdentifierExpression* node_create_identifierexpression();
+SymbolExpression* node_create_symbolexpression();
 GuardExpression* node_create_guardexpression();
 ActionExpression* node_create_actionexpression();
 DelayExpression* node_create_delayexpression();
 OnExpression* node_create_onexpression();
 SpawnExpression* node_create_spawnexpression();
 SendExpression* node_create_sendexpression();
+InvokeExpression* node_create_invokeexpression();
 LocalNode* node_create_local();
 
 TransitionAction* create_transition_action();

@@ -53,6 +53,7 @@ MachineNode* node_create_machine() {
   MachineNode *machine_node = (MachineNode*)node;
   machine_node->initial = NULL;
   machine_node->impl_flags = 0;
+  machine_node->flags = 0;
   return machine_node;
 }
 
@@ -271,7 +272,7 @@ Expression* node_clone_expression(Expression* input) {
       DelayExpression* out_de = node_create_delayexpression();
       out_de->time = in_de->time;
       if(in_de->ref != NULL) {
-        out_de->ref = strdup(in_de->ref);
+        out_de->ref = node_clone_expression(in_de->ref);
       }
       output = (Expression*)out_de;
       break;
@@ -289,6 +290,22 @@ Expression* node_clone_expression(Expression* input) {
       out_se->actor = strdup(in_se->actor);
       out_se->event = strdup(in_se->event);
       output = (Expression*)out_se;
+      break;
+    }
+    case EXPRESSION_SYMBOL: {
+      SymbolExpression* in_se = (SymbolExpression*)input;
+      SymbolExpression* out_se = node_create_symbolexpression();
+      out_se->name = strdup(in_se->name);
+      output = (Expression*)out_se;
+      break;
+    }
+    case EXPRESSION_INVOKE: {
+      InvokeExpression* in_ie = (InvokeExpression*)input;
+      InvokeExpression* out_ie = node_create_invokeexpression();
+      if(in_ie->ref != NULL) {
+        out_ie->ref = node_clone_expression(in_ie->ref);
+      }
+      output = (Expression*)out_ie;
       break;
     }
     default: {
@@ -349,6 +366,10 @@ void node_destroy_assignment(Assignment* assignment) {
       node_destroy_guardexpression((GuardExpression*)expression);
       break;
     }
+    case EXPRESSION_SYMBOL: {
+      printf("TODO: Not supported");
+      break;
+    }
   }
 
   free(expression);
@@ -375,7 +396,8 @@ void node_destroy_state(StateNode* state_node) {
 }
 
 void node_destroy_invoke(InvokeNode* invoke_node) {
-  free(invoke_node->call);
+  node_destroy_invokeexpression(invoke_node->expr);
+  free(invoke_node->expr);
 }
 
 void node_destroy_local(LocalNode* local_node) {

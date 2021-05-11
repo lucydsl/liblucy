@@ -130,6 +130,18 @@ void js_builder_add_const(JSBuilder* jsb, char* identifier) {
   js_builder_add_str(jsb, identifier);
 }
 
+void js_builder_add_arg(JSBuilder* jsb, char* identifier) {
+  int len = str_builder_len(jsb->sb);
+  char c = str_builder_char_at(jsb->sb, len - 1);
+
+  // Add a comma if we need to
+  if(c != ' ' && c != '(') {
+    js_builder_add_str(jsb, ", ");
+  }
+
+  js_builder_add_str(jsb, identifier);
+}
+
 char* js_builder_dump(JSBuilder* jsb) {
   return str_builder_dump(jsb->sb, NULL);
 }

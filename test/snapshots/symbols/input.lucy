@@ -1,0 +1,17 @@
+initial state idle {
+  next => guard(:check) => action(:log) => loading
+}
+
+state loading {
+  @entry => action(:updateUI) => action(:log) => assign(count, :incrementLoads)
+
+  invoke(:loadUsers) {
+    done => loaded
+  }
+}
+
+state loaded {
+  delay(:wait) => homescreen
+}
+
+state homescreen {}

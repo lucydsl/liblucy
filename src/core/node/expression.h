@@ -7,3 +7,4 @@ void node_destroy_delayexpression(DelayExpression*);
 void node_destroy_onexpression(OnExpression*);
 void node_destroy_spawnexpression(SpawnExpression*);
 void node_destroy_sendexpression(SendExpression*);
+void node_destroy_invokeexpression(InvokeExpression*);

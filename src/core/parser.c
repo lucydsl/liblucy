@@ -29,6 +29,7 @@
 #define TOKEN_END_CALL 12
 #define TOKEN_COMMA 13
 #define TOKEN_LOCAL 14
+#define TOKEN_SYMBOL 15
 
 #define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
 
@@ -172,6 +173,13 @@ static int consume_token(State* state) {
       return TOKEN_IDENTIFIER;
     }
 
+    if(c == ':') {
+      state_advance_column(state);
+      state_next(state);
+      consume_identifier(state);
+      return TOKEN_SYMBOL;
+    }
+
     if(c == '\'' || c == '"') {
       consume_string(state);
       return TOKEN_STRING;
@@ -265,24 +273,11 @@ static int consume_call_expression(State* state, const char* fn_name, void* expr
   char* identifier = NULL;
   int argi = 0;
   while(token != TOKEN_END_CALL) {
-    switch(token) {
-      case TOKEN_COMMA: break;
-      case TOKEN_IDENTIFIER:
-      case TOKEN_TIMEFRAME:
-      case TOKEN_INTEGER: {
-        identifier = state_take_word(state);
-        _check(on_args(state, expr, token, identifier, argi));
-        break;
-      }
-      default: {
-        if(in_call) {
-          error_msg_with_code_block_dec(state, state->token_len, "Unknown function argument.");
-          err = 2;
-          goto end;
-        }
-        goto end_args;
-      }
+    if(token != TOKEN_COMMA) {
+      identifier = state_take_word(state);
+      _check(on_args(state, expr, token, identifier, argi));
     }
+
     token = consume_token(state);
     argi++;
   }
@@ -309,21 +304,39 @@ static int consume_call_expression(State* state, const char* fn_name, void* expr
   }
 }
 
-static int consume_inline_guard_args(State* state, void* expr, int _token, char* arg, int _argi) {
+static int consume_inline_guard_args(State* state, void* expr, int token, char* arg, int _argi) {
   GuardExpression* guard_expression = (GuardExpression*)expr;
-  guard_expression->ref = arg;
+
+  if(token == TOKEN_IDENTIFIER) {
+    IdentifierExpression* ref = node_create_identifierexpression();
+    ref->name = arg;
+    guard_expression->ref = (Expression*)ref;
+  } else if(token == TOKEN_SYMBOL) {
+    SymbolExpression* ref = node_create_symbolexpression();
+    ref->name = arg;
+    guard_expression->ref = (Expression*)ref;
+  } else {
+    error_msg_with_code_block_dec(state, state->token_len, "Unexpected function argument to guard()");
+    return 1;
+  }
+
   return 0;
 }
 
 static int consume_inline_guard(State* state, TransitionNode* transition_node) {
   int err = 0;
   GuardExpression* guard_expression = node_create_guardexpression();
-  guard_expression->ref = state_take_word(state);
   
   _check(consume_call_expression(state, "guard", guard_expression, &consume_inline_guard_args));
 
   TransitionGuard* guard = node_transition_add_guard(transition_node, NULL);
   guard->expression = guard_expression;
+
+  if(guard->expression->ref->type == EXPRESSION_SYMBOL) {
+    Node* parent_state_node_node = ((Node*)transition_node)->parent;
+    MachineNode* parent_machine_node = (MachineNode*)parent_state_node_node->parent;
+    parent_machine_node->flags |= MACHINE_USES_GUARD;
+  }
 
   return err;
 }
@@ -384,7 +397,7 @@ static int consume_inline_send(State* state, Node* node) {
   return err;
 }
 
-static int consume_inline_assign_args(State* state, void* expr, int _token, char* arg, int argi) {
+static int consume_inline_assign_args(State* state, void* expr, int token, char* arg, int argi) {
   int err = 0;
   AssignExpression* assign_expression = (AssignExpression*)expr;
 
@@ -398,9 +411,21 @@ static int consume_inline_assign_args(State* state, void* expr, int _token, char
         break;
       }
       default: {
-        IdentifierExpression* identifier_expression = node_create_identifierexpression();
-        identifier_expression->name = arg;
-        assign_expression->value = (Expression*)identifier_expression;
+        switch(token) {
+          case TOKEN_IDENTIFIER: {
+            IdentifierExpression* identifier_expression = node_create_identifierexpression();
+            identifier_expression->name = arg;
+            assign_expression->value = (Expression*)identifier_expression;
+            break;
+          }
+          case TOKEN_SYMBOL: {
+            SymbolExpression* symbol_expression = node_create_symbolexpression();
+            symbol_expression->name = arg;
+            assign_expression->value = (Expression*)symbol_expression;
+            break;
+          }
+        }
+
         // Not a keyword
         break;
       }
@@ -408,6 +433,14 @@ static int consume_inline_assign_args(State* state, void* expr, int _token, char
   }
   
   return err;
+}
+
+static inline void maybe_add_machine_uses_assign(AssignExpression* assign_expression, Node* parent_node) {
+  if(assign_expression->value->type == EXPRESSION_SYMBOL) {
+    Node* state_node_node = parent_node->parent;
+    MachineNode* machine_node = (MachineNode*)state_node_node->parent;
+    machine_node->flags |= MACHINE_USES_ASSIGN;
+  }
 }
 
 static int consume_inline_assign(State* state, Node* node) {
@@ -433,13 +466,28 @@ static int consume_inline_assign(State* state, Node* node) {
   }
 
   program_add_flag(state->program, PROGRAM_USES_ASSIGN);
+  maybe_add_machine_uses_assign(assign_expression, node);
 
   return err;
 }
 
-static int consume_inline_action_args(State* state, void* expr, int _token, char* arg, int _argi) {
+static int consume_inline_action_args(State* state, void* expr, int token, char* arg, int _argi) {
   ActionExpression* action_expression = (ActionExpression*)expr;
-  action_expression->ref = arg;
+
+  if(token == TOKEN_IDENTIFIER) {
+    IdentifierExpression* ref = node_create_identifierexpression();
+    ref->name = arg;
+    action_expression->ref = (Expression*)ref;
+  } else if(token == TOKEN_SYMBOL) {
+    SymbolExpression* ref = node_create_symbolexpression();
+    ref->name = arg;
+    action_expression->ref = (Expression*)ref;
+
+  } else {
+    error_msg_with_code_block_dec(state, state->token_len, "Unexpected argument to action()");
+    return 1;
+  }
+
   return 0;
 }
 
@@ -455,6 +503,12 @@ static int consume_inline_action(State* state, Node* node) {
       TransitionNode* transition_node = (TransitionNode*)node;
       TransitionAction* action = node_transition_add_action(transition_node, NULL);
       action->expression = (Expression*)action_expression;
+
+      if(action_expression->ref->type == EXPRESSION_SYMBOL) {
+        Node* parent_state_node_node = ((Node*)transition_node)->parent;
+        MachineNode* parent_machine_node = (MachineNode*)parent_state_node_node->parent;
+        parent_machine_node->flags |= MACHINE_USES_ACTION;
+      }
       break;
     }
     case NODE_LOCAL_TYPE: {
@@ -473,7 +527,7 @@ static int consume_inline_delay_args(State* state, void* expr, int token, char* 
   DelayExpression* delay_expression = (DelayExpression*)expr;
 
   int time = 0;
-  char* ref = NULL;
+  Expression* ref = NULL;
 
   switch(token) {
     case TOKEN_INTEGER: {
@@ -494,7 +548,15 @@ static int consume_inline_delay_args(State* state, void* expr, int token, char* 
       break;
     }
     case TOKEN_IDENTIFIER: {
-      ref = arg;
+      IdentifierExpression* identifier_expression = node_create_identifierexpression();
+      identifier_expression->name = arg;
+      ref = (Expression*)identifier_expression;
+      break;
+    }
+    case TOKEN_SYMBOL: {
+      SymbolExpression* symbol_expression = node_create_symbolexpression();
+      symbol_expression->name = arg;
+      ref = (Expression*)symbol_expression;
       break;
     }
     default: {
@@ -509,7 +571,7 @@ static int consume_inline_delay_args(State* state, void* expr, int token, char* 
   return 0;
 }
 
-static int consume_inline_delay(State* state, TransitionNode* transition_node) {
+static int consume_inline_delay(State* state, TransitionNode* transition_node, StateNode* state_node) {
   int err = 0;
 
   transition_node->type = TRANSITION_DELAY_TYPE;
@@ -518,6 +580,11 @@ static int consume_inline_delay(State* state, TransitionNode* transition_node) {
   _check(consume_call_expression(state, "delay", expression, &consume_inline_delay_args));
 
   node_transition_add_delay(transition_node, NULL, expression);
+  if(expression->ref->type == EXPRESSION_SYMBOL) {
+    Node* state_node_node = (Node*)state_node;
+    MachineNode* machine_node = (MachineNode*)state_node_node->parent;
+    machine_node->flags |= MACHINE_USES_DELAY;
+  }
 
   return err;
 }
@@ -536,6 +603,25 @@ static int consume_on(State* state, TransitionNode* transition_node) {
   transition_node->event = (Expression*)expression;
 
   return err;
+}
+
+static int consume_invoke_args(State* state, void* expr, int token, char* arg, int _argi) {
+  InvokeExpression* invoke_expression = (InvokeExpression*)expr;
+
+  if(token == TOKEN_IDENTIFIER) {
+    IdentifierExpression* identifier_expression = node_create_identifierexpression();
+    identifier_expression->name = arg;
+    invoke_expression->ref = (Expression*)identifier_expression;
+  } else if(token == TOKEN_SYMBOL) {
+    SymbolExpression* symbol_expression = node_create_symbolexpression();
+    symbol_expression->name = arg;
+    invoke_expression->ref = (Expression*)symbol_expression;
+  } else {
+    error_msg_with_code_block_dec(state, state->token_len, "Unexpected argument to invoke()");
+    return 1;
+  }
+
+  return 0;
 }
 
 static char* get_event_name(TransitionNode* transition_node) {
@@ -594,7 +680,7 @@ static int consume_transition(State* state) {
 
     switch(key) {
       case KW_DELAY: {
-        _check(consume_inline_delay(state, transition_node));
+        _check(consume_inline_delay(state, transition_node, state_node));
         break;
       }
       case KW_ON: {
@@ -749,16 +835,14 @@ static int consume_invoke(State* state) {
 
   state_node_set(state, node);
 
-  int token = consume_token(state);
-
-  if(token != TOKEN_IDENTIFIER) {
-    error_msg_with_code_block(state, node, "Expected a function to call with invoke.");
-    return 2;
+  invoke_node->expr = node_create_invokeexpression();
+  _check(consume_call_expression(state, "invoke", invoke_node->expr, &consume_invoke_args));
+  if(invoke_node->expr->ref->type == EXPRESSION_SYMBOL) {
+    MachineNode* machine_node = (MachineNode*)parent_node->parent;
+    machine_node->flags |= MACHINE_USES_SERVICE;
   }
 
-  invoke_node->call = state_take_word(state);
-
-  token = consume_token(state);
+  int token = consume_token(state);
 
   if(token != TOKEN_BEGIN_BLOCK) {
     error_unexpected_identifier(state, node);

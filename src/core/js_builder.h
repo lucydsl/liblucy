@@ -31,6 +31,7 @@ void js_builder_start_array(JSBuilder*, bool);
 void js_builder_end_array(JSBuilder*, bool);
 void js_builder_add_export(JSBuilder*);
 void js_builder_add_const(JSBuilder*, char*);
+void js_builder_add_arg(JSBuilder*, char*);
 
 char* js_builder_dump(JSBuilder*);
 

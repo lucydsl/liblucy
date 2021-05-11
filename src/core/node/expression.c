@@ -60,6 +60,20 @@ SendExpression* node_create_sendexpression() {
   return expression;
 }
 
+SymbolExpression* node_create_symbolexpression() {
+  SymbolExpression* expression = malloc(sizeof *expression);
+  ((Expression*)expression)->type = EXPRESSION_SYMBOL;
+  expression->name = NULL;
+  return expression;
+}
+
+InvokeExpression* node_create_invokeexpression() {
+  InvokeExpression* expression = malloc(sizeof *expression);
+  ((Expression*)expression)->type = EXPRESSION_INVOKE;
+  expression->ref = NULL;
+  return expression;
+}
+
 /* Teardown */
 void node_destroy_assignexpression(AssignExpression* expression) {
   if(expression != NULL) {
@@ -114,6 +128,34 @@ void node_destroy_sendexpression(SendExpression* expression) {
   if(expression != NULL) {
     free(expression->actor);
     free(expression->event);
+  }
+}
+
+void node_destroy_symbolexpression(SymbolExpression* expression) {
+  if(expression != NULL) {
+    free(expression->name);
+  }
+}
+
+void node_destroy_invokeexpression(InvokeExpression* expression) {
+  if(expression != NULL) {
+    if(expression->ref != NULL) {
+      switch(expression->ref->type) {
+        case EXPRESSION_IDENTIFIER: {
+          node_destroy_identifierexpression((IdentifierExpression*)expression->ref);
+          break;
+        }
+        case EXPRESSION_SYMBOL: {
+          node_destroy_symbolexpression((SymbolExpression*)expression->ref);
+          break;
+        }
+        default: {
+          printf("Unknown expression type for invoke %i\n", expression->ref->type);
+          break;
+        }
+      }
+      free(expression->ref);
+    }
   }
 }
 
