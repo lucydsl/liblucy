@@ -1323,18 +1323,26 @@ static int consume_guard(State* state) {
   }
 
   token = consume_token(state);
-
-  if(token != TOKEN_IDENTIFIER) {
-    error_msg_with_code_block(state, node, "Expected an identifier");
-    return 2;
+  switch(token) {
+    case TOKEN_IDENTIFIER: {
+      IdentifierExpression *expression = node_create_identifierexpression();
+      expression->name = state_take_word(state);
+      assignment->value = (Expression*)expression;
+      break;
+    }
+    case TOKEN_SYMBOL: {
+      SymbolExpression* expression = node_create_symbolexpression();
+      expression->name = state_take_word(state);
+      assignment->value = (Expression*)expression;
+      break;
+    }
+    default: {
+      error_msg_with_code_block_dec(state, state->token_len, "Expected an identifier");
+      return 2;
+    }
   }
 
-  IdentifierExpression *expression = node_create_identifierexpression();
-  expression->name = state_take_word(state);
-
   state_add_guard(state, assignment->binding_name);
-
-  assignment->value = (Expression*)expression;
   state_node_up(state);
   return 0;
 }
