@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <ctype.h>
 #include "node.h"
 #include "program.h"
 #include "parser.h"
@@ -136,9 +137,18 @@ static void end_assign_call(JSBuilder* jsb) {
 
 static void add_spawn_call(JSBuilder* jsb, SpawnExpression* spawn_expression) {
   js_builder_start_call(jsb, "spawn");
-  js_builder_add_str(jsb, spawn_expression->target);
+  Expression* target = spawn_expression->target;
+  char* name = NULL;
+  if(target->type == EXPRESSION_IDENTIFIER) {
+    name = ((IdentifierExpression*)target)->name;
+    js_builder_add_str(jsb, name);
+  } else {
+    name = ((SymbolExpression*)target)->name;
+    js_builder_add_str(jsb, "services.");
+    js_builder_add_str(jsb, name);
+  }
   js_builder_add_str(jsb, ", ");
-  js_builder_add_string(jsb, spawn_expression->target);
+  js_builder_add_string(jsb, name);
   js_builder_end_call(jsb);
 }
 
@@ -154,6 +164,32 @@ static void add_send_call(JSBuilder* jsb, SendExpression* send_expression) {
   js_builder_end_call(jsb);
 }
 
+static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
+  int all_flags =  MACHINE_USES_ACTION | MACHINE_USES_ASSIGN | MACHINE_USES_DELAY | MACHINE_USES_GUARD | MACHINE_USES_SERVICE;
+
+  if(machine_node->flags & all_flags) {
+    js_builder_add_str(jsb, "{ ");
+  }
+  if(machine_node->flags & MACHINE_USES_ACTION) {
+    js_builder_add_arg(jsb, "actions");
+  }
+  if(machine_node->flags & MACHINE_USES_ASSIGN) {
+    js_builder_add_arg(jsb, "assigns");
+  }
+  if(machine_node->flags & MACHINE_USES_DELAY) {
+    js_builder_add_arg(jsb, "delays");
+  }
+  if(machine_node->flags & MACHINE_USES_GUARD) {
+    js_builder_add_arg(jsb, "guards");
+  }
+  if(machine_node->flags & MACHINE_USES_SERVICE) {
+    js_builder_add_arg(jsb, "services");
+  }
+  if(machine_node->flags & all_flags) {
+    js_builder_add_str(jsb, " }");
+  }
+}
+
 static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
   MachineNode *machine_node = (MachineNode*)node;
   Node* parent_node = node->parent;
@@ -162,35 +198,24 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
   if(!is_nested) {
     if(machine_node->name == NULL) {
       js_builder_add_str(jsb, "\nexport default function(");
-      int all_flags =  MACHINE_USES_ACTION | MACHINE_USES_ASSIGN | MACHINE_USES_DELAY | MACHINE_USES_GUARD | MACHINE_USES_SERVICE;
-
-      if(machine_node->flags & all_flags) {
-        js_builder_add_str(jsb, "{ ");
-      }
-      if(machine_node->flags & MACHINE_USES_ACTION) {
-        js_builder_add_arg(jsb, "actions");
-      }
-      if(machine_node->flags & MACHINE_USES_ASSIGN) {
-        js_builder_add_arg(jsb, "assigns");
-      }
-      if(machine_node->flags & MACHINE_USES_DELAY) {
-        js_builder_add_arg(jsb, "delays");
-      }
-      if(machine_node->flags & MACHINE_USES_GUARD) {
-        js_builder_add_arg(jsb, "guards");
-      }
-      if(machine_node->flags & MACHINE_USES_SERVICE) {
-        js_builder_add_arg(jsb, "services");
-      }
-      if(machine_node->flags & all_flags) {
-        js_builder_add_str(jsb, " }");
-      }
+      add_machine_fn_args(state, jsb, machine_node);
       js_builder_add_str(jsb, ") {\n");
       js_builder_increase_indent(jsb);
     } else {
       js_builder_add_export(jsb);
-      js_builder_add_const(jsb, machine_node->name);
-      js_builder_add_str(jsb, " = ");
+      js_builder_add_str(jsb, "function create");
+      char* machine_name = machine_node->name;
+      int machine_name_len = strlen(machine_name);
+      js_builder_add_char(jsb, toupper(machine_name[0]));
+      int i = 1;
+      while(i < machine_name_len) {
+        js_builder_add_char(jsb, machine_name[i]);
+        i++;
+      }
+      js_builder_add_str(jsb, "(");
+      add_machine_fn_args(state, jsb, machine_node);
+      js_builder_add_str(jsb, ") {\n");
+      js_builder_increase_indent(jsb);
     }
     js_builder_start_call(jsb, "return createMachine");
     js_builder_start_object(jsb);
@@ -271,10 +296,6 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
         switch(expression->type) {
           case EXPRESSION_ASSIGN: {
             AssignExpression* assign = (AssignExpression*)expression;
-
-           // js_builder_start_call(jsb, "assign"); // TODO replace with start_assign_call
-           // js_builder_start_object(jsb);
-           // js_builder_start_prop(jsb, assign->key);
 
             start_assign_call(jsb, assign);
 
@@ -559,9 +580,29 @@ static void compile_transition_action(PrintState* state, JSBuilder* jsb, Transit
                 break;
               }
               case EXPRESSION_SPAWN: {
-                start_assign_call(jsb, assign_expression);
-                add_spawn_call(jsb, (SpawnExpression*)assign_expression->value);
-                end_assign_call(jsb);
+                SpawnExpression* spawn_expression = (SpawnExpression*)assign_expression->value;
+                if(spawn_expression->target->type == EXPRESSION_SYMBOL) {
+                  SymbolExpression* symbol_expression = (SymbolExpression*)spawn_expression->target;
+                  if(use_multiline) {
+                    js_builder_add_indent(jsb);
+                  }
+                  str_builder_t* sb_name = str_builder_create();
+                  str_builder_add_str(sb_name, "spawn", 5);
+                  str_builder_add_char(sb_name, toupper(symbol_expression->name[0]));
+                  char* t = symbol_expression->name;
+                  t++;
+                  for(; *t != '\0'; t++) {
+                    str_builder_add_char(sb_name, *t);
+                  }
+                  char* action_name = str_builder_dump(sb_name, 0);
+                  str_builder_destroy(sb_name);
+                  js_builder_add_string(jsb, action_name);
+                  add_action_ref(state, action_name, (Expression*)assign_expression);
+                } else {
+                  start_assign_call(jsb, assign_expression);
+                  add_spawn_call(jsb, spawn_expression);
+                  end_assign_call(jsb);
+                }
                 break;
               }
             }

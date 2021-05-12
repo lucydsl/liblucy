@@ -333,17 +333,29 @@ static int consume_inline_guard(State* state, TransitionNode* transition_node) {
   guard->expression = guard_expression;
 
   if(guard->expression->ref->type == EXPRESSION_SYMBOL) {
-    Node* parent_state_node_node = ((Node*)transition_node)->parent;
-    MachineNode* parent_machine_node = (MachineNode*)parent_state_node_node->parent;
+    MachineNode* parent_machine_node = find_closest_machine_node((Node*)transition_node);
     parent_machine_node->flags |= MACHINE_USES_GUARD;
   }
 
   return err;
 }
 
-static int consume_inline_spawn_args(State* state, void* expr, int _token, char* arg, int _argi) {
+static int consume_inline_spawn_args(State* state, void* expr, int token, char* arg, int _argi) {
   SpawnExpression* spawn_expression = (SpawnExpression*)expr;
-  spawn_expression->target = arg;
+  switch(token) {
+    case TOKEN_IDENTIFIER: {
+      IdentifierExpression* identifier_expression = node_create_identifierexpression();
+      identifier_expression->name = arg;
+      spawn_expression->target = (Expression*)identifier_expression;
+      break;
+    }
+    case TOKEN_SYMBOL: {
+      SymbolExpression* symbol_expression = node_create_symbolexpression();
+      symbol_expression->name = arg;
+      spawn_expression->target = (Expression*)symbol_expression;
+      break;
+    }
+  }
   return 0;
 }
 
@@ -354,6 +366,11 @@ static int consume_inline_spawn(State* state, AssignExpression* assign_expressio
   _check(consume_call_expression(state, "spawn", spawn_expression, &consume_inline_spawn_args));
   assign_expression->value = (Expression*)spawn_expression;
   program_add_flag(state->program, PROGRAM_USES_SPAWN);
+
+  if(spawn_expression->target->type == EXPRESSION_SYMBOL) {
+    // TODO we should be telling the machine that we need services but this is kind of hard at the moment.
+    // I think what should be happening is that an Expression should be a Node.
+  }
 
   return err;
 }
@@ -437,8 +454,7 @@ static int consume_inline_assign_args(State* state, void* expr, int token, char*
 
 static inline void maybe_add_machine_uses_assign(AssignExpression* assign_expression, Node* parent_node) {
   if(assign_expression->value->type == EXPRESSION_SYMBOL) {
-    Node* state_node_node = parent_node->parent;
-    MachineNode* machine_node = (MachineNode*)state_node_node->parent;
+    MachineNode* machine_node = find_closest_machine_node(parent_node);
     machine_node->flags |= MACHINE_USES_ASSIGN;
   }
 }
@@ -505,8 +521,7 @@ static int consume_inline_action(State* state, Node* node) {
       action->expression = (Expression*)action_expression;
 
       if(action_expression->ref->type == EXPRESSION_SYMBOL) {
-        Node* parent_state_node_node = ((Node*)transition_node)->parent;
-        MachineNode* parent_machine_node = (MachineNode*)parent_state_node_node->parent;
+        MachineNode* parent_machine_node = find_closest_machine_node((Node*)transition_node);
         parent_machine_node->flags |= MACHINE_USES_ACTION;
       }
       break;
@@ -518,6 +533,11 @@ static int consume_inline_action(State* state, Node* node) {
       node_local_add_action(local_node, action);
       break;
     }
+  }
+
+  if(action_expression->ref->type == EXPRESSION_SYMBOL) {
+    MachineNode* parent_machine_node = find_closest_machine_node(node);
+    parent_machine_node->flags |= MACHINE_USES_ACTION;
   }
 
   return err;
@@ -581,8 +601,7 @@ static int consume_inline_delay(State* state, TransitionNode* transition_node, S
 
   node_transition_add_delay(transition_node, NULL, expression);
   if(expression->ref->type == EXPRESSION_SYMBOL) {
-    Node* state_node_node = (Node*)state_node;
-    MachineNode* machine_node = (MachineNode*)state_node_node->parent;
+    MachineNode* machine_node = find_closest_machine_node((Node*)state_node);
     machine_node->flags |= MACHINE_USES_DELAY;
   }
 
@@ -838,7 +857,7 @@ static int consume_invoke(State* state) {
   invoke_node->expr = node_create_invokeexpression();
   _check(consume_call_expression(state, "invoke", invoke_node->expr, &consume_invoke_args));
   if(invoke_node->expr->ref->type == EXPRESSION_SYMBOL) {
-    MachineNode* machine_node = (MachineNode*)parent_node->parent;
+    MachineNode* machine_node = find_closest_machine_node(parent_node);
     machine_node->flags |= MACHINE_USES_SERVICE;
   }
 

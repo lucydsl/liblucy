@@ -247,6 +247,22 @@ static void node_destroy_transition_delay(TransitionDelay* delay) {
   free(delay);
 }
 
+Node* find_closest_node_of_type(Node* node, int type) {
+  Node* cur = node;
+  while(cur != NULL && cur->type != type) {
+    cur = cur->parent;
+  }
+  return cur;
+}
+
+MachineNode* find_closest_machine_node(Node* node) {
+  Node* found = find_closest_node_of_type(node, NODE_MACHINE_TYPE);
+  if(found != NULL) {
+    return (MachineNode*)found;
+  }
+  return NULL;
+}
+
 Expression* node_clone_expression(Expression* input) {
   Expression* output;
   switch(input->type) {
@@ -280,7 +296,7 @@ Expression* node_clone_expression(Expression* input) {
     case EXPRESSION_SPAWN: {
       SpawnExpression* in_se = (SpawnExpression*)input;
       SpawnExpression* out_se = node_create_spawnexpression();
-      out_se->target = strdup(in_se->target);
+      out_se->target = node_clone_expression(in_se->target);
       output = (Expression*)out_se;
       break;
     }

@@ -31,6 +31,10 @@ static bool current_is_newline(JSBuilder* jsb) {
   return false;
 }
 
+void js_builder_add_char(JSBuilder* jsb, char c) {
+  str_builder_add_char(jsb->sb, c);
+}
+
 void js_builder_add_str(JSBuilder* jsb, char* str) {
   str_builder_add_str(jsb->sb, str, 0);
 }

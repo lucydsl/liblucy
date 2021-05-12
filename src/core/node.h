@@ -157,7 +157,7 @@ typedef struct OnExpression {
 
 typedef struct SpawnExpression {
   Expression expression;
-  char* target;
+  Expression* target;
 } SpawnExpression;
 
 typedef struct SendExpression {
@@ -216,6 +216,8 @@ TransitionAction* node_transition_add_action(TransitionNode*, char*);
 TransitionDelay* node_transition_add_delay(TransitionNode*, char*, DelayExpression*);
 void node_local_add_action(LocalNode*, TransitionAction*);
 
+Node* find_closest_node_of_type(Node*, int);
+MachineNode* find_closest_machine_node(Node*);
 Expression* node_clone_expression(Expression*);
 
 void node_destroy_assignment(Assignment*);
