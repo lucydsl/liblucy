@@ -1251,34 +1251,44 @@ static int consume_action(State* state) {
   }
 
   token = consume_token(state);
-  if(token != TOKEN_IDENTIFIER) {
-    error_msg_with_code_block(state, node, "Expected an identifier");
-    return 2;
-  }
-
-  char* identifier = state_take_word(state);
-  unsigned short key = keyword_get(identifier);
-  switch(key) {
-    case KW_ASSIGN: {
-      AssignExpression *expression = node_create_assignexpression();
-      consume_call_expression(state, "assign", expression, &consume_inline_assign_args);
-      assignment->value = (Expression*)expression;
-      program_add_flag(state->program, PROGRAM_USES_ASSIGN);
-      free(identifier);
+  switch(token) {
+    case TOKEN_IDENTIFIER: {
+      char* identifier = state_take_word(state);
+      unsigned short key = keyword_get(identifier);
+      switch(key) {
+        case KW_ASSIGN: {
+          AssignExpression *expression = node_create_assignexpression();
+          consume_call_expression(state, "assign", expression, &consume_inline_assign_args);
+          assignment->value = (Expression*)expression;
+          program_add_flag(state->program, PROGRAM_USES_ASSIGN);
+          free(identifier);
+          break;
+        }
+        case KW_SEND: {
+          SendExpression* expression = node_create_sendexpression();
+          consume_call_expression(state, "send", expression, &consume_inline_send_args);
+          assignment->value = (Expression*)expression;
+          program_add_flag(state->program, PROGRAM_USES_SEND);
+          free(identifier);
+          break;
+        }
+        default: {
+          IdentifierExpression* expression = node_create_identifierexpression();
+          expression->name = identifier;
+          assignment->value = (Expression*)expression;
+        }
+      }
       break;
     }
-    case KW_SEND: {
-      SendExpression* expression = node_create_sendexpression();
-      consume_call_expression(state, "send", expression, &consume_inline_send_args);
+    case TOKEN_SYMBOL: {
+      SymbolExpression* expression = node_create_symbolexpression();
+      expression->name = state_take_word(state);
       assignment->value = (Expression*)expression;
-      program_add_flag(state->program, PROGRAM_USES_SEND);
-      free(identifier);
       break;
     }
     default: {
-      IdentifierExpression* expression = node_create_identifierexpression();
-      expression->name = identifier;
-      assignment->value = (Expression*)expression;
+      error_msg_with_code_block_dec(state, state->token_len, "Expected an identifier");
+      return 2;
     }
   }
 
