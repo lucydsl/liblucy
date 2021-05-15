@@ -383,7 +383,7 @@ void node_destroy_assignment(Assignment* assignment) {
       break;
     }
     case EXPRESSION_SYMBOL: {
-      printf("TODO: Not supported");
+      node_destroy_symbolexpression((SymbolExpression*)expression);
       break;
     }
   }

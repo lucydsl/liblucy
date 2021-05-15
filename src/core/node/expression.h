@@ -1,6 +1,7 @@
 
 void node_destroy_assignexpression(AssignExpression*);
 void node_destroy_identifierexpression(IdentifierExpression*);
+void node_destroy_symbolexpression(SymbolExpression*);
 void node_destroy_guardexpression(GuardExpression*);
 void node_destroy_actionexpression(ActionExpression*);
 void node_destroy_delayexpression(DelayExpression*);

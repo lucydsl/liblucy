@@ -536,7 +536,8 @@ static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
       while(cur != NULL) {
         if(cur->type == NODE_MACHINE_TYPE) {
           MachineNode* cur_machine = (MachineNode*)cur;
-          if(hash_function(cur_machine->name) == searchid) {
+          char* machine_name = cur_machine->name;
+          if(machine_name != NULL && hash_function(machine_name) == searchid) {
             added_machine = true;
             add_machine_binding_name(jsb, cur_machine);
             break;
