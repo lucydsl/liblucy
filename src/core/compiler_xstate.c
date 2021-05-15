@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <ctype.h>
+#include "dict.h"
 #include "node.h"
 #include "program.h"
 #include "parser.h"
@@ -27,6 +28,7 @@ typedef struct Ref {
 typedef struct PrintState {
   bool on_prop_added;
   bool always_prop_added;
+  Program* program;
   Ref* guard;
   SimpleSet* guard_names;
   Ref* action;
@@ -190,6 +192,18 @@ static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* 
   }
 }
 
+static void add_machine_binding_name(JSBuilder* jsb, MachineNode* machine_node) {
+  js_builder_add_str(jsb, "create");
+  char* machine_name = machine_node->name;
+  int machine_name_len = strlen(machine_name);
+  js_builder_add_char(jsb, toupper(machine_name[0]));
+  int i = 1;
+  while(i < machine_name_len) {
+    js_builder_add_char(jsb, machine_name[i]);
+    i++;
+  }
+}
+
 static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
   MachineNode *machine_node = (MachineNode*)node;
   Node* parent_node = node->parent;
@@ -203,15 +217,8 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
       js_builder_increase_indent(jsb);
     } else {
       js_builder_add_export(jsb);
-      js_builder_add_str(jsb, "function create");
-      char* machine_name = machine_node->name;
-      int machine_name_len = strlen(machine_name);
-      js_builder_add_char(jsb, toupper(machine_name[0]));
-      int i = 1;
-      while(i < machine_name_len) {
-        js_builder_add_char(jsb, machine_name[i]);
-        i++;
-      }
+      js_builder_add_str(jsb, "function ");
+      add_machine_binding_name(jsb, machine_node);
       js_builder_add_str(jsb, "(");
       add_machine_fn_args(state, jsb, machine_node);
       js_builder_add_str(jsb, ") {\n");
@@ -402,13 +409,6 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
           }
         }
 
-        /*
-        DelayExpression* expression = (DelayExpression*)ref->value;
-
-        js_builder_start_prop(jsb, expression->ref);
-        js_builder_add_str(jsb, expression->ref);
-        */
-
         ref = ref->next;
       }
 
@@ -527,7 +527,28 @@ static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
   switch(invoke_expression->ref->type) {
     case EXPRESSION_IDENTIFIER: {
       IdentifierExpression* identifier_expression = (IdentifierExpression*)invoke_expression->ref;
-      js_builder_add_str(jsb, identifier_expression->name);
+
+      // Looking for a machine matching this name.
+      bool added_machine = false;
+      char* value = identifier_expression->name;
+      unsigned long searchid = hash_function(identifier_expression->name);
+      Node* cur = state->program->body;
+      while(cur != NULL) {
+        if(cur->type == NODE_MACHINE_TYPE) {
+          MachineNode* cur_machine = (MachineNode*)cur;
+          if(hash_function(cur_machine->name) == searchid) {
+            added_machine = true;
+            add_machine_binding_name(jsb, cur_machine);
+            break;
+          }
+        }
+        cur = cur->next;
+      }
+
+      // No in-scope machine found, so just add the identifier directly.
+      if(!added_machine) {
+        js_builder_add_str(jsb, identifier_expression->name);
+      }
       break;
     }
     case EXPRESSION_SYMBOL: {
@@ -933,6 +954,7 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   }
 
   PrintState state = {
+    .program = program,
     .on_prop_added = false,
     .always_prop_added = false,
     .guard = NULL,

@@ -1,17 +1,19 @@
 import { createMachine } from 'xstate';
 
-export default createMachine({
-  initial: 'disabled',
-  states: {
-    enabled: {
-      on: {
-        toggle: 'disabled'
-      }
-    },
-    disabled: {
-      on: {
-        toggle: 'enabled'
+export default function() {
+  return createMachine({
+    initial: 'disabled',
+    states: {
+      enabled: {
+        on: {
+          toggle: 'disabled'
+        }
+      },
+      disabled: {
+        on: {
+          toggle: 'enabled'
+        }
       }
     }
-  }
-});
+  });
+}

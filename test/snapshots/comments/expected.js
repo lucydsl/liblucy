@@ -1,19 +1,21 @@
 import { createMachine } from 'xstate';
 
-export default createMachine({
-  states: {
-    one: {
-      on: {
-        go: 'another'
-      }
-    },
-    another: {
-      on: {
-        last: 'third'
-      }
-    },
-    third: {
+export default function() {
+  return createMachine({
+    states: {
+      one: {
+        on: {
+          go: 'another'
+        }
+      },
+      another: {
+        on: {
+          last: 'third'
+        }
+      },
+      third: {
 
+      }
     }
-  }
-});
+  });
+}

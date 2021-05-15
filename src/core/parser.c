@@ -273,11 +273,25 @@ static int consume_call_expression(State* state, const char* fn_name, void* expr
   char* identifier = NULL;
   int argi = 0;
   while(token != TOKEN_END_CALL) {
-    if(token != TOKEN_COMMA) {
-      identifier = state_take_word(state);
-      _check(on_args(state, expr, token, identifier, argi));
+    switch(token) {
+      case TOKEN_COMMA: break;
+      case TOKEN_IDENTIFIER:
+      case TOKEN_INTEGER:
+      case TOKEN_SYMBOL:
+      case TOKEN_TIMEFRAME: {
+        identifier = state_take_word(state);
+        _check(on_args(state, expr, token, identifier, argi));
+        break;
+      }
+      default: {
+        if(in_call) {
+          error_msg_with_code_block_dec(state, state->token_len, "Unknown function argument.");
+          err = 2;
+          goto end;
+        }
+        goto end_args;
+      }
     }
-
     token = consume_token(state);
     argi++;
   }
@@ -453,7 +467,8 @@ static int consume_inline_assign_args(State* state, void* expr, int token, char*
 }
 
 static inline void maybe_add_machine_uses_assign(AssignExpression* assign_expression, Node* parent_node) {
-  if(assign_expression->value->type == EXPRESSION_SYMBOL) {
+  Expression* value = assign_expression->value;
+  if(value != NULL && value->type == EXPRESSION_SYMBOL) {
     MachineNode* machine_node = find_closest_machine_node(parent_node);
     machine_node->flags |= MACHINE_USES_ASSIGN;
   }
@@ -600,7 +615,7 @@ static int consume_inline_delay(State* state, TransitionNode* transition_node, S
   _check(consume_call_expression(state, "delay", expression, &consume_inline_delay_args));
 
   node_transition_add_delay(transition_node, NULL, expression);
-  if(expression->ref->type == EXPRESSION_SYMBOL) {
+  if(expression-> ref != NULL && expression->ref->type == EXPRESSION_SYMBOL) {
     MachineNode* machine_node = find_closest_machine_node((Node*)state_node);
     machine_node->flags |= MACHINE_USES_DELAY;
   }

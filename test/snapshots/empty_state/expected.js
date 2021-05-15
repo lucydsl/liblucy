@@ -1,12 +1,14 @@
 import { createMachine } from 'xstate';
 
-export default createMachine({
-  states: {
-    one: {
+export default function() {
+  return createMachine({
+    states: {
+      one: {
 
-    },
-    two: {
+      },
+      two: {
 
+      }
     }
-  }
-});
+  });
+}

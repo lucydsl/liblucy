@@ -1,29 +1,31 @@
 import { createMachine, assign } from 'xstate';
 import { getUser, setUser } from './user.js';
 
-export default createMachine({
-  states: {
-    loading: {
-      invoke: {
-        src: getUser,
-        onDone: {
-          target: 'ready',
-          actions: ['assignUser']
-        },
-        onError: 'error'
+export default function() {
+  return createMachine({
+    states: {
+      loading: {
+        invoke: {
+          src: getUser,
+          onDone: {
+            target: 'ready',
+            actions: ['assignUser']
+          },
+          onError: 'error'
+        }
+      },
+      ready: {
+
+      },
+      error: {
+
       }
-    },
-    ready: {
-
-    },
-    error: {
-
     }
-  }
-}, {
-  actions: {
-    assignUser: assign({
-      user: setUser
-    })
-  }
-});
+  }, {
+    actions: {
+      assignUser: assign({
+        user: setUser
+      })
+    }
+  });
+}

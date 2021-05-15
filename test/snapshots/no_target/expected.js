@@ -1,18 +1,20 @@
 import { createMachine, assign } from 'xstate';
 
-export default createMachine({
-  initial: 'initial',
-  states: {
-    initial: {
-      on: {
-        test: {
-          actions: [
-            assign({
-              someValue: (context, event) => event.data
-            })
-          ]
+export default function() {
+  return createMachine({
+    initial: 'initial',
+    states: {
+      initial: {
+        on: {
+          test: {
+            actions: [
+              assign({
+                someValue: (context, event) => event.data
+              })
+            ]
+          }
         }
       }
     }
-  }
-});
+  });
+}

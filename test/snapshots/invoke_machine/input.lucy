@@ -9,7 +9,7 @@ machine minute {
 
 machine parent {
   initial state pending {
-    invoke minute {
+    invoke(minute) {
       done => timesUp
     }
   }
