@@ -16,6 +16,7 @@
       }
     }
   },
+  "types": "./liblucy.d.ts",
   "files": [
     "dist",
     "liblucy.mjs",
