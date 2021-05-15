@@ -20,6 +20,7 @@
   "files": [
     "dist",
     "liblucy.mjs",
+    "liblucy.d.ts",
     "main-node-dev.mjs",
     "main-node-prod.mjs",
     "main-browser-dev.js",
