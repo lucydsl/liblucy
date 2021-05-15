@@ -1,9 +1,10 @@
 import { createMachine } from 'xstate';
 import { calcLightDelay } from './util';
 
-export default function() {
+export default function({ context = {} } = {}) {
   return createMachine({
     initial: 'green',
+    context,
     states: {
       green: {
         after: {

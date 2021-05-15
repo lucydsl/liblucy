@@ -1,8 +1,9 @@
 import { createMachine } from 'xstate';
 
-export function createMinute() {
+export function createMinute({ context = {} } = {}) {
   return createMachine({
     initial: 'active',
+    context,
     states: {
       active: {
         on: {
@@ -16,9 +17,10 @@ export function createMinute() {
   });
 }
 
-export function createParent() {
+export function createParent({ context = {} } = {}) {
   return createMachine({
     initial: 'pending',
+    context,
     states: {
       pending: {
         invoke: {

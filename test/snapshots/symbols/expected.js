@@ -1,8 +1,9 @@
 import { createMachine, assign, spawn } from 'xstate';
 
-export default function({ actions, assigns, delays, guards, services }) {
+export default function({ actions, assigns, context = {}, delays, guards, services } = {}) {
   return createMachine({
     initial: 'idle',
+    context,
     states: {
       idle: {
         on: {

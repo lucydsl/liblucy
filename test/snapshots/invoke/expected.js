@@ -1,8 +1,9 @@
 import { createMachine, assign } from 'xstate';
 import { getUser, setUser } from './user.js';
 
-export default function() {
+export default function({ context = {} } = {}) {
   return createMachine({
+    context,
     states: {
       loading: {
         invoke: {

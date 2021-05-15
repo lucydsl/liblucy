@@ -1,9 +1,10 @@
 import { createMachine, assign } from 'xstate';
 import { pet } from './util';
 
-export default function() {
+export default function({ context = {} } = {}) {
   return createMachine({
     initial: 'idle',
+    context,
     states: {
       idle: {
         invoke: {

@@ -1,8 +1,9 @@
 import { createMachine, assign } from 'xstate';
 import { logger } from './util';
 
-export default function() {
+export default function({ context = {} } = {}) {
   return createMachine({
+    context,
     states: {
       idle: {
         entry: ['logSomething'],

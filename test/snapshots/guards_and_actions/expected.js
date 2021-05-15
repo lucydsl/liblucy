@@ -1,9 +1,10 @@
 import { createMachine, assign } from 'xstate';
 import { incrementCount, decrementCount, lessThanTen, greaterThanZero } from './actions.js';
 
-export default function() {
+export default function({ context = {} } = {}) {
   return createMachine({
     initial: 'active',
+    context,
     states: {
       active: {
         on: {

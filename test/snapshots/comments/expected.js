@@ -1,7 +1,8 @@
 import { createMachine } from 'xstate';
 
-export default function() {
+export default function({ context = {} } = {}) {
   return createMachine({
+    context,
     states: {
       one: {
         on: {

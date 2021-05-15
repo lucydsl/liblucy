@@ -1,7 +1,8 @@
 import { createMachine, assign, send, spawn } from 'xstate';
 
-export function createOther() {
+export function createOther({ context = {} } = {}) {
   return createMachine({
+    context,
     states: {
       only: {
         on: {
@@ -11,8 +12,9 @@ export function createOther() {
     }
   });
 }
-export default function() {
+export default function({ context = {} } = {}) {
   return createMachine({
+    context,
     states: {
       idle: {
         on: {

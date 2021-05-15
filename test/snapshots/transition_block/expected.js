@@ -1,9 +1,10 @@
 import { createMachine } from 'xstate';
 import { check } from './stuff.js';
 
-export default function() {
+export default function({ context = {} } = {}) {
   return createMachine({
     initial: 'start',
+    context,
     states: {
       start: {
         on: {

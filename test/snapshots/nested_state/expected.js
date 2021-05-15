@@ -1,8 +1,9 @@
 import { createMachine } from 'xstate';
 
-export function createLight() {
+export function createLight({ context = {} } = {}) {
   return createMachine({
     initial: 'green',
+    context,
     states: {
       green: {
         on: {
@@ -19,6 +20,7 @@ export function createLight() {
           timer: 'green'
         },
         initial: 'walk',
+        context,
         states: {
           walk: {
             on: {
