@@ -43,6 +43,7 @@ typedef struct PrintState {
 typedef void (*set_ref)(PrintState*, Ref*);
 static void compile_transition_action(PrintState*, JSBuilder*, TransitionAction*, const char*);
 static void compile_local_node(PrintState*, JSBuilder*, LocalNode*);
+static bool find_and_add_top_level_machine_name(PrintState*, JSBuilder*, char*);
 
 static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, SimpleSet* set, set_ref setter) {
   // If already added, don't do so again.
@@ -137,13 +138,15 @@ static void end_assign_call(JSBuilder* jsb) {
   js_builder_end_call(jsb);
 }
 
-static void add_spawn_call(JSBuilder* jsb, SpawnExpression* spawn_expression) {
+static void add_spawn_call(PrintState* state, JSBuilder* jsb, SpawnExpression* spawn_expression) {
   js_builder_start_call(jsb, "spawn");
   Expression* target = spawn_expression->target;
   char* name = NULL;
   if(target->type == EXPRESSION_IDENTIFIER) {
     name = ((IdentifierExpression*)target)->name;
-    js_builder_add_str(jsb, name);
+    if(!find_and_add_top_level_machine_name(state, jsb, name)) {
+      js_builder_add_str(jsb, name);
+    }
   } else {
     name = ((SymbolExpression*)target)->name;
     js_builder_add_str(jsb, "services.");
@@ -315,7 +318,7 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
               }
               case EXPRESSION_SPAWN: {
                 SpawnExpression* spawn_expression = (SpawnExpression*)assign->value;
-                add_spawn_call(jsb, spawn_expression);
+                add_spawn_call(state, jsb, spawn_expression);
                 break;
               }
               case EXPRESSION_SYMBOL: {
@@ -516,6 +519,23 @@ static void exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
   set_clear(state->events);
 }
 
+static bool find_and_add_top_level_machine_name(PrintState* state, JSBuilder* jsb, char* matching_name) {
+  unsigned long searchid = hash_function(matching_name);
+  Node* cur = state->program->body;
+  while(cur != NULL) {
+    if(cur->type == NODE_MACHINE_TYPE) {
+      MachineNode* cur_machine = (MachineNode*)cur;
+      char* machine_name = cur_machine->name;
+      if(machine_name != NULL && hash_function(machine_name) == searchid) {
+        add_machine_binding_name(jsb, cur_machine);
+        return true;
+      }
+    }
+    cur = cur->next;
+  }
+  return false;
+}
+
 static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_start_prop(jsb, "invoke");
   js_builder_start_object(jsb);
@@ -529,25 +549,8 @@ static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
       IdentifierExpression* identifier_expression = (IdentifierExpression*)invoke_expression->ref;
 
       // Looking for a machine matching this name.
-      bool added_machine = false;
-      char* value = identifier_expression->name;
-      unsigned long searchid = hash_function(identifier_expression->name);
-      Node* cur = state->program->body;
-      while(cur != NULL) {
-        if(cur->type == NODE_MACHINE_TYPE) {
-          MachineNode* cur_machine = (MachineNode*)cur;
-          char* machine_name = cur_machine->name;
-          if(machine_name != NULL && hash_function(machine_name) == searchid) {
-            added_machine = true;
-            add_machine_binding_name(jsb, cur_machine);
-            break;
-          }
-        }
-        cur = cur->next;
-      }
-
-      // No in-scope machine found, so just add the identifier directly.
-      if(!added_machine) {
+      if(!find_and_add_top_level_machine_name(state, jsb, identifier_expression->name)) {
+        // No in-scope machine found, so just add the identifier directly.
         js_builder_add_str(jsb, identifier_expression->name);
       }
       break;
@@ -622,7 +625,7 @@ static void compile_transition_action(PrintState* state, JSBuilder* jsb, Transit
                   add_action_ref(state, action_name, (Expression*)assign_expression);
                 } else {
                   start_assign_call(jsb, assign_expression);
-                  add_spawn_call(jsb, spawn_expression);
+                  add_spawn_call(state, jsb, spawn_expression);
                   end_assign_call(jsb);
                 }
                 break;

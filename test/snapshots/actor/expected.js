@@ -20,7 +20,7 @@ export default function() {
             target: 'idle',
             actions: [
               assign({
-                first: spawn(other, 'other')
+                first: spawn(createOther, 'other')
               })
             ]
           },
@@ -50,7 +50,7 @@ export default function() {
   }, {
     actions: {
       makeThing: assign({
-        second: spawn(other, 'other')
+        second: spawn(createOther, 'other')
       }),
       sendThing: send('run', {
         to: (context) => context.second
