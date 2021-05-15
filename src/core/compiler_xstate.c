@@ -173,17 +173,15 @@ static void add_send_call(JSBuilder* jsb, SendExpression* send_expression) {
 }
 
 static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
-  int all_flags =  MACHINE_USES_ACTION | MACHINE_USES_ASSIGN | MACHINE_USES_DELAY | MACHINE_USES_GUARD | MACHINE_USES_SERVICE;
-
-  if(machine_node->flags & all_flags) {
-    js_builder_add_str(jsb, "{ ");
-  }
+  js_builder_add_str(jsb, "{ ");
   if(machine_node->flags & MACHINE_USES_ACTION) {
     js_builder_add_arg(jsb, "actions");
   }
   if(machine_node->flags & MACHINE_USES_ASSIGN) {
     js_builder_add_arg(jsb, "assigns");
   }
+  js_builder_add_arg(jsb, "context");
+  js_builder_add_str(jsb, " = {}");
   if(machine_node->flags & MACHINE_USES_DELAY) {
     js_builder_add_arg(jsb, "delays");
   }
@@ -193,9 +191,7 @@ static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* 
   if(machine_node->flags & MACHINE_USES_SERVICE) {
     js_builder_add_arg(jsb, "services");
   }
-  if(machine_node->flags & all_flags) {
-    js_builder_add_str(jsb, " }");
-  }
+  js_builder_add_str(jsb, " } = {}");
 }
 
 static void add_machine_binding_name(JSBuilder* jsb, MachineNode* machine_node) {
@@ -244,6 +240,7 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_start_prop(jsb, "initial");
     js_builder_add_string(jsb, machine_node->initial);
   }
+  js_builder_shorthand_prop(jsb, "context");
 }
 
 static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {

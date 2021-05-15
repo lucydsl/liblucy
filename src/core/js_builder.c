@@ -90,6 +90,19 @@ void js_builder_start_prop(JSBuilder* jsb, char* key) {
   js_builder_add_str(jsb, ": ");
 }
 
+void js_builder_shorthand_prop(JSBuilder* jsb, char* key) {
+  int len = str_builder_len(jsb->sb);
+  char c = str_builder_char_at(jsb->sb, len - 2);
+
+  if(c != '{') {
+    js_builder_add_str(jsb, ",\n");
+  }
+
+  // TODO Quote if necessary
+  js_builder_add_indent(jsb);
+  js_builder_add_str(jsb, key);
+}
+
 void js_builder_start_call(JSBuilder* jsb, char* name) {
   int len = str_builder_len(jsb->sb);
   char c = str_builder_char_at(jsb->sb, len - 1);
