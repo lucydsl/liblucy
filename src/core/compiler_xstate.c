@@ -52,7 +52,7 @@ static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, 
   }
 
   Ref *ref = malloc(sizeof(Ref));
-  ref->key = key;
+  ref->key = strdup(key);
   ref->value = node_clone_expression(value);
   ref->next = NULL;
 
@@ -103,6 +103,9 @@ static void add_service_ref(PrintState* state, char* key, Expression* value) {
 static void destroy_ref(Ref* ref) {
   if(ref->next != NULL) {
     destroy_ref(ref->next);
+  }
+  if(ref->key != NULL) {
+    free(ref->key);
   }
   if(ref->value != NULL) {
     node_destroy_expression(ref->value);

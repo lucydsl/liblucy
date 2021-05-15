@@ -22,12 +22,14 @@ IdentifierExpression* node_create_identifierexpression() {
 GuardExpression* node_create_guardexpression() {
   GuardExpression* expression = malloc(sizeof *expression);
   ((Expression*)expression)->type = EXPRESSION_GUARD;
+  expression->ref = NULL;
   return expression;
 }
 
 ActionExpression* node_create_actionexpression() {
   ActionExpression* expression = malloc(sizeof *expression);
   ((Expression*)expression)->type = EXPRESSION_ACTION;
+  expression->ref = NULL;
   return expression;
 }
 
@@ -35,6 +37,7 @@ DelayExpression* node_create_delayexpression() {
   DelayExpression* expression = malloc(sizeof *expression);
   ((Expression*)expression)->type = EXPRESSION_DELAY;
   expression->ref = NULL;
+  expression->time = 0;
   return expression;
 }
 
@@ -94,20 +97,20 @@ void node_destroy_identifierexpression(IdentifierExpression* expression) {
 
 void node_destroy_guardexpression(GuardExpression* expression) {
   if(expression != NULL) {
-    free(expression->ref);
+    node_destroy_expression(expression->ref);
   }
 }
 
 void node_destroy_actionexpression(ActionExpression* expression) {
   if(expression != NULL) {
-    free(expression->ref);
+    node_destroy_expression(expression->ref);
   }
 }
 
 void node_destroy_delayexpression(DelayExpression* expression) {
   if(expression != NULL) {
     if(expression->ref != NULL) {
-      free(expression->ref);
+      node_destroy_expression(expression->ref);
     }
   }
 }
@@ -120,7 +123,7 @@ void node_destroy_onexpression(OnExpression* expression) {
 
 void node_destroy_spawnexpression(SpawnExpression* expression) {
   if(expression != NULL) {
-    free(expression->target);
+    node_destroy_expression(expression->target);
   }
 }
 
@@ -140,35 +143,49 @@ void node_destroy_symbolexpression(SymbolExpression* expression) {
 void node_destroy_invokeexpression(InvokeExpression* expression) {
   if(expression != NULL) {
     if(expression->ref != NULL) {
-      switch(expression->ref->type) {
-        case EXPRESSION_IDENTIFIER: {
-          node_destroy_identifierexpression((IdentifierExpression*)expression->ref);
-          break;
-        }
-        case EXPRESSION_SYMBOL: {
-          node_destroy_symbolexpression((SymbolExpression*)expression->ref);
-          break;
-        }
-        default: {
-          printf("Unknown expression type for invoke %i\n", expression->ref->type);
-          break;
-        }
-      }
-      free(expression->ref);
+      node_destroy_expression(expression->ref);
     }
   }
 }
 
 void node_destroy_expression(Expression* expression) {
   switch(expression->type) {
+    case EXPRESSION_ASSIGN: {
+      AssignExpression *assign_expression = (AssignExpression*)expression;
+      node_destroy_assignexpression(assign_expression);
+      break;
+    }
     case EXPRESSION_IDENTIFIER: {
       IdentifierExpression *identifier_expression = (IdentifierExpression*)expression;
       node_destroy_identifierexpression(identifier_expression);
       break;
     }
-    case EXPRESSION_ASSIGN: {
-      AssignExpression *assign_expression = (AssignExpression*)expression;
-      node_destroy_assignexpression(assign_expression);
+    case EXPRESSION_GUARD: {
+      node_destroy_guardexpression((GuardExpression*)expression);
+      break;
+    }
+    case EXPRESSION_ACTION: {
+      node_destroy_actionexpression((ActionExpression*)expression);
+      break;
+    }
+    case EXPRESSION_ON: {
+      node_destroy_onexpression((OnExpression*)expression);
+      break;
+    }
+    case EXPRESSION_SPAWN: {
+      node_destroy_spawnexpression((SpawnExpression*)expression);
+      break;
+    }
+    case EXPRESSION_SEND: {
+      node_destroy_sendexpression((SendExpression*)expression);
+      break;
+    }
+    case EXPRESSION_SYMBOL: {
+      node_destroy_symbolexpression((SymbolExpression*)expression);
+      break;
+    }
+    case EXPRESSION_INVOKE: {
+      node_destroy_invokeexpression((InvokeExpression*)expression);
       break;
     }
   }

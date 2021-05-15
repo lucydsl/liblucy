@@ -98,6 +98,7 @@ Assignment* node_create_assignment(unsigned short type) {
 InvokeNode* node_create_invoke() {
   Node* node = node_create_type(NODE_INVOKE_TYPE, sizeof(InvokeNode));
   InvokeNode* invoke_node = (InvokeNode*)node;
+  invoke_node->expr = NULL;
   return invoke_node;
 }
 
@@ -366,29 +367,14 @@ void node_destroy_transition(TransitionNode* transition_node) {
 
 void node_destroy_assignment(Assignment* assignment) {
   Expression *expression = assignment->value;
-
-  switch(expression->type) {
-    case EXPRESSION_ASSIGN: {
-      AssignExpression* assign_expression = (AssignExpression*)expression;
-      node_destroy_assignexpression(assign_expression);
-      break;
+  if(assignment != NULL) {
+    if(assignment->binding_name != NULL) {
+      free(assignment->binding_name);
     }
-    // Guards simply assign a value
-    case EXPRESSION_IDENTIFIER: {
-      node_destroy_identifierexpression((IdentifierExpression*)expression);
-      break;
-    }
-    case EXPRESSION_GUARD: {
-      node_destroy_guardexpression((GuardExpression*)expression);
-      break;
-    }
-    case EXPRESSION_SYMBOL: {
-      node_destroy_symbolexpression((SymbolExpression*)expression);
-      break;
+    if(assignment->value != NULL) {
+      node_destroy_expression(assignment->value);
     }
   }
-
-  free(expression);
 }
 
 void node_destroy_import(ImportNode* import_node) {
