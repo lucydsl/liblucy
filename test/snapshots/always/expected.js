@@ -1,17 +1,20 @@
 import { createMachine } from 'xstate';
 
-export default createMachine({
-  initial: 'one',
-  states: {
-    one: {
-      always: [
-        {
-          target: 'two'
-        }
-      ]
-    },
-    two: {
-      type: 'final'
+export default function({ context = {} } = {}) {
+  return createMachine({
+    initial: 'one',
+    context,
+    states: {
+      one: {
+        always: [
+          {
+            target: 'two'
+          }
+        ]
+      },
+      two: {
+        type: 'final'
+      }
     }
-  }
-});
+  });
+}

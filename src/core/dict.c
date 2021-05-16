@@ -46,7 +46,7 @@ static void dict_destroy(dict *d) {
 
 #define MULTIPLIER (97)
 
-static unsigned long hash_function(const char *s) {
+unsigned long hash_function(const char *s) {
     unsigned const char *us;
     unsigned long h;
 

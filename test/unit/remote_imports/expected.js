@@ -1,9 +1,12 @@
 import { createMachine } from 'https://cdn.skypack.dev/xstate';
 
-export default createMachine({
-  states: {
-    idle: {
+export default function({ context = {} } = {}) {
+  return createMachine({
+    context,
+    states: {
+      idle: {
 
+      }
     }
-  }
-});
+  });
+}

@@ -1,30 +1,36 @@
 import { createMachine } from 'xstate';
 
-export const minute = createMachine({
-  initial: 'active',
-  states: {
-    active: {
-      on: {
-        timer: 'finished'
+export function createMinute({ context = {} } = {}) {
+  return createMachine({
+    initial: 'active',
+    context,
+    states: {
+      active: {
+        on: {
+          timer: 'finished'
+        }
+      },
+      finished: {
+        type: 'final'
       }
-    },
-    finished: {
-      type: 'final'
     }
-  }
-});
+  });
+}
 
-export const parent = createMachine({
-  initial: 'pending',
-  states: {
-    pending: {
-      invoke: {
-        src: minute,
-        onDone: 'timesUp'
+export function createParent({ context = {} } = {}) {
+  return createMachine({
+    initial: 'pending',
+    context,
+    states: {
+      pending: {
+        invoke: {
+          src: createMinute,
+          onDone: 'timesUp'
+        }
+      },
+      timesUp: {
+        type: 'final'
       }
-    },
-    timesUp: {
-      type: 'final'
     }
-  }
-});
+  });
+}

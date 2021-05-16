@@ -52,7 +52,9 @@ MachineNode* node_create_machine() {
   Node* node = node_create_type(NODE_MACHINE_TYPE, sizeof(MachineNode));
   MachineNode *machine_node = (MachineNode*)node;
   machine_node->initial = NULL;
+  machine_node->name = NULL;
   machine_node->impl_flags = 0;
+  machine_node->flags = 0;
   return machine_node;
 }
 
@@ -97,6 +99,7 @@ Assignment* node_create_assignment(unsigned short type) {
 InvokeNode* node_create_invoke() {
   Node* node = node_create_type(NODE_INVOKE_TYPE, sizeof(InvokeNode));
   InvokeNode* invoke_node = (InvokeNode*)node;
+  invoke_node->expr = NULL;
   return invoke_node;
 }
 
@@ -246,6 +249,22 @@ static void node_destroy_transition_delay(TransitionDelay* delay) {
   free(delay);
 }
 
+Node* find_closest_node_of_type(Node* node, int type) {
+  Node* cur = node;
+  while(cur != NULL && cur->type != type) {
+    cur = cur->parent;
+  }
+  return cur;
+}
+
+MachineNode* find_closest_machine_node(Node* node) {
+  Node* found = find_closest_node_of_type(node, NODE_MACHINE_TYPE);
+  if(found != NULL) {
+    return (MachineNode*)found;
+  }
+  return NULL;
+}
+
 Expression* node_clone_expression(Expression* input) {
   Expression* output;
   switch(input->type) {
@@ -271,7 +290,7 @@ Expression* node_clone_expression(Expression* input) {
       DelayExpression* out_de = node_create_delayexpression();
       out_de->time = in_de->time;
       if(in_de->ref != NULL) {
-        out_de->ref = strdup(in_de->ref);
+        out_de->ref = node_clone_expression(in_de->ref);
       }
       output = (Expression*)out_de;
       break;
@@ -279,7 +298,7 @@ Expression* node_clone_expression(Expression* input) {
     case EXPRESSION_SPAWN: {
       SpawnExpression* in_se = (SpawnExpression*)input;
       SpawnExpression* out_se = node_create_spawnexpression();
-      out_se->target = strdup(in_se->target);
+      out_se->target = node_clone_expression(in_se->target);
       output = (Expression*)out_se;
       break;
     }
@@ -289,6 +308,22 @@ Expression* node_clone_expression(Expression* input) {
       out_se->actor = strdup(in_se->actor);
       out_se->event = strdup(in_se->event);
       output = (Expression*)out_se;
+      break;
+    }
+    case EXPRESSION_SYMBOL: {
+      SymbolExpression* in_se = (SymbolExpression*)input;
+      SymbolExpression* out_se = node_create_symbolexpression();
+      out_se->name = strdup(in_se->name);
+      output = (Expression*)out_se;
+      break;
+    }
+    case EXPRESSION_INVOKE: {
+      InvokeExpression* in_ie = (InvokeExpression*)input;
+      InvokeExpression* out_ie = node_create_invokeexpression();
+      if(in_ie->ref != NULL) {
+        out_ie->ref = node_clone_expression(in_ie->ref);
+      }
+      output = (Expression*)out_ie;
       break;
     }
     default: {
@@ -333,25 +368,14 @@ void node_destroy_transition(TransitionNode* transition_node) {
 
 void node_destroy_assignment(Assignment* assignment) {
   Expression *expression = assignment->value;
-
-  switch(expression->type) {
-    case EXPRESSION_ASSIGN: {
-      AssignExpression* assign_expression = (AssignExpression*)expression;
-      node_destroy_assignexpression(assign_expression);
-      break;
+  if(assignment != NULL) {
+    if(assignment->binding_name != NULL) {
+      free(assignment->binding_name);
     }
-    // Guards simply assign a value
-    case EXPRESSION_IDENTIFIER: {
-      node_destroy_identifierexpression((IdentifierExpression*)expression);
-      break;
-    }
-    case EXPRESSION_GUARD: {
-      node_destroy_guardexpression((GuardExpression*)expression);
-      break;
+    if(assignment->value != NULL) {
+      node_destroy_expression(assignment->value);
     }
   }
-
-  free(expression);
 }
 
 void node_destroy_import(ImportNode* import_node) {
@@ -375,7 +399,8 @@ void node_destroy_state(StateNode* state_node) {
 }
 
 void node_destroy_invoke(InvokeNode* invoke_node) {
-  free(invoke_node->call);
+  node_destroy_invokeexpression(invoke_node->expr);
+  free(invoke_node->expr);
 }
 
 void node_destroy_local(LocalNode* local_node) {

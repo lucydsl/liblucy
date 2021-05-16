@@ -15,6 +15,7 @@ typedef struct JSBuilder {
 JSBuilder* js_builder_create();
 void js_builder_destroy(JSBuilder*);
 
+void js_builder_add_char(JSBuilder*, char);
 void js_builder_add_str(JSBuilder*, char*);
 void js_builder_safe_key(JSBuilder*, char*);
 void js_builder_add_string(JSBuilder*, char*);
@@ -25,12 +26,14 @@ void js_builder_decrease_indent(JSBuilder*);
 void js_builder_start_object(JSBuilder*);
 void js_builder_end_object(JSBuilder*);
 void js_builder_start_prop(JSBuilder*, char*);
+void js_builder_shorthand_prop(JSBuilder*, char*);
 void js_builder_start_call(JSBuilder*, char*);
 void js_builder_end_call(JSBuilder*);
 void js_builder_start_array(JSBuilder*, bool);
 void js_builder_end_array(JSBuilder*, bool);
 void js_builder_add_export(JSBuilder*);
 void js_builder_add_const(JSBuilder*, char*);
+void js_builder_add_arg(JSBuilder*, char*);
 
 char* js_builder_dump(JSBuilder*);
 

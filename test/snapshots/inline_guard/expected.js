@@ -1,26 +1,29 @@
 import { createMachine } from 'xstate';
 import { isDog } from './util';
 
-export default createMachine({
-  initial: 'idle',
-  states: {
-    idle: {
-      on: {
-        pet: {
-          target: 'pet',
-          cond: isDog
+export default function({ context = {} } = {}) {
+  return createMachine({
+    initial: 'idle',
+    context,
+    states: {
+      idle: {
+        on: {
+          pet: {
+            target: 'pet',
+            cond: isDog
+          }
         }
+      },
+      pet: {
+        always: [
+          {
+            target: 'goodBoy'
+          }
+        ]
+      },
+      goodBoy: {
+        type: 'final'
       }
-    },
-    pet: {
-      always: [
-        {
-          target: 'goodBoy'
-        }
-      ]
-    },
-    goodBoy: {
-      type: 'final'
     }
-  }
-});
+  });
+}

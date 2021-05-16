@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <ctype.h>
+#include "dict.h"
 #include "node.h"
 #include "program.h"
 #include "parser.h"
@@ -26,31 +28,44 @@ typedef struct Ref {
 typedef struct PrintState {
   bool on_prop_added;
   bool always_prop_added;
+  Program* program;
   Ref* guard;
+  SimpleSet* guard_names;
   Ref* action;
+  SimpleSet* action_names;
   Ref* delay;
+  SimpleSet* delay_names;
+  Ref* service;
+  SimpleSet* service_names;
   SimpleSet* events;
 } PrintState;
 
 typedef void (*set_ref)(PrintState*, Ref*);
 static void compile_transition_action(PrintState*, JSBuilder*, TransitionAction*, const char*);
 static void compile_local_node(PrintState*, JSBuilder*, LocalNode*);
+static bool find_and_add_top_level_machine_name(PrintState*, JSBuilder*, char*);
 
-static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, set_ref set) {
+static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, SimpleSet* set, set_ref setter) {
+  // If already added, don't do so again.
+  if(set_contains(set, key) == SET_TRUE) {
+    return;
+  }
+
   Ref *ref = malloc(sizeof(Ref));
-  ref->key = key;
+  ref->key = strdup(key);
   ref->value = node_clone_expression(value);
   ref->next = NULL;
 
   if(head == NULL) {
-    set(state, ref);
+    setter(state, ref);
   } else {
-    Ref* cur = head;
+    Ref* cur = head; 
     while(cur->next != NULL) {
       cur = cur->next;
     }
     cur->next = ref;
   }
+  set_add(set, key);
 }
 
 static void set_action_ref(PrintState* state, Ref* ref) {
@@ -58,7 +73,7 @@ static void set_action_ref(PrintState* state, Ref* ref) {
 }
 
 static void add_action_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->action, *set_action_ref);
+  add_ref(state, key, value, state->action, state->action_names, *set_action_ref);
 }
 
 static void set_guard_ref(PrintState* state, Ref* ref) {
@@ -66,7 +81,7 @@ static void set_guard_ref(PrintState* state, Ref* ref) {
 }
 
 static void add_guard_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->guard, *set_guard_ref);
+  add_ref(state, key, value, state->guard, state->guard_names, *set_guard_ref);
 }
 
 static void set_delay_ref(PrintState* state, Ref* ref) {
@@ -74,12 +89,23 @@ static void set_delay_ref(PrintState* state, Ref* ref) {
 }
 
 static void add_delay_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->delay, *set_delay_ref);
+  add_ref(state, key, value, state->delay, state->delay_names, *set_delay_ref);
+}
+
+static void set_service_ref(PrintState* state, Ref* ref) {
+  state->service = ref;
+}
+
+static void add_service_ref(PrintState* state, char* key, Expression* value) {
+  add_ref(state, key, value, state->service, state->service_names, *set_service_ref);
 }
 
 static void destroy_ref(Ref* ref) {
   if(ref->next != NULL) {
     destroy_ref(ref->next);
+  }
+  if(ref->key != NULL) {
+    free(ref->key);
   }
   if(ref->value != NULL) {
     node_destroy_expression(ref->value);
@@ -98,13 +124,39 @@ static void destroy_state(PrintState *state) {
     destroy_ref(state->delay);
   }
   set_destroy(state->events);
+  set_destroy(state->action_names);
+  set_destroy(state->guard_names);
+  set_destroy(state->delay_names);
+  set_destroy(state->service_names);
 }
 
-static void add_spawn_call(JSBuilder* jsb, SpawnExpression* spawn_expression) {
+static void start_assign_call(JSBuilder* jsb, AssignExpression* assign_expression) {
+  js_builder_start_call(jsb, "assign");
+  js_builder_start_object(jsb);
+  js_builder_start_prop(jsb, assign_expression->key);
+}
+
+static void end_assign_call(JSBuilder* jsb) {
+  js_builder_end_object(jsb);
+  js_builder_end_call(jsb);
+}
+
+static void add_spawn_call(PrintState* state, JSBuilder* jsb, SpawnExpression* spawn_expression) {
   js_builder_start_call(jsb, "spawn");
-  js_builder_add_str(jsb, spawn_expression->target);
+  Expression* target = spawn_expression->target;
+  char* name = NULL;
+  if(target->type == EXPRESSION_IDENTIFIER) {
+    name = ((IdentifierExpression*)target)->name;
+    if(!find_and_add_top_level_machine_name(state, jsb, name)) {
+      js_builder_add_str(jsb, name);
+    }
+  } else {
+    name = ((SymbolExpression*)target)->name;
+    js_builder_add_str(jsb, "services.");
+    js_builder_add_str(jsb, name);
+  }
   js_builder_add_str(jsb, ", ");
-  js_builder_add_string(jsb, spawn_expression->target);
+  js_builder_add_string(jsb, name);
   js_builder_end_call(jsb);
 }
 
@@ -120,6 +172,40 @@ static void add_send_call(JSBuilder* jsb, SendExpression* send_expression) {
   js_builder_end_call(jsb);
 }
 
+static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
+  js_builder_add_str(jsb, "{ ");
+  if(machine_node->flags & MACHINE_USES_ACTION) {
+    js_builder_add_arg(jsb, "actions");
+  }
+  if(machine_node->flags & MACHINE_USES_ASSIGN) {
+    js_builder_add_arg(jsb, "assigns");
+  }
+  js_builder_add_arg(jsb, "context");
+  js_builder_add_str(jsb, " = {}");
+  if(machine_node->flags & MACHINE_USES_DELAY) {
+    js_builder_add_arg(jsb, "delays");
+  }
+  if(machine_node->flags & MACHINE_USES_GUARD) {
+    js_builder_add_arg(jsb, "guards");
+  }
+  if(machine_node->flags & MACHINE_USES_SERVICE) {
+    js_builder_add_arg(jsb, "services");
+  }
+  js_builder_add_str(jsb, " } = {}");
+}
+
+static void add_machine_binding_name(JSBuilder* jsb, MachineNode* machine_node) {
+  js_builder_add_str(jsb, "create");
+  char* machine_name = machine_node->name;
+  int machine_name_len = strlen(machine_name);
+  js_builder_add_char(jsb, toupper(machine_name[0]));
+  int i = 1;
+  while(i < machine_name_len) {
+    js_builder_add_char(jsb, machine_name[i]);
+    i++;
+  }
+}
+
 static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
   MachineNode *machine_node = (MachineNode*)node;
   Node* parent_node = node->parent;
@@ -127,13 +213,20 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
 
   if(!is_nested) {
     if(machine_node->name == NULL) {
-      js_builder_add_str(jsb, "\nexport default ");
+      js_builder_add_str(jsb, "\nexport default function(");
+      add_machine_fn_args(state, jsb, machine_node);
+      js_builder_add_str(jsb, ") {\n");
+      js_builder_increase_indent(jsb);
     } else {
       js_builder_add_export(jsb);
-      js_builder_add_const(jsb, machine_node->name);
-      js_builder_add_str(jsb, " = ");
+      js_builder_add_str(jsb, "function ");
+      add_machine_binding_name(jsb, machine_node);
+      js_builder_add_str(jsb, "(");
+      add_machine_fn_args(state, jsb, machine_node);
+      js_builder_add_str(jsb, ") {\n");
+      js_builder_increase_indent(jsb);
     }
-    js_builder_start_call(jsb, "createMachine");
+    js_builder_start_call(jsb, "return createMachine");
     js_builder_start_object(jsb);
   } else {
     // Close out the on prop
@@ -147,13 +240,15 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_start_prop(jsb, "initial");
     js_builder_add_string(jsb, machine_node->initial);
   }
+  js_builder_shorthand_prop(jsb, "context");
 }
 
 static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
   bool has_guard = state->guard != NULL;
   bool has_action = state->action != NULL;
   bool has_delay = state->delay != NULL;
-  bool needs_options = has_guard || has_action || has_delay;
+  bool has_service = state->service != NULL;
+  bool needs_options = has_guard || has_action || has_delay || has_service;
   bool is_nested = node_machine_is_nested(node);
 
   if(!is_nested && needs_options) {
@@ -172,16 +267,28 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
 
         Expression* expression = ref->value;
 
-        if(expression->type != EXPRESSION_IDENTIFIER) {
-          printf("Unexpected type of expression\n");
-          break;
+        switch(expression->type) {
+          case EXPRESSION_IDENTIFIER: {
+            char* identifier = ((IdentifierExpression*)expression)->name;
+            js_builder_add_str(jsb, identifier);
+            break;
+          }
+          case EXPRESSION_SYMBOL: {
+            char* identifier = ((SymbolExpression*)expression)->name;
+            js_builder_add_str(jsb, "guards.");
+            js_builder_add_str(jsb, identifier);
+            break;
+          }
+          default: {
+            printf("Unexpected type of expression\n");
+            goto end_guardloop;
+          }
         }
-
-        char* identifier = ((IdentifierExpression*)expression)->name;
-        js_builder_add_str(jsb, identifier);
 
         ref = ref->next;
       }
+
+      end_guardloop: {};
 
       js_builder_end_object(jsb);
     }
@@ -200,9 +307,7 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
           case EXPRESSION_ASSIGN: {
             AssignExpression* assign = (AssignExpression*)expression;
 
-            js_builder_start_call(jsb, "assign");
-            js_builder_start_object(jsb);
-            js_builder_start_prop(jsb, assign->key);
+            start_assign_call(jsb, assign);
 
             char* identifier;
             switch(assign->value->type) {
@@ -213,13 +318,20 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
               }
               case EXPRESSION_SPAWN: {
                 SpawnExpression* spawn_expression = (SpawnExpression*)assign->value;
-                add_spawn_call(jsb, spawn_expression);
+                add_spawn_call(state, jsb, spawn_expression);
+                break;
+              }
+              case EXPRESSION_SYMBOL: {
+                SymbolExpression* symbol_expression = (SymbolExpression*)assign->value;
+                js_builder_add_str(jsb, "assigns.");
+                js_builder_add_str(jsb, symbol_expression->name);
                 break;
               }
             }
 
-            js_builder_end_object(jsb);
-            js_builder_end_call(jsb);
+            end_assign_call(jsb);
+           // js_builder_end_object(jsb);
+           // js_builder_end_call(jsb);
             break;
           }
           case EXPRESSION_SEND: {
@@ -230,6 +342,12 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
           case EXPRESSION_IDENTIFIER: {
             IdentifierExpression* identifier_expression = (IdentifierExpression*)expression;
             js_builder_add_str(jsb, identifier_expression->name);
+            break;
+          }
+          case EXPRESSION_SYMBOL: {
+            SymbolExpression* symbol_expression = (SymbolExpression*)expression;
+            js_builder_add_str(jsb, "actions.");
+            js_builder_add_str(jsb, symbol_expression->name);
             break;
           }
           default: {
@@ -251,9 +369,48 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
       Ref* ref = state->delay;
       while(ref != NULL) {
         DelayExpression* expression = (DelayExpression*)ref->value;
+        if(expression->ref->type == EXPRESSION_IDENTIFIER) {
+          IdentifierExpression* identifier_expression = (IdentifierExpression*)expression->ref;
+          js_builder_start_prop(jsb, identifier_expression->name);
+          js_builder_add_str(jsb, identifier_expression->name);
+        } else if(expression->ref->type == EXPRESSION_SYMBOL) {
+          SymbolExpression* symbol_expression = (SymbolExpression*)expression->ref;
+          js_builder_start_prop(jsb, symbol_expression->name);
+          js_builder_add_str(jsb, "delays.");
+          js_builder_add_str(jsb, symbol_expression->name);
+        }
 
-        js_builder_start_prop(jsb, expression->ref);
-        js_builder_add_str(jsb, expression->ref);
+        ref = ref->next;
+      }
+
+      js_builder_end_object(jsb);
+    }
+
+    if(has_service) {
+      js_builder_start_prop(jsb, "services");
+      js_builder_start_object(jsb);
+
+      Ref* ref = state->service;
+      while(ref != NULL) {
+        switch(ref->value->type) {
+          case EXPRESSION_INVOKE: {
+            InvokeExpression* invoke_expression = (InvokeExpression*)ref->value;
+            switch(invoke_expression->ref->type) {
+              case EXPRESSION_IDENTIFIER: {
+                fprintf(stderr, "Currently not supported: TODO");
+                break;
+              }
+              case EXPRESSION_SYMBOL: {
+                SymbolExpression* symbol_expression = (SymbolExpression*)invoke_expression->ref;
+                js_builder_start_prop(jsb, symbol_expression->name);
+                js_builder_add_str(jsb, "services.");
+                js_builder_add_str(jsb, symbol_expression->name);
+                break;
+              }
+            }
+            break;
+          }
+        }
 
         ref = ref->next;
       }
@@ -268,8 +425,14 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
 
   if(!is_nested) {
     js_builder_end_call(jsb);
-    js_builder_add_str(jsb, ";");
+    js_builder_add_str(jsb, ";\n}");
+    js_builder_decrease_indent(jsb);
   }
+
+  set_clear(state->guard_names);
+  set_clear(state->action_names);
+  set_clear(state->delay_names);
+  set_clear(state->service_names);
 }
 
 static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
@@ -356,13 +519,49 @@ static void exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
   set_clear(state->events);
 }
 
+static bool find_and_add_top_level_machine_name(PrintState* state, JSBuilder* jsb, char* matching_name) {
+  unsigned long searchid = hash_function(matching_name);
+  Node* cur = state->program->body;
+  while(cur != NULL) {
+    if(cur->type == NODE_MACHINE_TYPE) {
+      MachineNode* cur_machine = (MachineNode*)cur;
+      char* machine_name = cur_machine->name;
+      if(machine_name != NULL && hash_function(machine_name) == searchid) {
+        add_machine_binding_name(jsb, cur_machine);
+        return true;
+      }
+    }
+    cur = cur->next;
+  }
+  return false;
+}
+
 static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_start_prop(jsb, "invoke");
   js_builder_start_object(jsb);
 
   InvokeNode* invoke_node = (InvokeNode*)node;
   js_builder_start_prop(jsb, "src");
-  js_builder_add_str(jsb, invoke_node->call);
+
+  InvokeExpression* invoke_expression = (InvokeExpression*)invoke_node->expr;
+  switch(invoke_expression->ref->type) {
+    case EXPRESSION_IDENTIFIER: {
+      IdentifierExpression* identifier_expression = (IdentifierExpression*)invoke_expression->ref;
+
+      // Looking for a machine matching this name.
+      if(!find_and_add_top_level_machine_name(state, jsb, identifier_expression->name)) {
+        // No in-scope machine found, so just add the identifier directly.
+        js_builder_add_str(jsb, identifier_expression->name);
+      }
+      break;
+    }
+    case EXPRESSION_SYMBOL: {
+      SymbolExpression* symbol_expression = (SymbolExpression*)invoke_expression->ref;
+      js_builder_add_string(jsb, symbol_expression->name);
+      add_service_ref(state, symbol_expression->name, (Expression*)invoke_expression);
+      break;
+    }
+  }
 }
 
 static void exit_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
@@ -392,27 +591,52 @@ static void compile_transition_action(PrintState* state, JSBuilder* jsb, Transit
       switch(expression_type) {
         case EXPRESSION_ASSIGN: {
           AssignExpression* assign_expression = (AssignExpression*)action->expression;
-          js_builder_start_call(jsb, "assign");
-          js_builder_start_object(jsb);
-          js_builder_start_prop(jsb, assign_expression->key);
 
           if(assign_expression->value != NULL) {
             switch(assign_expression->value->type) {
+              case EXPRESSION_SYMBOL: {
+                SymbolExpression* symbol_expression = (SymbolExpression*)assign_expression->value;
+                js_builder_add_string(jsb, symbol_expression->name);
+                add_action_ref(state, symbol_expression->name, (Expression*)assign_expression);
+                break;
+              }
               case EXPRESSION_IDENTIFIER: {
                 fprintf(stderr, "Not supported at this time\n"); // TODO
                 break;
               }
               case EXPRESSION_SPAWN: {
-                add_spawn_call(jsb, (SpawnExpression*)assign_expression->value);
+                SpawnExpression* spawn_expression = (SpawnExpression*)assign_expression->value;
+                if(spawn_expression->target->type == EXPRESSION_SYMBOL) {
+                  SymbolExpression* symbol_expression = (SymbolExpression*)spawn_expression->target;
+                  if(use_multiline) {
+                    js_builder_add_indent(jsb);
+                  }
+                  str_builder_t* sb_name = str_builder_create();
+                  str_builder_add_str(sb_name, "spawn", 5);
+                  str_builder_add_char(sb_name, toupper(symbol_expression->name[0]));
+                  char* t = symbol_expression->name;
+                  t++;
+                  for(; *t != '\0'; t++) {
+                    str_builder_add_char(sb_name, *t);
+                  }
+                  char* action_name = str_builder_dump(sb_name, 0);
+                  str_builder_destroy(sb_name);
+                  js_builder_add_string(jsb, action_name);
+                  add_action_ref(state, action_name, (Expression*)assign_expression);
+                } else {
+                  start_assign_call(jsb, assign_expression);
+                  add_spawn_call(state, jsb, spawn_expression);
+                  end_assign_call(jsb);
+                }
                 break;
               }
             }
           } else {
+            start_assign_call(jsb, assign_expression);
             js_builder_add_str(jsb, "(context, event) => event.data");
+            end_assign_call(jsb);
           }
 
-          js_builder_end_object(jsb);
-          js_builder_end_call(jsb);
           break;
         }
         case EXPRESSION_ACTION: {
@@ -420,7 +644,15 @@ static void compile_transition_action(PrintState* state, JSBuilder* jsb, Transit
           if(use_multiline) {
             js_builder_add_indent(jsb);
           }
-          js_builder_add_str(jsb, action_expression->ref);
+          if(action_expression->ref->type == EXPRESSION_IDENTIFIER) {
+            IdentifierExpression* expr = (IdentifierExpression*)action_expression->ref;
+            js_builder_add_str(jsb, expr->name);
+          } else if(action_expression->ref->type == EXPRESSION_SYMBOL) {
+            SymbolExpression* expr = (SymbolExpression*)action_expression->ref;
+            js_builder_add_string(jsb, expr->name);
+            add_action_ref(state, expr->name, action_expression->ref);
+          }
+          
           break;
         }
         case EXPRESSION_SEND: {
@@ -502,13 +734,32 @@ static inline void compile_transition_key(PrintState* state, JSBuilder* jsb, Nod
           sprintf(str, "%i", ms);
           js_builder_start_prop(jsb, str);
         } else {
-          add_delay_ref(state, delay->ref, (Expression*)delay);
-          js_builder_start_prop(jsb, delay->ref);
+          if(delay->ref->type == EXPRESSION_IDENTIFIER) {
+            IdentifierExpression* identifier_expression = (IdentifierExpression*)delay->ref;
+            add_delay_ref(state, identifier_expression->name, (Expression*)delay);
+            js_builder_start_prop(jsb, identifier_expression->name);
+          } else if(delay->ref->type == EXPRESSION_SYMBOL) {
+            SymbolExpression* symbol_expression = (SymbolExpression*)delay->ref;
+            add_delay_ref(state, symbol_expression->name, (Expression*)delay);
+            js_builder_start_prop(jsb, symbol_expression->name);
+          }
         }
 
         break;
       }
     }
+  }
+}
+
+static inline void compile_guard_expression(PrintState* state, JSBuilder* jsb, GuardExpression* guard_expression) {
+  Expression* ref = guard_expression->ref;
+  if(ref->type == EXPRESSION_IDENTIFIER) {
+    char* value = ((IdentifierExpression*)ref)->name;
+    js_builder_add_str(jsb, value);
+  } else if(ref->type == EXPRESSION_SYMBOL) {
+    SymbolExpression* symbol_expression = (SymbolExpression*)ref;
+    js_builder_add_string(jsb, symbol_expression->name);
+    add_guard_ref(state, symbol_expression->name, ref);
   }
 }
 
@@ -539,9 +790,8 @@ static inline void compile_inner_transition(PrintState* state, JSBuilder* jsb, T
             js_builder_add_string(jsb, guard->name);
           } else {
             // Expression!
-            js_builder_add_str(jsb, guard->expression->ref);
+            compile_guard_expression(state, jsb, guard->expression);
           }
-
           
           guard = guard->next;
 
@@ -560,7 +810,7 @@ static inline void compile_inner_transition(PrintState* state, JSBuilder* jsb, T
           js_builder_add_string(jsb, guard->name);
         } else {
           // Expression!
-          js_builder_add_str(jsb, guard->expression->ref);
+          compile_guard_expression(state, jsb, guard->expression);
         }
       }
     }
@@ -708,14 +958,23 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   }
 
   PrintState state = {
+    .program = program,
     .on_prop_added = false,
     .always_prop_added = false,
     .guard = NULL,
     .action = NULL,
     .delay = NULL,
-    .events = malloc(sizeof(SimpleSet))
+    .events = malloc(sizeof(SimpleSet)),
+    .guard_names = malloc(sizeof(SimpleSet)),
+    .action_names = malloc(sizeof(SimpleSet)),
+    .delay_names = malloc(sizeof(SimpleSet)),
+    .service_names = malloc(sizeof(SimpleSet))
   };
   set_init(state.events);
+  set_init(state.guard_names);
+  set_init(state.action_names);
+  set_init(state.delay_names);
+  set_init(state.service_names);
 
   bool exit = false;
   while(node != NULL) {
