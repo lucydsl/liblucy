@@ -23,6 +23,7 @@ TransitionNode* node_create_transition() {
   tn->action = NULL;
   tn->delay = NULL;
   tn->link = NULL;
+  tn->next = NULL;
   return tn;
 }
 
@@ -64,6 +65,7 @@ StateNode* node_create_state() {
   state_node->final = false;
   state_node->entry = NULL;
   state_node->exit = NULL;
+  state_node->event_transition = NULL;
   return state_node;
 }
 

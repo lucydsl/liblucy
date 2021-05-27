@@ -6,7 +6,7 @@
 #include "dict.h"
 #include "node.h"
 #include "program.h"
-#include "parser.h"
+#include "parser/parser.h"
 #include "str_builder.h"
 #include "js_builder.h"
 #include "compiler_xstate.h"

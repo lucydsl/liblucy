@@ -3,6 +3,7 @@ use './user.js' { getUser, setUser }
 action assignUser = assign(user, setUser)
 
 state loading {
+  //again => loading
   invoke(getUser) {
     done => assignUser => ready
     error => error

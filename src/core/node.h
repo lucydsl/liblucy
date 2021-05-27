@@ -63,6 +63,8 @@ typedef struct StateNode {
   bool final;
   struct LocalNode* entry;
   struct LocalNode* exit;
+  struct TransitionNode* event_transition;
+  struct InvokeNode* invoke;
 } StateNode;
 
 typedef struct TransitionGuard {
@@ -92,6 +94,7 @@ typedef struct TransitionNode {
   char* dest;
   TransitionAction* action;
   TransitionGuard* guard;
+  struct TransitionNode* next;
   struct TransitionNode* link;
 } TransitionNode;
 

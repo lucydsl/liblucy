@@ -1,0 +1,18 @@
+#pragma once
+
+#define TOKEN_EOF 0
+#define TOKEN_EOL 1
+#define TOKEN_IDENTIFIER 2
+#define TOKEN_ASSIGNMENT 3
+#define TOKEN_CALL 4
+#define TOKEN_BEGIN_BLOCK 5
+#define TOKEN_END_BLOCK 6
+#define TOKEN_STRING 7
+#define TOKEN_INTEGER 8
+#define TOKEN_TIMEFRAME 9
+#define TOKEN_UNKNOWN 10
+#define TOKEN_BEGIN_CALL 11
+#define TOKEN_END_CALL 12
+#define TOKEN_COMMA 13
+#define TOKEN_LOCAL 14
+#define TOKEN_SYMBOL 15
