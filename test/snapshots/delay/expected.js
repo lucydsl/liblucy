@@ -12,6 +12,9 @@ export default function({ context = {} } = {}) {
         }
       },
       yellow: {
+        on: {
+          go: 'green'
+        },
         after: {
           500: 'red'
         }
