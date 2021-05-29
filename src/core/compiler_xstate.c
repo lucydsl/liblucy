@@ -669,6 +669,9 @@ static void compile_transition_action(PrintState* state, JSBuilder* jsb, Transit
 
   while(true) {
     if(action->name != NULL) {
+      if(use_multiline) {
+        js_builder_add_indent(jsb);
+      }
       js_builder_add_string(jsb, action->name);
     } else {
       // Inline assign!
@@ -758,6 +761,9 @@ static void compile_transition_action(PrintState* state, JSBuilder* jsb, Transit
     }
 
     js_builder_add_str(jsb, ", ");
+    if(use_multiline) {
+      js_builder_add_str(jsb, "\n");
+    }
   }
 
   js_builder_end_array(jsb, use_multiline);

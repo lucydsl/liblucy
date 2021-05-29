@@ -1,0 +1,7 @@
+use './util' { logger }
+
+action log = logger
+
+state idle {
+  go => assign(prop) => log
+}
