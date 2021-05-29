@@ -63,6 +63,10 @@ typedef struct StateNode {
   bool final;
   struct LocalNode* entry;
   struct LocalNode* exit;
+  struct TransitionNode* event_transition;
+  struct TransitionNode* immediate_transition;
+  struct TransitionNode* delay_transition;
+  struct InvokeNode* invoke;
 } StateNode;
 
 typedef struct TransitionGuard {
@@ -92,6 +96,7 @@ typedef struct TransitionNode {
   char* dest;
   TransitionAction* action;
   TransitionGuard* guard;
+  struct TransitionNode* next;
   struct TransitionNode* link;
 } TransitionNode;
 
@@ -117,6 +122,7 @@ typedef struct ImportNode {
 typedef struct InvokeNode {
   Node node;
   struct InvokeExpression* expr;
+  struct TransitionNode* event_transition;
 } InvokeNode;
 
 typedef struct Expression {
@@ -206,7 +212,6 @@ LocalNode* node_create_local();
 TransitionAction* create_transition_action();
 
 bool node_machine_is_nested(Node*);
-bool node_transition_has_sibling_always(TransitionNode*);
 
 void node_append(Node*, Node*);
 void node_after_last(Node*, Node*);

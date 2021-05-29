@@ -5,6 +5,7 @@ initial state green {
 }
 
 state yellow {
+  go => green
   delay(500) => red
 }
 

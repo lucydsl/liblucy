@@ -6,6 +6,9 @@ export default function({ context = {} } = {}) {
     context,
     states: {
       loading: {
+        on: {
+          again: 'loading'
+        },
         invoke: {
           src: getUser,
           onDone: {

@@ -1,6 +1,6 @@
 import { createMachine } from 'xstate';
 
-export default function({ context = {} } = {}) {
+export default function({ context = {}, guards } = {}) {
   return createMachine({
     initial: 'one',
     context,
@@ -8,6 +8,9 @@ export default function({ context = {} } = {}) {
       one: {
         always: [
           {
+            target: 'two',
+            cond: 'canGo'
+          }, {
             target: 'two'
           }
         ]
@@ -15,6 +18,10 @@ export default function({ context = {} } = {}) {
       two: {
         type: 'final'
       }
+    }
+  }, {
+    guards: {
+      canGo: guards.canGo
     }
   });
 }

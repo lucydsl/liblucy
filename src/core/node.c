@@ -23,6 +23,7 @@ TransitionNode* node_create_transition() {
   tn->action = NULL;
   tn->delay = NULL;
   tn->link = NULL;
+  tn->next = NULL;
   return tn;
 }
 
@@ -64,6 +65,10 @@ StateNode* node_create_state() {
   state_node->final = false;
   state_node->entry = NULL;
   state_node->exit = NULL;
+  state_node->event_transition = NULL;
+  state_node->immediate_transition = NULL;
+  state_node->delay_transition = NULL;
+  state_node->invoke = NULL;
   return state_node;
 }
 
@@ -100,6 +105,7 @@ InvokeNode* node_create_invoke() {
   Node* node = node_create_type(NODE_INVOKE_TYPE, sizeof(InvokeNode));
   InvokeNode* invoke_node = (InvokeNode*)node;
   invoke_node->expr = NULL;
+  invoke_node->event_transition = NULL;
   return invoke_node;
 }
 
@@ -158,14 +164,6 @@ bool node_machine_is_nested(Node* node) {
   return node->type == NODE_MACHINE_TYPE &&
     node->parent != NULL &&
     node->parent->type == NODE_STATE_TYPE;
-}
-
-bool inline node_transition_has_sibling_always(TransitionNode* transition_node) {
-  Node* next = ((Node*)transition_node)->next;
-  if(next != NULL && next->type == NODE_TRANSITION_TYPE && ((TransitionNode*)next)->type == TRANSITION_IMMEDIATE_TYPE) {
-    return true;
-  }
-  return false;
 }
 
 void node_append(Node* parent, Node* child) {
@@ -335,7 +333,7 @@ Expression* node_clone_expression(Expression* input) {
 }
 
 /**
- * Begin teardown code
+ * Teardown a transition
  */
 void node_destroy_transition(TransitionNode* transition_node) {
   if(transition_node->event != NULL) {

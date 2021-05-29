@@ -1,8 +1,7 @@
-#ifndef LUCY_PARSER_H_
-#define LUCY_PARSER_H_
+#pragma once
 
 #include <stdbool.h>
-#include "program.h"
+#include "../program.h"
 
 typedef struct ParseResult {
   bool success;
@@ -11,5 +10,3 @@ typedef struct ParseResult {
 
 ParseResult* parse(char*, char*);
 void parser_init();
-
-#endif
