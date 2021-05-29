@@ -115,16 +115,23 @@ static void destroy_ref(Ref* ref) {
   free(ref);
 }
 
-static void destroy_state(PrintState *state) {
+static void destroy_state_refs(PrintState *state) {
   if(state->guard != NULL) {
     destroy_ref(state->guard);
+    state->guard = NULL;
   }
   if(state->action != NULL) {
     destroy_ref(state->action);
+    state->action = NULL;
   }
   if(state->delay != NULL) {
     destroy_ref(state->delay);
+    state->delay = NULL;
   }
+}
+
+static void destroy_state(PrintState *state) {
+  destroy_state_refs(state);
   set_destroy(state->events);
   set_destroy(state->action_names);
   set_destroy(state->guard_names);
@@ -429,6 +436,7 @@ static void exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
   set_clear(state->action_names);
   set_clear(state->delay_names);
   set_clear(state->service_names);
+  destroy_state_refs(state);
 }
 
 static void enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
