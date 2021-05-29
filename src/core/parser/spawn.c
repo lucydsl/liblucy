@@ -31,8 +31,7 @@ int parser_consume_inline_spawn(State* state, AssignExpression* assign_expressio
   program_add_flag(state->program, PROGRAM_USES_SPAWN);
 
   if(spawn_expression->target->type == EXPRESSION_SYMBOL) {
-    // TODO we should be telling the machine that we need services but this is kind of hard at the moment.
-    // I think what should be happening is that an Expression should be a Node.
+    state->current_machine_node->flags |= MACHINE_USES_SERVICE;
   }
 
   return err;

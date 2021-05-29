@@ -21,6 +21,7 @@ State* state_new_state(char* source, char* filename) {
 
   state->node = NULL;
   state->parent_node = NULL;
+  state->current_machine_node = NULL;
 
   state->word = NULL;
   state->line = 0;

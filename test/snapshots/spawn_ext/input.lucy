@@ -1,0 +1,8 @@
+
+state init {
+  => assign(mac, spawn(:external)) => idle
+}
+
+state idle {
+
+}
