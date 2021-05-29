@@ -105,7 +105,9 @@ int parser_consume_machine(State* state) {
     goto end;
   }
 
+  state->current_machine_node = machine_node;
   _check(consume_machine_inner(state, false, 0));
+  state->current_machine_node = NULL;
 
   end: {
     state_node_up(state);
@@ -121,7 +123,9 @@ int parser_consume_implicit_machine(State* state, int current_token) {
 
   state_node_set(state, node);
 
+  state->current_machine_node = machine_node;
   _check(consume_machine_inner(state, true, current_token));
+  state->current_machine_node = NULL;
 
   state_node_up(state);
   return err;
