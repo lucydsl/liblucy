@@ -26,8 +26,6 @@ typedef struct Ref {
 } Ref;
 
 typedef struct PrintState {
-  bool on_prop_added;
-  bool always_prop_added;
   Program* program;
   Ref* guard;
   SimpleSet* guard_names;
@@ -43,6 +41,10 @@ typedef struct PrintState {
 typedef void (*set_ref)(PrintState*, Ref*);
 static void compile_transition_action(PrintState*, JSBuilder*, TransitionAction*, const char*);
 static void compile_local_node(PrintState*, JSBuilder*, LocalNode*);
+static void compile_event_transition(PrintState*, JSBuilder*, TransitionNode*);
+static void compile_invoke(PrintState*, JSBuilder*, InvokeNode*);
+static inline void compile_inner_transition(PrintState*, JSBuilder*, TransitionNode*);
+static inline void compile_transition_key(PrintState*, JSBuilder*, Node*, char*);
 static bool find_and_add_top_level_machine_name(PrintState*, JSBuilder*, char*);
 
 static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, SimpleSet* set, set_ref setter) {
@@ -228,12 +230,6 @@ static void enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     }
     js_builder_start_call(jsb, "return createMachine");
     js_builder_start_object(jsb);
-  } else {
-    // Close out the on prop
-    if(state->on_prop_added) {
-      state->on_prop_added = false;
-      js_builder_end_object(jsb);
-    }
   }
 
   if(machine_node->initial != NULL) {
@@ -491,6 +487,48 @@ static void enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
   if(state_node->exit != NULL) {
     compile_local_node(state, jsb, state_node->exit);
   }
+  if(state_node->event_transition != NULL) {
+    js_builder_start_prop(jsb, "on");
+    js_builder_start_object(jsb);
+    TransitionNode* transition_node = state_node->event_transition;
+    while(transition_node != NULL) {
+      compile_event_transition(state, jsb, transition_node);
+      transition_node = transition_node->next;
+    }
+    js_builder_end_object(jsb);
+  }
+  if(state_node->immediate_transition != NULL) {
+    js_builder_start_prop(jsb, "always");
+    js_builder_start_array(jsb, true);
+    js_builder_add_indent(jsb);
+
+    TransitionNode* transition_node = state_node->immediate_transition;
+    bool comma = false;
+    do {
+      if(comma) {
+        js_builder_add_str(jsb, ", ");
+      }
+      compile_inner_transition(state, jsb, transition_node);
+      transition_node = transition_node->next;
+      comma = true;
+    } while(transition_node != NULL);
+    js_builder_end_array(jsb, true);
+  }
+  if(state_node->delay_transition != NULL) {
+    js_builder_start_prop(jsb, "after");
+    js_builder_start_object(jsb);
+    TransitionNode* transition_node = state_node->delay_transition;
+    do {
+      Node* transition_node_node = (Node*)transition_node;
+      compile_transition_key(state, jsb, transition_node_node, NULL);
+      compile_inner_transition(state, jsb, transition_node);
+      transition_node = transition_node->next;
+    } while(transition_node != NULL);
+    js_builder_end_object(jsb);
+  }
+  if(state_node->invoke != NULL) {
+    compile_invoke(state, jsb, state_node->invoke);
+  }
 }
 
 static void compile_local_node(PrintState* state, JSBuilder* jsb, LocalNode* local_node) {
@@ -536,6 +574,44 @@ static bool find_and_add_top_level_machine_name(PrintState* state, JSBuilder* js
   return false;
 }
 
+static void compile_invoke(PrintState* state, JSBuilder* jsb, InvokeNode* invoke_node) {
+  js_builder_start_prop(jsb, "invoke");
+  js_builder_start_object(jsb);
+
+  js_builder_start_prop(jsb, "src");
+
+  InvokeExpression* invoke_expression = (InvokeExpression*)invoke_node->expr;
+  switch(invoke_expression->ref->type) {
+    case EXPRESSION_IDENTIFIER: {
+      IdentifierExpression* identifier_expression = (IdentifierExpression*)invoke_expression->ref;
+
+      // Looking for a machine matching this name.
+      if(!find_and_add_top_level_machine_name(state, jsb, identifier_expression->name)) {
+        // No in-scope machine found, so just add the identifier directly.
+        js_builder_add_str(jsb, identifier_expression->name);
+      }
+      break;
+    }
+    case EXPRESSION_SYMBOL: {
+      SymbolExpression* symbol_expression = (SymbolExpression*)invoke_expression->ref;
+      js_builder_add_string(jsb, symbol_expression->name);
+      add_service_ref(state, symbol_expression->name, (Expression*)invoke_expression);
+      break;
+    }
+  }
+
+  if(invoke_node->event_transition != NULL) {
+    TransitionNode* transition_node = invoke_node->event_transition;
+    do {
+      compile_event_transition(state, jsb, transition_node);
+      transition_node = transition_node->next;
+    } while(transition_node != NULL);
+  }
+
+  js_builder_end_object(jsb);
+}
+
+// TODO remove
 static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_start_prop(jsb, "invoke");
   js_builder_start_object(jsb);
@@ -564,6 +640,7 @@ static void enter_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
   }
 }
 
+// TODO remove
 static void exit_invoke(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_end_object(jsb);
 }
@@ -690,17 +767,11 @@ static inline void compile_transition_key(PrintState* state, JSBuilder* jsb, Nod
     } else if(strcmp(event_name, "error") == 0) {
       js_builder_start_prop(jsb, "onError");
     } else {
-      printf("Regular events in invoke are not supported.\n");
+      printf("Regular events in invoke are not supported. Saw event [%s]\n", event_name);
     }
   } else {
     switch(type) {
       case TRANSITION_EVENT_TYPE: {
-        if(!state->on_prop_added) {
-          state->on_prop_added = true;
-          js_builder_start_prop(jsb, "on");
-          js_builder_start_object(jsb);
-        }
-
         js_builder_start_prop(jsb, event_name);
 
         // If there is another event with this name, use an array.
@@ -711,20 +782,9 @@ static inline void compile_transition_key(PrintState* state, JSBuilder* jsb, Nod
 
         break;
       }
-      case TRANSITION_IMMEDIATE_TYPE: {
-        if(!state->always_prop_added) {
-          state->always_prop_added = true;
-          js_builder_start_prop(jsb, "always");
-          js_builder_start_array(jsb, true);
-          js_builder_add_indent(jsb);
-        } else {
-          js_builder_add_str(jsb, ", ");
-        }
-        break;
-      }
       case TRANSITION_DELAY_TYPE: {
-        js_builder_start_prop(jsb, "after");
-        js_builder_start_object(jsb);
+        /*js_builder_start_prop(jsb, "after");
+        js_builder_start_object(jsb);*/
 
         DelayExpression* delay = transition_node->delay->expression;
         if(delay->ref == NULL) {
@@ -820,33 +880,22 @@ static inline void compile_inner_transition(PrintState* state, JSBuilder* jsb, T
     }
 
     js_builder_end_object(jsb);
-
-    if(is_always) {
-      if(!node_transition_has_sibling_always(transition_node)) {
-        js_builder_end_array(jsb, true);
-      }
-    }
   } else {
     js_builder_add_string(jsb, transition_node->dest);
   }
 }
 
-static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
-  TransitionNode* transition_node = (TransitionNode*)node;
-
-  char* event_name = NULL;
-  if(transition_node->event != NULL) {
-    event_name = transition_node->event->type == EXPRESSION_ON ?
-      ((OnExpression*)transition_node->event)->name :
-      ((IdentifierExpression*)transition_node->event)->name;
-  }
+static void compile_event_transition(PrintState* state, JSBuilder* jsb, TransitionNode* transition_node) {
+  char* event_name = transition_node->event->type == EXPRESSION_ON ?
+    ((OnExpression*)transition_node->event)->name :
+    ((IdentifierExpression*)transition_node->event)->name;
 
   // If this transition was already compiled from a previous link.
   if(event_name != NULL && set_contains(state->events, event_name) == SET_TRUE) {
     return;
   }
 
-  compile_transition_key(state, jsb, node, event_name);
+  compile_transition_key(state, jsb, (Node*)transition_node, event_name);
 
   compile_inner_transition(state, jsb, transition_node);
   TransitionNode* cur = transition_node->link;
@@ -861,29 +910,7 @@ static void enter_transition(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_end_array(jsb, true);
   }
 
-  if(event_name != NULL) {
-    set_add(state->events, event_name);
-  }
-}
-
-static void exit_transition(PrintState* state, JSBuilder* jsb, Node* node) {
-  if(node->next) {
-
-  } else {
-    TransitionNode* transition_node = (TransitionNode*)node;
-    if(state->on_prop_added) {
-      state->on_prop_added = false;
-      js_builder_end_object(jsb);
-    }
-
-    if(state->always_prop_added) {
-      state->always_prop_added = false;
-    }
-
-    if(transition_node->type == TRANSITION_DELAY_TYPE) {
-      js_builder_end_object(jsb);
-    }
-  }
+  set_add(state->events, event_name);
 }
 
 static void enter_assignment(PrintState* state, JSBuilder* jsb, Node* node) {
@@ -959,8 +986,6 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
 
   PrintState state = {
     .program = program,
-    .on_prop_added = false,
-    .always_prop_added = false,
     .guard = NULL,
     .action = NULL,
     .delay = NULL,
@@ -988,7 +1013,6 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
           break;
         }
         case NODE_TRANSITION_TYPE: {
-          exit_transition(&state, jsb, node);
           node_destroy_transition((TransitionNode*)node);
           break;
         }
@@ -1010,7 +1034,6 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
           break;
         }
         case NODE_INVOKE_TYPE: {
-          exit_invoke(&state, jsb, node);
           node_destroy_invoke((InvokeNode*)node);
           break;
         }
@@ -1030,7 +1053,6 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
           break;
         }
         case NODE_TRANSITION_TYPE: {
-          enter_transition(&state, jsb, node);
           break;
         }
         case NODE_ASSIGNMENT_TYPE: {
@@ -1038,7 +1060,6 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
           break;
         }
         case NODE_INVOKE_TYPE: {
-          enter_invoke(&state, jsb, node);
           break;
         }
         case NODE_LOCAL_TYPE: {

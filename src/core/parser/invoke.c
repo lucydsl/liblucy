@@ -24,6 +24,11 @@ static int consume_invoke_args(State* state, void* expr, int token, char* arg, i
   return 0;
 }
 
+static inline void link_invoke(Node* state_node_node, InvokeNode* invoke_node) {
+  StateNode* state_node = (StateNode*)state_node_node;
+  state_node->invoke = invoke_node;
+}
+
 int parser_consume_invoke(State* state) {
   int err = 0;
 
@@ -38,6 +43,7 @@ int parser_consume_invoke(State* state) {
   }
 
   state_node_set(state, node);
+  link_invoke(parent_node, invoke_node);
 
   invoke_node->expr = node_create_invokeexpression();
   _check(consume_call_expression(state, "invoke", invoke_node->expr, &consume_invoke_args));

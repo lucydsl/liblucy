@@ -26,12 +26,32 @@ static char* get_event_name(TransitionNode* transition_node) {
   return name;
 }
 
-static void link_event_transition(StateNode* state_node, TransitionNode* transition_node) {
+static void link_event_transition(Node* parent_node, TransitionNode* transition_node) {
   char* event_name = get_event_name(transition_node);
-  TransitionNode* child_transition_node = state_node->event_transition;
-  if(child_transition_node == NULL) {
-    state_node->event_transition = transition_node;
-  } else {
+
+  TransitionNode* child_transition_node = NULL;
+  switch(parent_node->type) {
+    case NODE_STATE_TYPE: {
+      StateNode* state_node = (StateNode*)parent_node;
+      child_transition_node = state_node->event_transition;
+      if(child_transition_node == NULL) {
+        state_node->event_transition = transition_node;
+        return;
+      }
+      break;
+    }
+    case NODE_INVOKE_TYPE: {
+      InvokeNode* invoke_node = (InvokeNode*)parent_node;
+      child_transition_node = invoke_node->event_transition;
+      if(child_transition_node == NULL) {
+        invoke_node->event_transition = transition_node;
+        return;
+      }
+      break;
+    }
+  }
+
+  if(child_transition_node != NULL) {
     do {
       char* name = get_event_name(child_transition_node);
       if(strcmp(name, event_name) == 0) {
@@ -52,6 +72,29 @@ static void link_event_transition(StateNode* state_node, TransitionNode* transit
   }
 }
 
+static void link_immediate_transition(StateNode* state_node, TransitionNode* transition_node) {
+  if(state_node->immediate_transition == NULL) {
+    state_node->immediate_transition = transition_node;
+  } else {
+    TransitionNode* child = state_node->immediate_transition;
+    while(child->next != NULL) {
+      child = child->next;
+    }
+    child->next = transition_node;
+  }
+}
+
+static void link_delay_transition(StateNode* state_node, TransitionNode* transition_node) {
+  if(state_node->delay_transition == NULL) {
+    state_node->delay_transition = transition_node;
+  } else {
+    TransitionNode* child = state_node->delay_transition;
+    while(child->next != NULL) {
+      child = child->next;
+    }
+    child->next = transition_node;
+  }
+}
 
 static int consume_on_args(State* state, void* expr, int _token, char* arg, int _argi) {
   OnExpression* on_expression = (OnExpression*)expr;
@@ -76,14 +119,18 @@ int parser_consume_transition(State* state) {
 
   Node* current_node = state->node;
   size_t current_node_type = current_node->type;
-  Node* state_node_node = find_closest_node_of_type(current_node, NODE_STATE_TYPE);
-  StateNode* state_node = (StateNode*)state_node_node;
 
   char* event = state_take_word(state);
 
   // Always transition
   if(event == NULL) {
-    transition_node->type = TRANSITION_IMMEDIATE_TYPE;
+    if(current_node->type != NODE_STATE_TYPE) {
+      error_msg_with_code_block_dec(state, state->token_len, "An immediate transitions must be a child of state");
+      err = 1;
+    } else {
+      transition_node->type = TRANSITION_IMMEDIATE_TYPE;
+      link_immediate_transition((StateNode*)current_node, transition_node);
+    }
 
     // Currently in a call, so rewind to back out.
     state_rewind(state, 2);
@@ -92,19 +139,26 @@ int parser_consume_transition(State* state) {
 
     switch(key) {
       case KW_DELAY: {
-        _check(parser_consume_inline_delay(state, transition_node, state_node));
+        if(current_node->type != NODE_STATE_TYPE) {
+          error_msg_with_code_block_dec(state, state->token_len, "delay must be a child of a state");
+          err = 1;
+        } else {
+          _check(parser_consume_inline_delay(state, transition_node, (StateNode*)current_node));
+          link_delay_transition((StateNode*)current_node, transition_node);
+        }
+
         break;
       }
       case KW_ON: {
         _check(consume_on(state, transition_node));
-        link_event_transition(state_node, transition_node);
+        link_event_transition(current_node, transition_node);
         break;
       }
       default: {
         IdentifierExpression* identifier_expression = node_create_identifierexpression();
         identifier_expression->name = event;
         transition_node->event = (Expression*)identifier_expression;
-        link_event_transition(state_node, transition_node);
+        link_event_transition(current_node, transition_node);
         break;
       }
     }
@@ -124,10 +178,6 @@ int parser_consume_transition(State* state) {
       node_append(current_node, transition_node_node);
       state->parent_node = current_node;
       break;
-    }
-    case NODE_TRANSITION_TYPE: {
-      error_msg_with_code_block(state, transition_node_node, "A transition sibiling to another, hasn't happened before, this is likely a compiler bug.");
-      return 2;
     }
     default: {
       error_msg_with_code_block(state, transition_node_node, "Unexpected parent node to a transition.");

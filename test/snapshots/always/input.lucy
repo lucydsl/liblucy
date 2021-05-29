@@ -1,5 +1,6 @@
 
 initial state one {
+  => guard(:canGo) => two
   => two
 }
 
