@@ -1,0 +1,11 @@
+use './util' { logger }
+
+machine one {
+  action log = logger
+
+  state idle {
+    go => log
+  }
+}
+
+machine two {}
