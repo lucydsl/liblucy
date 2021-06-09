@@ -10,7 +10,7 @@
 #include <getopt.h>
 #include "../core/identifier.h"
 #include "../core/parser/parser.h"
-#include "../core/compiler_xstate.h"
+#include "../core/xstate/compiler.h"
 #include "../core/error.h"
 #include "../core/str_builder.h"
 

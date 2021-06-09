@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdbool.h>
 #include "node.h"
-#include "scope.h"
 #include "state.h"
 
 State* state_new_state(char* source, char* filename) {

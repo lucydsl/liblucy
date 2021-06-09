@@ -1,5 +1,4 @@
-#ifndef BARRUST_SIMPLE_SET_H__
-#define BARRUST_SIMPLE_SET_H__
+#pragma once
 
 /*******************************************************************************
 ***
@@ -205,5 +204,3 @@ int set_cmp(SimpleSet *left, SimpleSet *right);
 #ifdef __cplusplus
 } // extern "C"
 #endif
-
-#endif /* END SIMPLE SET HEADER */
