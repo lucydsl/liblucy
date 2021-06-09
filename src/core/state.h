@@ -1,7 +1,5 @@
-#ifndef LUCY_STATE_H_
-#define LUCY_STATE_H_
+#pragma once
 
-#include "scope.h"
 #include "node.h"
 #include "set.h"
 #include "program.h"
@@ -31,8 +29,6 @@ typedef struct State {
   Node* node;
   Node* parent_node;
   MachineNode* current_machine_node;
-
-  Scope* scope;
 } State;
 
 typedef struct pos_t {
@@ -61,5 +57,3 @@ void state_add_guard(State*, char*);
 void state_add_action(State*, char*);
 bool state_has_guard(State*, char*);
 bool state_has_action(State*, char*);
-
-#endif

@@ -1,6 +1,6 @@
-#ifndef LUCY_JSBUILDER_H_
-#define LUCY_JSBUILDER_H_
+#pragma once
 
+#include <stdbool.h>
 #include "str_builder.h"
 
 typedef struct JSBuilder {
@@ -36,5 +36,3 @@ void js_builder_add_const(JSBuilder*, char*);
 void js_builder_add_arg(JSBuilder*, char*);
 
 char* js_builder_dump(JSBuilder*);
-
-#endif

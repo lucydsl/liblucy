@@ -1,5 +1,4 @@
-#ifndef __STR_BUILDER_H__
-#define __STR_BUILDER_H__
+#pragma once
 
 #include <stddef.h>
 
@@ -108,5 +107,3 @@ char str_builder_char_at(const str_builder_t *sb, int index);
 
 /*! @}
  */
-
-#endif /* __STR_BUILDER_H__ */
