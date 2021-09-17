@@ -1,11 +1,12 @@
 #include <ctype.h>
-#include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include "../js_builder.h"
 #include "../node.h"
 #include "../set.h"
 #include "core.h"
+#include "ts_printer.h"
 
 static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "{ ");
@@ -41,11 +42,7 @@ void xs_add_machine_binding_name(JSBuilder* jsb, MachineNode* machine_node) {
   }
 }
 
-void xs_enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
-  MachineNode *machine_node = (MachineNode*)node;
-  Node* parent_node = node->parent;
-  bool is_nested = node_machine_is_nested(node);
-
+static inline void compile_machine(PrintState* state, JSBuilder* jsb, MachineNode* machine_node, bool is_nested) {
   if(!is_nested) {
     if(machine_node->name == NULL) {
       js_builder_add_str(jsb, "\nexport default function(");
@@ -70,6 +67,16 @@ void xs_enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_add_string(jsb, machine_node->initial);
   }
   js_builder_shorthand_prop(jsb, "context");
+}
+
+void xs_enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
+  MachineNode *machine_node = (MachineNode*)node;
+  Node* parent_node = node->parent;
+  bool is_nested = node_machine_is_nested(node);
+  compile_machine(state, jsb, machine_node, is_nested);
+  if(state->flags & XS_FLAG_DTS) {
+    ts_printer_add_machine_name(state->tsprinter, machine_node->name);
+  }
 }
 
 void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
@@ -254,6 +261,11 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_end_call(jsb);
     js_builder_add_str(jsb, ";\n}");
     js_builder_decrease_indent(jsb);
+  }
+
+  if(state->flags & XS_FLAG_DTS) {
+    ts_printer_figure_out_entry_events(state->tsprinter);
+    ts_printer_create_machine(state->tsprinter);
   }
 
   set_clear(state->guard_names);

@@ -5,11 +5,14 @@
 #include "core.h"
 #include "invoke.h"
 #include "transition.h"
+#include "ts_printer.h"
 
 static void compile_local_node(PrintState* state, JSBuilder* jsb, LocalNode* local_node) {
   switch(local_node->key) {
     case LOCAL_ENTRY: {
+      state->in_entry = true;
       xs_compile_transition_action(state, jsb, local_node->action, "entry");
+      state->in_entry = false;
       break;
     }
     case LOCAL_EXIT: {
@@ -31,13 +34,19 @@ void xs_enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_start_prop(jsb, state_node->name);
   js_builder_start_object(jsb);
 
+  if(state->flags & XS_FLAG_DTS) {
+    ts_printer_add_event(state->tsprinter, state_node->name);
+  }
+
   if(state_node->final) {
     js_builder_start_prop(jsb, "type");
     js_builder_add_string(jsb, "final");
   }
 
   if(state_node->entry != NULL) {
+    state->cur_state_name = state_node->name;
     compile_local_node(state, jsb, state_node->entry);
+    state->cur_state_name = NULL;
   }
   if(state_node->exit != NULL) {
     compile_local_node(state, jsb, state_node->exit);

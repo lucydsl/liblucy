@@ -10,7 +10,6 @@ JSBuilder* js_builder_create() {
   jsb->indent_len = strlen(jsb->indent_str);
   jsb->sb = str_builder_create();
   jsb->ib = str_builder_create();
-  //str_builder_add_str(jsb->ib, jsb->indent_str, 0);
 
   return jsb;
 }

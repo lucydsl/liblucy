@@ -7,7 +7,7 @@ input="$dir/input.lucy"
 expected="$dir/expected.js"
 
 # Before
-tmp=$(mktemp)
+tmp="$(mktemp -d)/out.js"
 
 # Run compiler
 $LUCYC --remote-imports --out-file $tmp $input
