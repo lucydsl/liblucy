@@ -30,6 +30,7 @@
 #define EXPRESSION_SEND 7
 #define EXPRESSION_SYMBOL 8
 #define EXPRESSION_INVOKE 9
+#define EXPRESSION_MEMBER 10
 
 #define MACHINE_USES_GUARD 1 << 0
 #define MACHINE_USES_ACTION 1 << 1
@@ -93,7 +94,7 @@ typedef struct TransitionNode {
   struct Expression* event;
   TransitionDelay* delay;
 
-  char* dest;
+  struct Expression* dest;
   TransitionAction* action;
   TransitionGuard* guard;
   struct TransitionNode* next;
@@ -182,6 +183,12 @@ typedef struct InvokeExpression {
   Expression* ref;
 } InvokeExpression;
 
+typedef struct MemberExpression {
+  Expression expression;
+  char* owner;
+  Expression* property;
+} MemberExpression;
+
 typedef struct Assignment {
   Node node;
   unsigned short binding_type;
@@ -207,6 +214,7 @@ OnExpression* node_create_onexpression();
 SpawnExpression* node_create_spawnexpression();
 SendExpression* node_create_sendexpression();
 InvokeExpression* node_create_invokeexpression();
+MemberExpression* node_create_memberexpression();
 LocalNode* node_create_local();
 
 TransitionAction* create_transition_action();

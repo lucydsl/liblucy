@@ -1,0 +1,13 @@
+initial state idle {
+  fetch => fetching
+
+  machine idling {
+    initial state noError {}
+
+    state errored {}
+  }
+}
+
+state fetching {
+  reportError => idle.errored
+}

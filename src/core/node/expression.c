@@ -77,6 +77,14 @@ InvokeExpression* node_create_invokeexpression() {
   return expression;
 }
 
+MemberExpression* node_create_memberexpression() {
+  MemberExpression* expression = malloc(sizeof *expression);
+  ((Expression*)expression)->type = EXPRESSION_MEMBER;
+  expression->owner = NULL;
+  expression->property = NULL;
+  return expression;
+}
+
 /* Teardown */
 void node_destroy_assignexpression(AssignExpression* expression) {
   if(expression != NULL) {
