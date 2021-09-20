@@ -35,7 +35,7 @@ static void usage(char* program_name) {
   fprintf(stderr, "%s--out-file <file>     Specify a file to output to.\n", U_INDENT);
   fprintf(stderr, "%s--out-dir <dir>       Specify a directory to output to.\n", U_INDENT);
   fprintf(stderr, "%s--remote-imports      Specify remote import URLs.\n", U_INDENT);
-  fprintf(stderr, "%s--no-dts              Do not include DTS files.\n"
+  fprintf(stderr, "%s--experimental-dts    Include TypeScript defintion (.d.ts) files.\n"
                   "%s                       (when using --out-file or --out-dir).\n", U_INDENT, U_INDENT);
   fprintf(stderr, "%s--print KIND          Specify which unit to print to the console:\n"
                   "%s                       'js', 'dts'\n", U_INDENT, U_INDENT);
@@ -284,12 +284,12 @@ int compile_dir(char* rootdir, char* dirname, unsigned long dirlen,
 #define OPTION_REMOTE_IMPORTS 0
 #define OPTION_OUT_FILE 1
 #define OPTION_OUT_DIR 2
-#define OPTION_NO_DTS 3
+#define OPTION_EXPERIMENTAL_DTS 3
 #define OPTION_PRINT 4
 
 static struct option long_options[] = {
   {"remote-imports", no_argument, 0, OPTION_REMOTE_IMPORTS},
-  { "no-dts", no_argument, 0, OPTION_NO_DTS},
+  {"experimental-dts", no_argument, 0, OPTION_EXPERIMENTAL_DTS},
   {"out-file", required_argument, 0, OPTION_OUT_FILE},
   {"out-dir", required_argument, 0, OPTION_OUT_DIR},
   {"print", required_argument, 0, OPTION_PRINT},
@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {
   parser_init();
 
   int use_remote_imports = 0;
-  int include_dts = 1;
+  int include_dts = 0;
 
   char* out_file = NULL;
   unsigned long out_file_len = 0;
@@ -317,8 +317,8 @@ int main(int argc, char *argv[]) {
         use_remote_imports = 1;
         break;
       }
-      case OPTION_NO_DTS: {
-        include_dts = 0;
+      case OPTION_EXPERIMENTAL_DTS: {
+        include_dts = 1;
         break;
       }
       case OPTION_OUT_FILE: {
