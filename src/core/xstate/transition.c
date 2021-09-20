@@ -8,8 +8,10 @@
 #include "../str_builder.h"
 #include "../node.h"
 #include "core.h"
+#include "ts_printer.h"
 
-void xs_compile_transition_action(PrintState* state, JSBuilder* jsb, TransitionAction* action, const char* actions_property) {
+void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
+ TransitionAction* action, const char* actions_property) {
   TransitionAction* inner = action;
   bool use_multiline = false;
   while(inner && !use_multiline) {
@@ -35,6 +37,9 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb, TransitionA
       switch(expression_type) {
         case EXPRESSION_ASSIGN: {
           AssignExpression* assign_expression = (AssignExpression*)action->expression;
+          if(state->flags & XS_FLAG_DTS) {
+            ts_printer_add_data(state->tsprinter, assign_expression->key);
+          }
 
           if(assign_expression->value != NULL) {
             switch(assign_expression->value->type) {
@@ -67,6 +72,10 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb, TransitionA
                   str_builder_destroy(sb_name);
                   js_builder_add_string(jsb, action_name);
                   xs_add_action_ref(state, action_name, (Expression*)assign_expression);
+
+                  if(state->flags & XS_FLAG_DTS) {
+                    ts_printer_add_actor(state->tsprinter, symbol_expression->name);
+                  }
                 } else {
                   xs_start_assign_call(jsb, assign_expression);
                   xs_add_spawn_call(state, jsb, spawn_expression);
@@ -95,6 +104,14 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb, TransitionA
             SymbolExpression* expr = (SymbolExpression*)action_expression->ref;
             js_builder_add_string(jsb, expr->name);
             xs_add_action_ref(state, expr->name, action_expression->ref);
+
+            if(state->flags & XS_FLAG_DTS) {
+              if(state->cur_event_name != NULL) {
+                ts_printer_add_action(state->tsprinter, expr->name, state->cur_event_name);
+              } else if(state->in_entry && state->cur_state_name != NULL) {
+                ts_printer_add_entry_action(state->tsprinter, state->cur_state_name, expr->name);
+              }
+            }
           }
           
           break;
@@ -169,6 +186,10 @@ void xs_compile_transition_key(PrintState* state, JSBuilder* jsb, Node* node, ch
             SymbolExpression* symbol_expression = (SymbolExpression*)delay->ref;
             xs_add_delay_ref(state, symbol_expression->name, (Expression*)delay);
             js_builder_start_prop(jsb, symbol_expression->name);
+
+            if(state->flags & XS_FLAG_DTS) {
+              ts_printer_add_delay(state->tsprinter, symbol_expression->name);
+            }
           }
         }
 
@@ -187,6 +208,11 @@ static inline void compile_guard_expression(PrintState* state, JSBuilder* jsb, G
     SymbolExpression* symbol_expression = (SymbolExpression*)ref;
     js_builder_add_string(jsb, symbol_expression->name);
     xs_add_guard_ref(state, symbol_expression->name, ref);
+    if(state->flags & XS_FLAG_DTS) {
+      if(state->cur_event_name != NULL) {
+        ts_printer_add_guard(state->tsprinter, symbol_expression->name, state->cur_event_name);
+      }
+    }
   }
 }
 
@@ -203,6 +229,12 @@ void xs_compile_inner_transition(PrintState* state, JSBuilder* jsb, TransitionNo
     if(transition_node->dest != NULL) {
       js_builder_start_prop(jsb, "target");
       js_builder_add_string(jsb, transition_node->dest);
+
+      if(state->flags & XS_FLAG_DTS) {
+        if(state->cur_event_name != NULL) {
+          ts_printer_add_state_entry(state->tsprinter, state->cur_event_name, transition_node->dest);
+        }
+      }
     }
 
     if(has_guard) {
@@ -262,6 +294,7 @@ void xs_compile_event_transition(PrintState* state, JSBuilder* jsb, TransitionNo
     return;
   }
 
+  state->cur_event_name = event_name;
   xs_compile_transition_key(state, jsb, (Node*)transition_node, event_name);
 
   xs_compile_inner_transition(state, jsb, transition_node);
@@ -277,5 +310,6 @@ void xs_compile_event_transition(PrintState* state, JSBuilder* jsb, TransitionNo
     js_builder_end_array(jsb, true);
   }
 
+  state->cur_event_name = NULL;
   set_add(state->events, event_name);
 }

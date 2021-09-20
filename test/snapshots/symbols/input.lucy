@@ -2,7 +2,7 @@ action logger = :doLog
 guard isValid = :checkValid
 
 initial state idle {
-  next => isValid => guard(:check) => action(:log) => loading
+  next => isValid => guard(:check) => action(:log) => assign(name, :namer) => loading
 }
 
 state loading {
@@ -15,6 +15,8 @@ state loading {
 
 state loaded {
   delay(:wait) => logger => homescreen
+
+  @exit => action(:log)
 }
 
 state homescreen {

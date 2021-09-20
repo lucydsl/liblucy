@@ -26,6 +26,10 @@ void xs_compile_invoke(PrintState* state, JSBuilder* jsb, InvokeNode* invoke_nod
       SymbolExpression* symbol_expression = (SymbolExpression*)invoke_expression->ref;
       js_builder_add_string(jsb, symbol_expression->name);
       xs_add_service_ref(state, symbol_expression->name, (Expression*)invoke_expression);
+
+      if(state->flags & XS_FLAG_DTS) {
+        ts_printer_add_invoke(state->tsprinter, symbol_expression->name);
+      }
       break;
     }
   }

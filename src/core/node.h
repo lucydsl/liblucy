@@ -2,7 +2,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
-#include "set.h"
+#include <stdlib.h>
 
 #define NODE_MACHINE_TYPE 0
 #define NODE_STATE_TYPE 1

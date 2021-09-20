@@ -35,6 +35,10 @@ static void usage(char* program_name) {
   fprintf(stderr, "%s--out-file <file>     Specify a file to output to.\n", U_INDENT);
   fprintf(stderr, "%s--out-dir <dir>       Specify a directory to output to.\n", U_INDENT);
   fprintf(stderr, "%s--remote-imports      Specify remote import URLs.\n", U_INDENT);
+  fprintf(stderr, "%s--no-dts              Do not include DTS files.\n"
+                  "%s                       (when using --out-file or --out-dir).\n", U_INDENT, U_INDENT);
+  fprintf(stderr, "%s--print KIND          Specify which unit to print to the console:\n"
+                  "%s                       'js', 'dts'\n", U_INDENT, U_INDENT);
   fprintf(stderr, "%s-h, --help            Prints help information.\n", U_INDENT);
   fprintf(stderr, "%s-v, --version         Prints the version.\n\n", U_INDENT);
 
@@ -53,6 +57,9 @@ static void version() {
   fprintf(stdout, PROGRAM_VERSION);
   fprintf(stdout, "\n");
 }
+
+#define PRINT_TARGET_JS 0
+#define PRINT_TARGET_DTS 1
 
 int mkdirp(const char *path, int is_file) {
     const size_t len = strlen(path);
@@ -108,7 +115,8 @@ int write_file(char* outfile, char* output) {
   return 0;
 }
 
-int compile_file(char* filename, int use_remote_imports, char* out_file) {
+int compile_file(char* filename, int use_remote_imports, int include_dts,
+  char* out_file, unsigned long outlen, int print_target) {
   FILE *fp;
   if ((fp = fopen(filename, "r")) == NULL) {
       fprintf(stderr, "Error opening file!\n");
@@ -131,15 +139,36 @@ int compile_file(char* filename, int use_remote_imports, char* out_file) {
   fclose(fp);
 
   CompileResult* result = xs_create();
-  xs_init(result, use_remote_imports);
+  xs_init(result, use_remote_imports, include_dts);
   compile_xstate(result, buffer, filename);
 
   if(result->success) {
     int ret = 0;
     if(out_file != NULL) {
       ret = write_file(out_file, result->js);
+
+      if(ret == 0 && include_dts) {
+        unsigned long dtslen = outlen + 2; // .d.ts vs .js
+        char* dtsname = malloc(sizeof(char) * dtslen);
+        size_t i = 0;
+        for(; i < outlen - 3; i++) {
+          dtsname[i] = out_file[i];
+        }
+        dtsname[i++] = '.';
+        dtsname[i++] = 'd';
+        dtsname[i++] = '.';
+        dtsname[i++] = 't';
+        dtsname[i++] = 's';
+        dtsname[i] = '\0';
+        ret = write_file(dtsname, result->dts);
+        free(dtsname);
+      }
     } else {
-      printf("%s\n", result->js);
+      if(print_target == PRINT_TARGET_JS) {
+        printf("%s\n", result->js);
+      } else if(print_target == PRINT_TARGET_DTS) {
+        printf("%s\n", result->dts);
+      }
     }
 
     destroy_xstate_result(result);
@@ -184,7 +213,8 @@ char* basename(char* rootdir, char* filename, unsigned long fnlen) {
 }
 
 int compile_dir(char* rootdir, char* dirname, unsigned long dirlen,
-  int use_remote_imports, char* out_dir, unsigned long outdirlen) {
+  int use_remote_imports, int include_dts, char* out_dir, unsigned long outdirlen,
+  int print_target) {
   DIR* fd;
   struct dirent* in_file;
 
@@ -218,7 +248,7 @@ int compile_dir(char* rootdir, char* dirname, unsigned long dirlen,
       unsigned long outlen = outdirlen + 1 + bnamelen - 2; // .lucy - .js
       char* outfp = str_builder_dump(sbb, &outlen);
 
-      int ret = compile_file(fp, use_remote_imports, outfp);
+      int ret = compile_file(fp, use_remote_imports, include_dts, outfp, outlen, print_target);
 
       free(fp);
       free(bname);
@@ -236,7 +266,8 @@ int compile_dir(char* rootdir, char* dirname, unsigned long dirlen,
     stat(fp, &path_stat);
 
     if(S_ISDIR(path_stat.st_mode)) {
-      int ret = compile_dir(rootdir, fp, fplen, use_remote_imports, out_dir, outdirlen);
+      int ret = compile_dir(rootdir, fp, fplen, use_remote_imports, include_dts,
+        out_dir, outdirlen, print_target);
 
       if(ret) {
         free(fp);
@@ -253,11 +284,15 @@ int compile_dir(char* rootdir, char* dirname, unsigned long dirlen,
 #define OPTION_REMOTE_IMPORTS 0
 #define OPTION_OUT_FILE 1
 #define OPTION_OUT_DIR 2
+#define OPTION_NO_DTS 3
+#define OPTION_PRINT 4
 
 static struct option long_options[] = {
   {"remote-imports", no_argument, 0, OPTION_REMOTE_IMPORTS},
+  { "no-dts", no_argument, 0, OPTION_NO_DTS},
   {"out-file", required_argument, 0, OPTION_OUT_FILE},
   {"out-dir", required_argument, 0, OPTION_OUT_DIR},
+  {"print", required_argument, 0, OPTION_PRINT},
   {"help", no_argument, 0, 'h'},
   {"version", no_argument, 0, 'v'},
 };
@@ -267,8 +302,12 @@ int main(int argc, char *argv[]) {
   parser_init();
 
   int use_remote_imports = 0;
+  int include_dts = 1;
+
   char* out_file = NULL;
+  unsigned long out_file_len = 0;
   char* out_dir = NULL;
+  int print_target = 0;
 
   int option_index = 0;
   int opt;
@@ -278,12 +317,23 @@ int main(int argc, char *argv[]) {
         use_remote_imports = 1;
         break;
       }
+      case OPTION_NO_DTS: {
+        include_dts = 0;
+        break;
+      }
       case OPTION_OUT_FILE: {
         out_file = strdup(optarg);
+        out_file_len = strlen(out_file);
         break;
       }
       case OPTION_OUT_DIR: {
         out_dir = strdup(optarg);
+        break;
+      }
+      case OPTION_PRINT: {
+        if(strcmp(optarg, "dts") == 0) {
+          print_target = PRINT_TARGET_DTS;
+        }
         break;
       }
       case 'h': {
@@ -324,7 +374,8 @@ int main(int argc, char *argv[]) {
 
       unsigned long dir_len = strlen(filename);
       unsigned long out_dir_len = strlen(out_dir);
-      int ret = compile_dir(filename, filename, dir_len, use_remote_imports, out_dir, out_dir_len);
+      int ret = compile_dir(filename, filename, dir_len, use_remote_imports,
+        include_dts, out_dir, out_dir_len, print_target);
       return ret;
     } else if(S_ISREG(path_stat.st_mode)) {
       // Check if the out_file is a directory.
@@ -337,7 +388,8 @@ int main(int argc, char *argv[]) {
         }
       }
 
-      int ret = compile_file(filename, use_remote_imports, out_file);
+      int ret = compile_file(filename, use_remote_imports, include_dts,
+        out_file, out_file_len, print_target);
       return ret;
     }
   } else {

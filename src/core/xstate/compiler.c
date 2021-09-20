@@ -1,23 +1,15 @@
+#include <stdbool.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
-#include <math.h>
-#include <ctype.h>
-#include "../dict.h"
-#include "../node.h"
-#include "../program.h"
 #include "../parser/parser.h"
-#include "../str_builder.h"
-#include "../js_builder.h"
-#include "../local.h"
-#include "../set.h"
-
+#include "../program.h"
 #include "assignment.h"
 #include "compiler.h"
 #include "core.h"
 #include "import.h"
 #include "machine.h"
 #include "state.h"
+#include "ts_printer.h"
 
 static void destroy_state(PrintState *state) {
   xs_destroy_state_refs(state);
@@ -33,13 +25,17 @@ CompileResult* xs_create() {
   return result;
 }
 
-void xs_init(CompileResult* result, int use_remote_source) {
+void xs_init(CompileResult* result, bool use_remote_source, bool include_dts) {
   result->success = false;
   result->js = NULL;
+  result->dts = NULL;
   result->flags = 0;
   
   if(use_remote_source) {
-    result->flags |= FLAG_USE_REMOTE;
+    result->flags |= XS_FLAG_USE_REMOTE;
+  }
+  if(include_dts) {
+    result->flags |= XS_FLAG_DTS;
   }
 }
 
@@ -54,15 +50,43 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
 
   Program *program = parse_result->program;
   char* xstate_specifier;
-  if(result->flags & FLAG_USE_REMOTE) {
+  if(result->flags & XS_FLAG_USE_REMOTE) {
     xstate_specifier = "https://cdn.skypack.dev/xstate";
   } else {
     xstate_specifier = "xstate";
   }
 
   JSBuilder *jsb;
-  Node* node;
   jsb = js_builder_create();
+
+  PrintState state = {
+    .flags = result->flags,
+    .program = program,
+    .guard = NULL,
+    .action = NULL,
+    .delay = NULL,
+    .events = malloc(sizeof(SimpleSet)),
+    .guard_names = malloc(sizeof(SimpleSet)),
+    .action_names = malloc(sizeof(SimpleSet)),
+    .delay_names = malloc(sizeof(SimpleSet)),
+    .service_names = malloc(sizeof(SimpleSet)),
+    .tsprinter = NULL,
+    .cur_event_name = NULL,
+    .cur_state_name = NULL,
+    .in_entry = false
+  };
+  set_init(state.events);
+  set_init(state.guard_names);
+  set_init(state.action_names);
+  set_init(state.delay_names);
+  set_init(state.service_names);
+
+  if(state.flags & XS_FLAG_DTS) {
+    state.tsprinter = ts_printer_alloc();
+    ts_printer_init(state.tsprinter);
+  }
+
+  Node* node;
   node = program->body;
 
   if(node != NULL) {
@@ -82,24 +106,10 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
 
     js_builder_add_str(jsb, xstate_specifier);
     js_builder_add_str(jsb, "';\n");
+    if(result->flags & XS_FLAG_DTS) {
+      state.tsprinter->xstate_specifier = xstate_specifier;
+    }
   }
-
-  PrintState state = {
-    .program = program,
-    .guard = NULL,
-    .action = NULL,
-    .delay = NULL,
-    .events = malloc(sizeof(SimpleSet)),
-    .guard_names = malloc(sizeof(SimpleSet)),
-    .action_names = malloc(sizeof(SimpleSet)),
-    .delay_names = malloc(sizeof(SimpleSet)),
-    .service_names = malloc(sizeof(SimpleSet))
-  };
-  set_init(state.events);
-  set_init(state.guard_names);
-  set_init(state.action_names);
-  set_init(state.delay_names);
-  set_init(state.service_names);
 
   bool exit = false;
   while(node != NULL) {
@@ -201,6 +211,12 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   result->success = true;
   result->js = js;
 
+  if(result->flags & XS_FLAG_DTS) {
+    char* dts = ts_printer_dump(state.tsprinter);
+    result->dts = dts;
+    ts_printer_destroy(state.tsprinter);
+  }
+
   // Teardown
   destroy_state(&state);
   js_builder_destroy(jsb);
@@ -212,9 +228,16 @@ char* xs_get_js(CompileResult* result) {
   return result->js;
 }
 
+char* xs_get_dts(CompileResult* result) {
+  return result->dts;
+}
+
 void destroy_xstate_result(CompileResult* result) {
   if(result->js != NULL) {
     free(result->js);
+  }
+  if(result->dts != NULL) {
+    free(result->dts);
   }
   free(result);
 }

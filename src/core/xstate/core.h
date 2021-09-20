@@ -3,9 +3,12 @@
 #include "../js_builder.h"
 #include "../node.h"
 #include "../program.h"
+#include "../set.h"
+#include "ts_printer.h"
 
 // API flags
-#define FLAG_USE_REMOTE 1 << 0
+#define XS_FLAG_USE_REMOTE 1 << 0
+#define XS_FLAG_DTS 2 << 0
 
 // Machine implementation flags
 #define XS_HAS_STATE_PROP 1 << 0
@@ -17,6 +20,7 @@ typedef struct Ref {
 } Ref;
 
 typedef struct PrintState {
+  int flags;
   Program* program;
   Ref* guard;
   SimpleSet* guard_names;
@@ -27,6 +31,10 @@ typedef struct PrintState {
   Ref* service;
   SimpleSet* service_names;
   SimpleSet* events;
+  ts_printer_t* tsprinter;
+  char* cur_event_name;
+  char* cur_state_name;
+  bool in_entry;
 } PrintState;
 
 void xs_destroy_state_refs(PrintState*);
