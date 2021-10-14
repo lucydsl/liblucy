@@ -13,6 +13,8 @@
 #include "send.h"
 #include "token.h"
 
+#include <stdio.h> // TODO remove
+
 static char* get_event_name(TransitionNode* transition_node) {
   char* name = NULL;
   Expression* event_expression = transition_node->event;
@@ -110,6 +112,30 @@ static int consume_on(State* state, TransitionNode* transition_node) {
   transition_node->event = (Expression*)expression;
 
   return err;
+}
+
+static int consume_member_expression(State* state, TransitionNode* transition_node) {
+  int err = 0;
+
+  MemberExpression* top_member_expression = node_create_memberexpression();
+  top_member_expression->owner = state_take_word(state);
+  state_next(state);
+  int token = consume_token(state);
+
+  if(token != TOKEN_IDENTIFIER) {
+    error_unexpected_identifier(state, (Node*)transition_node);
+    err = 1;
+    goto exit;
+  } else {
+    IdentifierExpression* prop = node_create_identifierexpression();
+    prop->name = state_take_word(state);
+    top_member_expression->property = (Expression*)prop;
+    transition_node->dest = (Expression*)top_member_expression;
+  }
+
+  exit: {
+    return err;
+  }
 }
 
 /* Public API */
@@ -233,48 +259,58 @@ int parser_consume_transition(State* state) {
       }
     }
 
-    if(token != TOKEN_IDENTIFIER) {
-      error_unexpected_identifier(state, transition_node_node);
-      err = 2;
-      goto end;
-    }
-
-    identifier = state_take_word(state);
-    unsigned short key = keyword_get(identifier);
-    switch(key) {
-      // Inline guard
-      case KW_GUARD: {
-        _check(parser_consume_inline_guard(state, transition_node));
-        free(identifier);
-        break;
-      }
-      case KW_ASSIGN: {
-        _check(parser_consume_inline_assign(state, transition_node_node));
-        free(identifier);
-        break;
-      }
-      case KW_ACTION: {
-        _check(parser_consume_inline_action(state, transition_node_node));
-        free(identifier);
-        break;
-      }
-      case KW_SEND: {
-        _check(parser_consume_inline_send(state, transition_node_node));
-        free(identifier);
-        break;
-      }
-      default: {
-        if(state_has_guard(state, identifier)) {
-          node_transition_add_guard(transition_node, identifier);
-        } else if(state_has_action(state, identifier)) {
-          node_transition_add_action(transition_node, identifier);
-        } else {
-          transition_node->dest = identifier;
+    switch(token) {
+      case TOKEN_IDENTIFIER: {
+        identifier = state_take_word(state);
+        unsigned short key = keyword_get(identifier);
+        switch(key) {
+          // Inline guard
+          case KW_GUARD: {
+            _check(parser_consume_inline_guard(state, transition_node));
+            free(identifier);
+            break;
+          }
+          case KW_ASSIGN: {
+            _check(parser_consume_inline_assign(state, transition_node_node));
+            free(identifier);
+            break;
+          }
+          case KW_ACTION: {
+            _check(parser_consume_inline_action(state, transition_node_node));
+            free(identifier);
+            break;
+          }
+          case KW_SEND: {
+            _check(parser_consume_inline_send(state, transition_node_node));
+            free(identifier);
+            break;
+          }
+          default: {
+            if(state_has_guard(state, identifier)) {
+              node_transition_add_guard(transition_node, identifier);
+            } else if(state_has_action(state, identifier)) {
+              node_transition_add_action(transition_node, identifier);
+            } else {
+              IdentifierExpression* identifier_expression = node_create_identifierexpression();
+              identifier_expression->name = identifier;
+              transition_node->dest = (Expression*)identifier_expression;
+            }
+            break;
+          }
         }
         break;
       }
+      case TOKEN_MEMBER_EXPRESSION: {
+        _check(consume_member_expression(state, transition_node));
+        break;
+      }
+      default: {
+        error_unexpected_identifier(state, transition_node_node);
+        err = 2;
+        goto end;
+      }
     }
-  }
+  }  
 
   end: {
     state_node_up(state);

@@ -83,6 +83,10 @@ static void consume_identifier(State* state) {
   consume_while(state, &identifier_consume_condition);
 }
 
+static bool member_consume_condition(State* state, char c) {
+  return is_valid_identifier_char(c) || c == '.';
+}
+
 static bool timeframe_consume_condition(State* state, char c) {
   return is_timeframe_char(c);
 }
@@ -143,6 +147,9 @@ int consume_token(State* state) {
 
     if(is_valid_identifier_char(c)) {
       consume_identifier(state);
+      if(state_peek(state) == '.') {
+        return TOKEN_MEMBER_EXPRESSION;
+      }
       return TOKEN_IDENTIFIER;
     }
 

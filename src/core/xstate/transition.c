@@ -216,6 +216,34 @@ static inline void compile_guard_expression(PrintState* state, JSBuilder* jsb, G
   }
 }
 
+static char* serialize_destination(TransitionNode* transition_node) {
+  Expression* dest = transition_node->dest;
+  switch(dest->type) {
+    case EXPRESSION_IDENTIFIER: {
+      return ((IdentifierExpression*)dest)->name;
+    }
+    case EXPRESSION_MEMBER: {
+      MemberExpression* member_expression = (MemberExpression*)dest;
+      str_builder_t* sb_name = str_builder_create();
+      str_builder_add_str(sb_name, member_expression->owner, 0);
+      while(member_expression->property->type != EXPRESSION_IDENTIFIER) {
+        member_expression = (MemberExpression*)member_expression->property;
+        str_builder_add_char(sb_name, '.');
+        str_builder_add_str(sb_name, member_expression->owner, 0);
+      }
+      IdentifierExpression* prop = (IdentifierExpression*)member_expression->property;
+      str_builder_add_char(sb_name, '.');
+      str_builder_add_str(sb_name, prop->name, 0);
+      char* d_name = str_builder_dump(sb_name, 0);
+      str_builder_destroy(sb_name);
+      return d_name;
+    }
+    default: {
+      return NULL;
+    }
+  }
+}
+
 void xs_compile_inner_transition(PrintState* state, JSBuilder* jsb, TransitionNode* transition_node) {
   bool is_always = transition_node->type == TRANSITION_IMMEDIATE_TYPE;
   bool has_guard = transition_node->guard != NULL;
@@ -228,11 +256,11 @@ void xs_compile_inner_transition(PrintState* state, JSBuilder* jsb, TransitionNo
 
     if(transition_node->dest != NULL) {
       js_builder_start_prop(jsb, "target");
-      js_builder_add_string(jsb, transition_node->dest);
+      js_builder_add_string(jsb, serialize_destination(transition_node));
 
       if(state->flags & XS_FLAG_DTS) {
         if(state->cur_event_name != NULL) {
-          ts_printer_add_state_entry(state->tsprinter, state->cur_event_name, transition_node->dest);
+          ts_printer_add_state_entry(state->tsprinter, state->cur_event_name, serialize_destination(transition_node));
         }
       }
     }
@@ -280,7 +308,7 @@ void xs_compile_inner_transition(PrintState* state, JSBuilder* jsb, TransitionNo
 
     js_builder_end_object(jsb);
   } else {
-    js_builder_add_string(jsb, transition_node->dest);
+    js_builder_add_string(jsb, serialize_destination(transition_node));
   }
 }
 
