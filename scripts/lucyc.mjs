@@ -7,8 +7,10 @@ let [,, filename] = process.argv;
 const env = process.env.NODE_ENV || 'development';
 
 let outFile = null;
+let print = 'js';
 const options = {
-  useRemote: false
+  useRemote: false,
+  dts: false
 };
 
 while(filename && filename.startsWith('--')) {
@@ -19,6 +21,14 @@ while(filename && filename.startsWith('--')) {
     }
     case '--out-file': {
       outFile = process.argv[++index];
+      break;
+    }
+    case '--experimental-dts': {
+      options.dts = true;
+      break;
+    }
+    case '--print': {
+      print = process.argv[++index];
       break;
     }
   }
@@ -42,12 +52,17 @@ async function run() {
   await ready;
 
   try {
-    const js = compileXstate(contents, filename, options);
+    const result = compileXstate(contents, filename, options);
 
     if(outFile) {
-      await writeFile(outFile, js, 'utf-8');
+      await writeFile(outFile, result.js, 'utf-8');
     } else {
-      process.stdout.write(js);
+      if(options.dts && print === 'dts') {
+        process.stdout.write(result.dts);
+      } else {
+        process.stdout.write(result.js);
+      }
+
       process.stdout.write("\n");
     }
   } catch {

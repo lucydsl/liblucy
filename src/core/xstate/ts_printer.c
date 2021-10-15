@@ -345,7 +345,12 @@ void ts_printer_add_action(ts_printer_t* printer, char* action_name, char* event
     executor_init(action);
     ht_set(printer->actions, action_name, action);
   }
-  executor_add(action, event_name);
+
+  // Add an executor for this event.
+  if(event_name != NULL) {
+    executor_add(action, event_name);
+  }
+
   printer->flags |= XS_TS_PROGRAM_USES_ACTION;
 }
 
@@ -386,8 +391,13 @@ void ts_printer_create_machine(ts_printer_t* printer) {
   str_builder_add_str(sb, "function create", 0);
   str_builder_add_str(sb, printer->machine_name, 0);
   str_builder_add_str(sb, "<TContext extends Record<", 0);
-  str_builder_add_str(sb, printer->machine_name, 0);
-  str_builder_add_str(sb, "KnownContextKeys, any>, TEvent extends { type: ", 0);
+  if(printer->data_names_sb == NULL) {
+    str_builder_add_str(sb, "any", 0);
+  } else {
+    str_builder_add_str(sb, printer->machine_name, 0);
+    str_builder_add_str(sb, "KnownContextKeys", 0);
+  }
+  str_builder_add_str(sb, ", any>, TEvent extends { type: ", 0);
   str_builder_add_str(sb, printer->machine_name, 0);
   str_builder_add_str(sb, "EventNames } = any>(options: ", 0);
   str_builder_add_str(sb, "Create", 0);

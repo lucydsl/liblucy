@@ -106,10 +106,10 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
             xs_add_action_ref(state, expr->name, action_expression->ref);
 
             if(state->flags & XS_FLAG_DTS) {
-              if(state->cur_event_name != NULL) {
-                ts_printer_add_action(state->tsprinter, expr->name, state->cur_event_name);
-              } else if(state->in_entry && state->cur_state_name != NULL) {
+              if(state->in_entry && state->cur_state_name != NULL) {
                 ts_printer_add_entry_action(state->tsprinter, state->cur_state_name, expr->name);
+              } else {
+                ts_printer_add_action(state->tsprinter, expr->name, state->cur_event_name);
               }
             }
           }

@@ -36,14 +36,18 @@ run_test() {
 
   local input="${d}input.lucy"
   local tmp=$(mktemp)
+  local dtsflag=""
 
   if [[ "$input" == *"error_"* ]]; then
     local output="${d}expected.error"
+  elif [[ "$input" == *"dts_"* ]]; then
+    local output="${d}expected.d.ts"
+    local dtsflag="--experimental-dts --print dts"
   else
     local output="${d}expected.js"
   fi
 
-  NODE_ENV=$NODE_ENV $LUCYC $input >> $tmp 2>&1
+  NODE_ENV=$NODE_ENV $LUCYC $dtsflag $input >> $tmp 2>&1
 
   if [ "$upd" -eq 1 ]; then
     mv $tmp $output

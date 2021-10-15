@@ -14,6 +14,7 @@ export default async function(createModule) {
 
   const _compileXstate = Module._compile_xstate;
   const _xsGetJS = Module._xs_get_js;
+  const _xsGetDTS = Module._xs_get_dts;
   const _xsCreate = Module._xs_create;
   const _xsInit = Module._xs_init;
   const _destroyXstateResult = Module._destroy_xstate_result;
@@ -47,7 +48,7 @@ export default async function(createModule) {
     let srcPtr = stringToPtr(source);
     let fnPtr = stringToPtr(filename);
     let resPtr = _xsCreate();
-    _xsInit(resPtr, options.useRemote);
+    _xsInit(resPtr, options.useRemote, options.dts);
     _compileXstate(resPtr, srcPtr, fnPtr);
     stackRestore(stack); 
   
@@ -55,10 +56,15 @@ export default async function(createModule) {
     let success = !!HEAPU8[resPtr];
   
     if(success) {
+      let out = {};
       let jsPtr = _xsGetJS(resPtr);
-      let js = UTF8ToString(jsPtr);
+      out.js = UTF8ToString(jsPtr);
+      if(options.dts) {
+        let dtsPtr = _xsGetDTS(resPtr);
+        out.dts = UTF8ToString(dtsPtr);
+      }
       _destroyXstateResult(resPtr);
-      return js;
+      return out;
     }
   
     let err = new Error('Compiler error');
