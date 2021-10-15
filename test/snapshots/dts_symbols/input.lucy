@@ -1,0 +1,24 @@
+action logger = :doLog
+guard isValid = :checkValid
+
+initial state idle {
+  next => isValid => guard(:check) => action(:log) => assign(name, :namer) => loading
+}
+
+state loading {
+  @entry => action(:updateUI) => action(:log) => assign(count, :incrementLoads)
+
+  invoke(:loadUsers) {
+    done => loaded
+  }
+}
+
+state loaded {
+  delay(:wait) => logger => homescreen
+
+  @exit => action(:log)
+}
+
+state homescreen {
+  @entry => assign(todo, spawn(:todoMachine))
+}
