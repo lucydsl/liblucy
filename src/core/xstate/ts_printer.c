@@ -237,8 +237,17 @@ static void print_machine_definitions(ts_printer_t* printer) {
     js_builder_add_str(buffer, "EventNames }");
   }
   js_builder_add_str(buffer, "> ");
+
+  // Start of the object
   js_builder_start_object(buffer);
-if(printer->actions != NULL) {
+  if(printer->data_names_sb != NULL) {
+    js_builder_start_prop(buffer, "context");
+  } else {
+    js_builder_start_prop(buffer, "context?");
+  }
+  js_builder_add_str(buffer, "TContext");
+
+  if(printer->actions != NULL) {
     js_builder_start_prop(buffer, "actions");
     js_builder_start_object(buffer);
     hti it = ht_iterator(printer->actions);
