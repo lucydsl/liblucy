@@ -4,7 +4,7 @@ type MachineEventNames = 'next' | 'done';
 
 type MachineKnownContextKeys = 'name' | 'count' | 'todo';
 
-export interface CreateMachineOptions<TContext, TEvent extends { type: MachineEventNames }> {
+export interface CreateMachineOptions<TContext extends Record<MachineKnownContextKeys, any>, TEvent extends { type: MachineEventNames }> {
   actions: {
     log: Action<
       TContext,

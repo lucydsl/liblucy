@@ -1,6 +1,6 @@
 import { Action, StateMachine } from 'xstate';
 
-export interface CreateMachineOptions<TContext, TEvent> {
+export interface CreateMachineOptions<TContext extends Record<any, any>, TEvent> {
   actions: {
     log: Action<
       TContext,
