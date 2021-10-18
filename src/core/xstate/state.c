@@ -34,10 +34,6 @@ void xs_enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_start_prop(jsb, state_node->name);
   js_builder_start_object(jsb);
 
-  if(state->flags & XS_FLAG_DTS) {
-    ts_printer_add_event(state->tsprinter, state_node->name);
-  }
-
   if(state_node->final) {
     js_builder_start_prop(jsb, "type");
     js_builder_add_string(jsb, "final");

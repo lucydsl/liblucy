@@ -6,9 +6,10 @@
 #include "../set.h"
 
 #define XS_TS_PROGRAM_USES_GUARD 1 << 0
-#define XS_TS_PROGRAM_USES_ACTION 2 << 0
-#define XS_TS_PROGRAM_USES_INVOKE 3 << 0
-#define XS_TS_PROGRAM_USES_DELAY 4 << 0
+#define XS_TS_PROGRAM_USES_ACTION 1 << 1
+#define XS_TS_PROGRAM_USES_INVOKE 1 << 2
+#define XS_TS_PROGRAM_USES_DELAY 1 << 3
+#define XS_TS_PROGRAM_USES_ASSIGN 1 << 4
 
 #define XS_TS_MACHINE_DEFAULT 1 << 0
 
@@ -16,6 +17,12 @@ typedef struct xs_executor_t {
   string_list_t* events;
   SimpleSet* events_s;
 } xs_executor_t;
+
+typedef struct xs_assign_executor_t {
+  string_list_t* events;
+  SimpleSet* events_s;
+  char* data_prop;
+} xs_assign_executor_t;
 
 typedef struct ts_printer_t {
   int flags;
@@ -31,6 +38,7 @@ typedef struct ts_printer_t {
 
   ht* guards;
   ht* actions;
+  ht* assigns;
   string_list_t* invokes;
   string_list_t* actors;
   string_list_t* delays;
@@ -46,6 +54,7 @@ ts_printer_t* ts_printer_alloc();
 
 void ts_printer_add_event(ts_printer_t*, char*);
 void ts_printer_add_data(ts_printer_t*, char*);
+void ts_printer_add_assign(ts_printer_t*, char*, char*, char*);
 void ts_printer_add_guard(ts_printer_t*, char*, char*);
 void ts_printer_add_action(ts_printer_t*, char*, char*);
 void ts_printer_add_invoke(ts_printer_t*, char*);
