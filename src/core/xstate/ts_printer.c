@@ -220,7 +220,17 @@ static void print_machine_definitions(ts_printer_t* printer) {
   // interface CreateMachineOptions<TContext, TEvent extends EventObject> {
   js_builder_add_str(buffer, "\nexport interface Create");
   js_builder_add_str(buffer, printer->machine_name);
-  js_builder_add_str(buffer, "Options<TContext, TEvent");
+
+  // Options
+  js_builder_add_str(buffer, "Options<");
+  js_builder_add_str(buffer, "TContext extends Record<");
+  if(printer->data_names_sb == NULL) {
+    js_builder_add_str(buffer, "any");
+  } else {
+    js_builder_add_str(buffer, printer->machine_name);
+    js_builder_add_str(buffer, "KnownContextKeys");
+  }
+  js_builder_add_str(buffer, ", any>, TEvent");
   if(printer->event_names_sb != NULL) {
     js_builder_add_str(buffer, " extends { type: ");
     js_builder_add_str(buffer, printer->machine_name);

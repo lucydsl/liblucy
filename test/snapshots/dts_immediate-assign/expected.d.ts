@@ -2,7 +2,7 @@ import { PartialAssigner, StateMachine } from 'xstate';
 
 type MachineKnownContextKeys = 'prop';
 
-export interface CreateMachineOptions<TContext, TEvent> {
+export interface CreateMachineOptions<TContext extends Record<MachineKnownContextKeys, any>, TEvent> {
   assigns: {
     val: PartialAssigner<
       TContext,
