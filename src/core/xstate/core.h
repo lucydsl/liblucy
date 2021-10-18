@@ -8,7 +8,7 @@
 
 // API flags
 #define XS_FLAG_USE_REMOTE 1 << 0
-#define XS_FLAG_DTS 2 << 0
+#define XS_FLAG_DTS 1 << 1
 
 // Machine implementation flags
 #define XS_HAS_STATE_PROP 1 << 0

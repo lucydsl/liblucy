@@ -43,6 +43,35 @@ static void executor_add(xs_executor_t* executor, char* event_name) {
   }
 }
 
+static xs_assign_executor_t* assign_executor_alloc() {
+  xs_assign_executor_t* executor = malloc(sizeof(*executor));
+  executor->events = malloc(sizeof(*executor->events));
+  executor->events_s = malloc(sizeof(*executor->events_s));
+  return executor;
+}
+
+static void assign_executor_init(xs_assign_executor_t* executor) {
+  string_list_init(executor->events);
+  set_init(executor->events_s);
+  executor->data_prop = NULL;
+}
+
+static void assign_executor_destroy(xs_assign_executor_t* executor) {
+  string_list_destroy(executor->events);
+  free(executor->events);
+  set_destroy(executor->events_s);
+  free(executor->data_prop);
+  executor->data_prop = NULL;
+  free(executor);
+}
+
+static void assign_executor_add(xs_assign_executor_t* executor, char* event_name) {
+  if(set_contains(executor->events_s, event_name) == SET_FALSE) {
+    set_add(executor->events_s, event_name);
+    string_list_append(executor->events, event_name);
+  }
+}
+
 void ts_printer_init(ts_printer_t* printer) {
   printer->flags = 0;
   printer->buffer = js_builder_create();
@@ -80,6 +109,13 @@ void ts_printer_destroy(ts_printer_t* printer) {
     while (ht_next(&it)) {
       xs_executor_t* executor = (xs_executor_t*)it.value;
       executor_destroy(executor);
+    }
+  }
+  if(printer->assigns != NULL) {
+    hti it = ht_iterator(printer->assigns);
+    while (ht_next(&it)) {
+      xs_assign_executor_t* executor = (xs_assign_executor_t*)it.value;
+      assign_executor_destroy(executor);
     }
   }
   if(printer->invokes != NULL) {
@@ -126,8 +162,10 @@ static void build_import_clause(ts_printer_t* printer, str_builder_t* buffer) {
   if(printer->flags & XS_TS_PROGRAM_USES_INVOKE) {
     string_list_append(&identifiers, "InvokeCreator");
   }
+  if(printer->flags & XS_TS_PROGRAM_USES_ASSIGN) {
+    string_list_append(&identifiers, "PartialAssigner");
+  }
   string_list_append(&identifiers, "StateMachine");
-
   str_builder_add_str(buffer, "import { ", 0);
 
   int i = 0;
@@ -182,9 +220,13 @@ static void print_machine_definitions(ts_printer_t* printer) {
   // interface CreateMachineOptions<TContext, TEvent extends EventObject> {
   js_builder_add_str(buffer, "\nexport interface Create");
   js_builder_add_str(buffer, printer->machine_name);
-  js_builder_add_str(buffer, "Options<TContext, TEvent extends { type: ");
-  js_builder_add_str(buffer, printer->machine_name);
-  js_builder_add_str(buffer, "EventNames }> ");
+  js_builder_add_str(buffer, "Options<TContext, TEvent");
+  if(printer->event_names_sb != NULL) {
+    js_builder_add_str(buffer, " extends { type: ");
+    js_builder_add_str(buffer, printer->machine_name);
+    js_builder_add_str(buffer, "EventNames }");
+  }
+  js_builder_add_str(buffer, "> ");
   js_builder_start_object(buffer);
 if(printer->actions != NULL) {
     js_builder_start_prop(buffer, "actions");
@@ -208,6 +250,40 @@ if(printer->actions != NULL) {
       } else {
         js_builder_add_str(buffer, "TEvent\n");
       }
+      js_builder_decrease_indent(buffer);
+      js_builder_add_indent(buffer);
+      js_builder_add_str(buffer, ">");
+    }
+    js_builder_end_object(buffer);
+  }
+  if(printer->assigns != NULL) {
+    //PartialAssigner<TContext, TEvent extends EventObject, TKey extends keyof TContext> =
+    // (context: TContext, event: TEvent, meta: AssignMeta<TContext, TEvent>) => TContext[TKey];
+    js_builder_start_prop(buffer, "assigns");
+    js_builder_start_object(buffer);
+    hti it = ht_iterator(printer->assigns);
+    while (ht_next(&it)) {
+      char* cb_name = (char*)it.key;
+      js_builder_start_prop(buffer, cb_name);
+      js_builder_add_str(buffer, "PartialAssigner<\n");
+      js_builder_increase_indent(buffer);
+      js_builder_add_indent(buffer);
+      js_builder_add_str(buffer, "TContext,\n");
+      js_builder_add_indent(buffer);
+      xs_assign_executor_t* executor = (xs_assign_executor_t*)it.value;
+      if(executor->events->length > 0) {
+        char* extract_clause = build_extract_clause(executor->events);
+        js_builder_add_str(buffer, "TEvent extends ");
+        js_builder_add_str(buffer, extract_clause);
+        js_builder_add_str(buffer, " ? ");
+        js_builder_add_str(buffer, extract_clause);
+        js_builder_add_str(buffer, " : TEvent,\n");
+      } else {
+        js_builder_add_str(buffer, "TEvent,\n");
+      }
+      js_builder_add_indent(buffer);
+      js_builder_add_string(buffer, executor->data_prop);
+      js_builder_add_str(buffer, "\n");
       js_builder_decrease_indent(buffer);
       js_builder_add_indent(buffer);
       js_builder_add_str(buffer, ">");
@@ -310,7 +386,7 @@ void ts_printer_add_event(ts_printer_t* printer, char* event_name) {
   add_str_union(printer->event_names_sb, event_name);
 }
 
-void ts_printer_add_data(ts_printer_t* printer, char* name) {
+void ts_printer_add_data(ts_printer_t* printer, char* data_prop) {
   if(printer->data_names_sb == NULL) {
     printer->data_names_sb = str_builder_create();
     str_builder_add_str(printer->data_names_sb, "type ", 0);
@@ -318,7 +394,31 @@ void ts_printer_add_data(ts_printer_t* printer, char* name) {
     str_builder_add_str(printer->data_names_sb, "KnownContextKeys = ", 0);
   }
 
-  add_str_union(printer->data_names_sb, name);
+  add_str_union(printer->data_names_sb, data_prop);
+}
+
+void ts_printer_add_assign(ts_printer_t* printer, char* data_prop, char* cb_name, char* event_name) {
+  // TODO the cb_name should be the key
+  if(printer->assigns == NULL) {
+    printer->assigns = ht_create();
+  }
+
+  xs_assign_executor_t* assign = (xs_assign_executor_t*)ht_get(printer->assigns, cb_name);
+  if(assign == NULL) {
+    assign = assign_executor_alloc();
+    assign_executor_init(assign);
+    ht_set(printer->assigns, cb_name, assign);
+  }
+
+  // Set the prop
+  assign->data_prop = strdup(data_prop);
+
+  // Add an executor for this event.
+  if(event_name != NULL) {
+    assign_executor_add(assign, event_name);
+  }
+
+  printer->flags |= XS_TS_PROGRAM_USES_ASSIGN;
 }
 
 void ts_printer_add_guard(ts_printer_t* printer, char* guard_name, char* event_name) {
@@ -355,7 +455,6 @@ void ts_printer_add_action(ts_printer_t* printer, char* action_name, char* event
 }
 
 void ts_printer_add_invoke(ts_printer_t* printer, char* invoke_name) {
-  //char* cloned_invoke_name = strdup(invoke_name);
   if(printer->invokes == NULL) {
     printer->invokes = malloc(sizeof(*printer->invokes));
     string_list_init(printer->invokes);
@@ -397,9 +496,13 @@ void ts_printer_create_machine(ts_printer_t* printer) {
     str_builder_add_str(sb, printer->machine_name, 0);
     str_builder_add_str(sb, "KnownContextKeys", 0);
   }
-  str_builder_add_str(sb, ", any>, TEvent extends { type: ", 0);
-  str_builder_add_str(sb, printer->machine_name, 0);
-  str_builder_add_str(sb, "EventNames } = any>(options: ", 0);
+  str_builder_add_str(sb, ", any>, TEvent", 0);
+  if(printer->event_names_sb != NULL) {
+    str_builder_add_str(sb, " extends { type: ", 0);
+    str_builder_add_str(sb, printer->machine_name, 0);
+    str_builder_add_str(sb, "EventNames } = any", 0);
+  }
+  str_builder_add_str(sb, ">(options: ", 0);
   str_builder_add_str(sb, "Create", 0);
   str_builder_add_str(sb, printer->machine_name, 0);
   str_builder_add_str(sb, "Options<TContext, TEvent>): StateMachine<TContext, any, TEvent>;", 0);

@@ -1,6 +1,6 @@
-import { Action, DelayConfig, ConditionPredicate, InvokeCreator, StateMachine } from 'xstate';
+import { Action, DelayConfig, ConditionPredicate, InvokeCreator, PartialAssigner, StateMachine } from 'xstate';
 
-type MachineEventNames = 'idle' | 'loading' | 'loaded' | 'homescreen';
+type MachineEventNames = 'next' | 'done';
 
 type MachineKnownContextKeys = 'name' | 'count' | 'todo';
 
@@ -13,6 +13,18 @@ export interface CreateMachineOptions<TContext, TEvent extends { type: MachineEv
     updateUI: Action<
       TContext,
       TEvent extends Extract<TEvent, { type: 'next' }> ? Extract<TEvent, { type: 'next' }> : TEvent
+    >
+  },
+  assigns: {
+    incrementLoads: PartialAssigner<
+      TContext,
+      TEvent,
+      'count'
+    >,
+    namer: PartialAssigner<
+      TContext,
+      TEvent extends Extract<TEvent, { type: 'next' }> ? Extract<TEvent, { type: 'next' }> : TEvent,
+      'name'
     >
   },
   delays: {

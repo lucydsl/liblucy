@@ -47,6 +47,10 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
                 SymbolExpression* symbol_expression = (SymbolExpression*)assign_expression->value;
                 js_builder_add_string(jsb, symbol_expression->name);
                 xs_add_action_ref(state, symbol_expression->name, (Expression*)assign_expression);
+
+                if(state->flags & XS_FLAG_DTS) {
+                  ts_printer_add_assign(state->tsprinter, assign_expression->key, symbol_expression->name, state->cur_event_name);
+                }
                 break;
               }
               case EXPRESSION_IDENTIFIER: {
@@ -323,6 +327,9 @@ void xs_compile_event_transition(PrintState* state, JSBuilder* jsb, TransitionNo
   }
 
   state->cur_event_name = event_name;
+  if(state->flags & XS_FLAG_DTS) {
+    ts_printer_add_event(state->tsprinter, event_name);
+  }
   xs_compile_transition_key(state, jsb, (Node*)transition_node, event_name);
 
   xs_compile_inner_transition(state, jsb, transition_node);

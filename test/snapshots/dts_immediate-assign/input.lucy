@@ -1,0 +1,5 @@
+state first {
+  => assign(prop, :val) => second
+}
+
+state second {}
