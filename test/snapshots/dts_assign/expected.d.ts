@@ -5,6 +5,7 @@ type MachineEventNames = 'go';
 type MachineKnownContextKeys = 'prop';
 
 export interface CreateMachineOptions<TContext extends Record<MachineKnownContextKeys, any>, TEvent extends { type: MachineEventNames }> {
+  context: TContext,
   assigns: {
     val: PartialAssigner<
       TContext,

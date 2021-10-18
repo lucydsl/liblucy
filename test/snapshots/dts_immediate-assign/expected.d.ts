@@ -3,6 +3,7 @@ import { PartialAssigner, StateMachine } from 'xstate';
 type MachineKnownContextKeys = 'prop';
 
 export interface CreateMachineOptions<TContext extends Record<MachineKnownContextKeys, any>, TEvent> {
+  context: TContext,
   assigns: {
     val: PartialAssigner<
       TContext,
