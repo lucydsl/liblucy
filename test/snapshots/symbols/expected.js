@@ -52,7 +52,7 @@ export default function({ actions, assigns, context = {}, delays, guards, servic
         count: assigns.incrementLoads
       }),
       spawnTodoMachine: assign({
-        todo: spawn(services.todoMachine, 'todoMachine')
+        todo: () => spawn(services.todoMachine, 'todoMachine')
       })
     },
     delays: {

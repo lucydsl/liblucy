@@ -21,7 +21,7 @@ export default function({ context = {}, services } = {}) {
   }, {
     actions: {
       spawnExternal: assign({
-        mac: spawn(services.external, 'external')
+        mac: () => spawn(services.external, 'external')
       })
     }
   });
