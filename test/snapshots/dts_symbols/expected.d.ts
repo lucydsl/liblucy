@@ -39,7 +39,7 @@ export interface CreateMachineOptions<TContext extends Record<MachineKnownContex
   },
   services: {
     loadUsers: InvokeCreator<TContext, TEvent>,
-    todoMachine: StateMachine<TContext, any, TEvent>
+    todoMachine: StateMachine<any, any, any>
   }
 }
 

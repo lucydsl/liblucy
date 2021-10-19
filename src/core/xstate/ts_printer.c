@@ -371,7 +371,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
       while(string_list_next(&ir)) {
         char* actor_name = ir.node->value;
         js_builder_start_prop(buffer, actor_name);
-        js_builder_add_str(buffer, "StateMachine<TContext, any, TEvent>");
+        js_builder_add_str(buffer, "StateMachine<any, any, any>");
       }
     }
     js_builder_end_object(buffer);
