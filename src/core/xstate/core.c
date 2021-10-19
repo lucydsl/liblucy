@@ -122,6 +122,7 @@ bool xs_find_and_add_top_level_machine_name(PrintState* state, JSBuilder* jsb, c
 }
 
 void xs_add_spawn_call(PrintState* state, JSBuilder* jsb, SpawnExpression* spawn_expression) {
+  js_builder_add_str(jsb, "() => ");
   js_builder_start_call(jsb, "spawn");
   Expression* target = spawn_expression->target;
   char* name = NULL;
