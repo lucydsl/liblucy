@@ -37,7 +37,7 @@ export default function({ context = {} } = {}) {
           click: {
             target: 'end',
             actions: [
-              send('run', {
+              send((ctx, ev) => ({ type: 'run', data: ev.data }), {
                 to: (context) => context.first
               })
             ]
@@ -54,7 +54,7 @@ export default function({ context = {} } = {}) {
       makeThing: assign({
         second: () => spawn(createOther, 'other')
       }),
-      sendThing: send('run', {
+      sendThing: send((ctx, ev) => ({ type: 'run', data: ev.data }), {
         to: (context) => context.second
       })
     }

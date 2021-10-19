@@ -143,7 +143,9 @@ void xs_add_spawn_call(PrintState* state, JSBuilder* jsb, SpawnExpression* spawn
 
 void xs_add_send_call(JSBuilder* jsb, SendExpression* send_expression) {
   js_builder_start_call(jsb, "send");
+  js_builder_add_str(jsb, "(ctx, ev) => ({ type: ");
   js_builder_add_string(jsb, send_expression->event);
+  js_builder_add_str(jsb, ", data: ev.data })");
   js_builder_add_str(jsb, ", ");
   js_builder_start_object(jsb);
   js_builder_start_prop(jsb, "to");
