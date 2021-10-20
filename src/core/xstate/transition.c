@@ -117,7 +117,7 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
               }
             }
           }
-          
+
           break;
         }
         case EXPRESSION_SEND: {
