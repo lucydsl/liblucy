@@ -247,33 +247,65 @@ static void print_machine_definitions(ts_printer_t* printer) {
   }
   js_builder_add_str(buffer, "TContext");
 
-  if(printer->actions != NULL) {
+  if(printer->actions != NULL || printer->entry_actions != NULL) {
     js_builder_start_prop(buffer, "actions");
     js_builder_start_object(buffer);
-    hti it = ht_iterator(printer->actions);
-    while (ht_next(&it)) {      
-      js_builder_start_prop(buffer, (char*)it.key);
-      js_builder_add_str(buffer, "Action<\n");
-      js_builder_increase_indent(buffer);
-      js_builder_add_indent(buffer);
-      js_builder_add_str(buffer, "TContext,\n");
-      js_builder_add_indent(buffer);
-      xs_executor_t* executor = (xs_executor_t*)it.value;
-      if(executor->events->length > 0) {
-        char* extract_clause = build_extract_clause(executor->events);
-        js_builder_add_str(buffer, "TEvent extends ");
-        js_builder_add_str(buffer, extract_clause);
-        js_builder_add_str(buffer, " ? ");
-        js_builder_add_str(buffer, extract_clause);
-        js_builder_add_str(buffer, " : TEvent\n");
-      } else {
-        js_builder_add_str(buffer, "TEvent\n");
+
+    // Keep track of actions already added.
+    SimpleSet* actions_added = malloc(sizeof(*actions_added));
+    set_init(actions_added);
+
+    if(printer-> actions != NULL) {
+      hti it = ht_iterator(printer->actions);
+      while (ht_next(&it)) {
+        char* action_name = (char*)it.key;
+        js_builder_start_prop(buffer, action_name);
+        js_builder_add_str(buffer, "Action<\n");
+        js_builder_increase_indent(buffer);
+        js_builder_add_indent(buffer);
+        js_builder_add_str(buffer, "TContext,\n");
+        js_builder_add_indent(buffer);
+        xs_executor_t* executor = (xs_executor_t*)it.value;
+        if(executor->events->length > 0) {
+          char* extract_clause = build_extract_clause(executor->events);
+          js_builder_add_str(buffer, "TEvent extends ");
+          js_builder_add_str(buffer, extract_clause);
+          js_builder_add_str(buffer, " ? ");
+          js_builder_add_str(buffer, extract_clause);
+          js_builder_add_str(buffer, " : TEvent\n");
+        } else {
+          js_builder_add_str(buffer, "TEvent\n");
+        }
+        js_builder_decrease_indent(buffer);
+        js_builder_add_indent(buffer);
+        js_builder_add_str(buffer, ">");
+
+        set_add(actions_added, action_name);
       }
-      js_builder_decrease_indent(buffer);
-      js_builder_add_indent(buffer);
-      js_builder_add_str(buffer, ">");
     }
+
+    if(printer->entry_actions != NULL) {
+      hti it = ht_iterator(printer->entry_actions);
+      while (ht_next(&it)) {
+        string_list_t* actions = (string_list_t*)it.value;
+        string_list_iterator_t itea = string_list_iterator(actions);
+        while(string_list_next(&itea)) {
+          char* action_name = itea.node->value;
+
+          if(set_contains(actions_added, action_name) == SET_TRUE) {
+            continue;
+          }
+
+          js_builder_start_prop(buffer, action_name);
+          js_builder_add_str(buffer, "Action<TContext, TEvent>");
+
+          set_add(actions_added, action_name);
+        }
+      }
+    }
+
     js_builder_end_object(buffer);
+    set_destroy(actions_added);
   }
   if(printer->assigns != NULL) {
     //PartialAssigner<TContext, TEvent extends EventObject, TKey extends keyof TContext> =
