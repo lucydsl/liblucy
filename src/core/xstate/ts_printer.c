@@ -305,6 +305,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
     }
 
     js_builder_end_object(buffer);
+    set_destroy(actions_added);
   }
   if(printer->assigns != NULL) {
     //PartialAssigner<TContext, TEvent extends EventObject, TKey extends keyof TContext> =
