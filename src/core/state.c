@@ -28,9 +28,11 @@ State* state_new_state(char* source, char* filename) {
   return state;
 }
 
-void state_set_word(State* state, char* word) {
+void state_set_word(State* state, char* word, size_t start, size_t end) {
   state_reset_word(state);
   state->word = word;
+  state->word_start = start;
+  state->word_end = end;
 }
 
 char* state_take_word(State* state) {

@@ -110,8 +110,15 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
             xs_add_action_ref(state, expr->name, action_expression->ref);
 
             if(state->flags & XS_FLAG_DTS) {
-              if(state->in_entry && state->cur_state_name != NULL) {
-                ts_printer_add_entry_action(state->tsprinter, state->cur_state_name, expr->name);
+              if(state->in_entry && state->cur_state_start != 0) {
+                size_t i = state->cur_state_start;
+                char* cur_state_name = malloc((state->cur_state_end - state->cur_state_start) + 1);
+                while(i < state->cur_state_end) {
+                  cur_state_name[i - state->cur_state_start] = state->source[i];
+                  i++;
+                }
+                cur_state_name[i - state->cur_state_start] = '\0';
+                ts_printer_add_entry_action(state->tsprinter, cur_state_name, expr->name);
               } else {
                 ts_printer_add_action(state->tsprinter, expr->name, state->cur_event_name);
               }

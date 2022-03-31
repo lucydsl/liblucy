@@ -37,6 +37,10 @@ void js_builder_add_str(JSBuilder* jsb, char* str) {
   str_builder_add_str(jsb->sb, str, 0);
 }
 
+void js_builder_copy_str(JSBuilder* jsb, char* str, size_t start, size_t end) {
+  str_builder_copy_str(jsb->sb, str, start, end);
+}
+
 void js_builder_safe_key(JSBuilder* jsb, char* str) {
   // TODO make sure this string is a valid key
   js_builder_add_str(jsb, str);
@@ -85,6 +89,20 @@ void js_builder_start_prop(JSBuilder* jsb, char* key) {
   // TODO Quote if necessary
   js_builder_add_indent(jsb);
   js_builder_add_str(jsb, key);
+  js_builder_add_str(jsb, ": ");
+}
+
+void js_builder_start_prop_no_copy(JSBuilder* jsb, char* key, size_t start, size_t end) {
+  int len = str_builder_len(jsb->sb);
+  char c = str_builder_char_at(jsb->sb, len - 2);
+
+  if(c != '{') {
+    js_builder_add_str(jsb, ",\n");
+  }
+
+  // TODO Quote if necessary
+  js_builder_add_indent(jsb);
+  js_builder_copy_str(jsb, key, start, end);
   js_builder_add_str(jsb, ": ");
 }
 

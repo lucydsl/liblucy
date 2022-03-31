@@ -37,6 +37,8 @@ void str_builder_destroy(str_builder_t *sb);
  */
 void str_builder_add_str(str_builder_t *sb, const char *str, size_t len);
 
+void str_builder_copy_str(str_builder_t *sb, char *str, size_t start, size_t end);
+
 /*! Add a character to the builder.
  *
  * param[in,out] sb Builder.

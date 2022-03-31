@@ -59,7 +59,8 @@ typedef struct MachineNode {
 
 typedef struct StateNode {
   Node node;
-  char* name;
+  int name_start;
+  int name_end;
 
   bool final;
   struct LocalNode* entry;

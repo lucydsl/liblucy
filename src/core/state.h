@@ -18,6 +18,8 @@ typedef struct State {
   bool started;
 
   size_t modifier;
+  size_t word_start;
+  size_t word_end;
   char* word;
   size_t word_len;
   size_t token_len;
@@ -46,7 +48,7 @@ void state_find_position(State*, pos_t*, int);
 State* state_new_state(char*, char*);
 void state_advance_line(State*);
 void state_advance_column(State*);
-void state_set_word(State*, char*);
+void state_set_word(State*, char*, size_t, size_t);
 char* state_take_word(State*);
 void state_reset_word(State*);
 void state_node_set(State*, Node*);
