@@ -61,6 +61,7 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
 
   PrintState state = {
     .flags = result->flags,
+    .source = source,
     .program = program,
     .guard = NULL,
     .action = NULL,
@@ -72,7 +73,8 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     .service_names = malloc(sizeof(SimpleSet)),
     .tsprinter = NULL,
     .cur_event_name = NULL,
-    .cur_state_name = NULL,
+    .cur_state_start = 0,
+    .cur_state_end = 0,
     .in_entry = false
   };
   set_init(state.events);

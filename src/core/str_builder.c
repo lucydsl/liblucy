@@ -86,6 +86,18 @@ void str_builder_add_str(str_builder_t *sb, const char *str, size_t len)
     sb->str[sb->len] = '\0';
 }
 
+void str_builder_copy_str(str_builder_t *sb, char *str, size_t start, size_t end)
+{
+    size_t len = end - start;
+    if (sb == NULL || str == NULL || *str == '\0')
+        return;
+
+    str_builder_ensure_space(sb, len);
+    memmove(sb->str+sb->len, str + start, len);
+    sb->len += len;
+    sb->str[sb->len] = '\0';
+}
+
 void str_builder_add_char(str_builder_t *sb, char c)
 {
     if (sb == NULL)

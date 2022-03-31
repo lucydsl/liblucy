@@ -21,6 +21,7 @@ typedef struct Ref {
 
 typedef struct PrintState {
   int flags;
+  char* source;
   Program* program;
   Ref* guard;
   SimpleSet* guard_names;
@@ -33,7 +34,8 @@ typedef struct PrintState {
   SimpleSet* events;
   ts_printer_t* tsprinter;
   char* cur_event_name;
-  char* cur_state_name;
+  size_t cur_state_start;
+  size_t cur_state_end;
   bool in_entry;
 } PrintState;
 

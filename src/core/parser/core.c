@@ -20,6 +20,7 @@ typedef bool (*consume_condition)(State*, char);
 
 static void consume_while(State* state, consume_condition cond) {
   char c = state_char(state);
+  size_t start = state->index;
 
   str_builder_t *sb;
   sb = str_builder_create();
@@ -40,8 +41,9 @@ static void consume_while(State* state, consume_condition cond) {
     state_advance_line(state);
   }
 
+  size_t end = state->index + 1;
   char* str = str_builder_dump(sb, NULL);
-  state_set_word(state, str);
+  state_set_word(state, str, start, end);
   state->word_len = len;
   state->token_len = len;
   str_builder_destroy(sb);
@@ -51,6 +53,7 @@ static char* consume_string(State* state) {
   char c = state_char(state);
   char quote = c;
   size_t len = 0;
+  size_t start = state->index;
 
   str_builder_t *sb;
   sb = str_builder_create();
@@ -68,8 +71,9 @@ static char* consume_string(State* state) {
 
   str_builder_add_char(sb, quote);
 
+  size_t end = state->index;
   char* str = str_builder_dump(sb, &len);
-  state_set_word(state, str);
+  state_set_word(state, str, start, end);
   str_builder_destroy(sb);
   
   return str;

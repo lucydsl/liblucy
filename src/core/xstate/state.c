@@ -31,7 +31,7 @@ void xs_enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_start_object(jsb);
   }
 
-  js_builder_start_prop(jsb, state_node->name);
+  js_builder_start_prop_no_copy(jsb, state->source, state_node->name_start, state_node->name_end);
   js_builder_start_object(jsb);
 
   if(state_node->final) {
@@ -40,9 +40,11 @@ void xs_enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
   }
 
   if(state_node->entry != NULL) {
-    state->cur_state_name = state_node->name;
+    state->cur_state_start = state_node->name_start;
+    state->cur_state_end = state_node->name_end;
     compile_local_node(state, jsb, state_node->entry);
-    state->cur_state_name = NULL;
+    state->cur_state_start = 0;
+    state->cur_state_end = 0;
   }
   if(state_node->exit != NULL) {
     compile_local_node(state, jsb, state_node->exit);

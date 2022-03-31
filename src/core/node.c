@@ -393,7 +393,7 @@ void node_destroy_machine(MachineNode* machine_node) {
 }
 
 void node_destroy_state(StateNode* state_node) {
-  free(state_node->name);
+  // TODO nothing to do, remove?
 }
 
 void node_destroy_invoke(InvokeNode* invoke_node) {
