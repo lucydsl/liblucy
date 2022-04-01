@@ -1,6 +1,6 @@
 {
   "name": "@lucy/liblucy",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "description": "The Lucy compiler project.",
   "exports": {
     ".": {
