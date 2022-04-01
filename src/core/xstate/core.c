@@ -104,16 +104,32 @@ void xs_end_assign_call(JSBuilder* jsb) {
   js_builder_end_call(jsb);
 }
 
+char* xs_copy_str_from_source(PrintState* state, size_t start, size_t end) {
+  size_t len = end - start;
+  char* out = malloc(len + sizeof(char));
+  size_t i = start;
+  while(i < end) {
+    out[i - start] = state->source[i];
+    i++;
+  }
+  out[i - start] = '\0';
+  return out;
+}
+
 bool xs_find_and_add_top_level_machine_name(PrintState* state, JSBuilder* jsb, char* matching_name) {
   unsigned long searchid = hash_function(matching_name);
   Node* cur = state->program->body;
   while(cur != NULL) {
     if(cur->type == NODE_MACHINE_TYPE) {
       MachineNode* cur_machine = (MachineNode*)cur;
-      char* machine_name = cur_machine->name;
-      if(machine_name != NULL && hash_function(machine_name) == searchid) {
-        xs_add_machine_binding_name(jsb, cur_machine);
-        return true;
+      if(cur_machine->name_start != 0) {
+        char* machine_name = xs_copy_str_from_source(state, cur_machine->name_start, cur_machine->name_end);
+        if(hash_function(machine_name) == searchid) {
+          xs_add_machine_binding_name(state, jsb, cur_machine);
+          free(machine_name);
+          return true;
+        }
+        free(machine_name);
       }
     }
     cur = cur->next;

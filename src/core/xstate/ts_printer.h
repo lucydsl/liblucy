@@ -26,9 +26,11 @@ typedef struct xs_assign_executor_t {
 
 typedef struct ts_printer_t {
   int flags;
+  char* source;
 
   int machine_flags;
-  char* machine_name;
+  size_t machine_name_start;
+  size_t machine_name_end;
   char* xstate_specifier;
   JSBuilder* buffer;
   str_builder_t* imp_sb;
@@ -61,7 +63,7 @@ void ts_printer_add_invoke(ts_printer_t*, char*);
 void ts_printer_add_actor(ts_printer_t*, char*);
 void ts_printer_add_delay(ts_printer_t*, char*);
 void ts_printer_create_machine(ts_printer_t*);
-void ts_printer_add_machine_name(ts_printer_t*, char*);
+void ts_printer_add_machine_name(ts_printer_t*, size_t, size_t);
 void ts_printer_add_state_entry(ts_printer_t*, char*, char*);
 void ts_printer_add_entry_action(ts_printer_t*, char*, char*);
 void ts_printer_figure_out_entry_events(ts_printer_t*);

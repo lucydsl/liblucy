@@ -30,21 +30,19 @@ static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* 
   js_builder_add_str(jsb, " } = {}");
 }
 
-void xs_add_machine_binding_name(JSBuilder* jsb, MachineNode* machine_node) {
+void xs_add_machine_binding_name(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "create");
-  char* machine_name = machine_node->name;
-  int machine_name_len = strlen(machine_name);
-  js_builder_add_char(jsb, toupper(machine_name[0]));
-  int i = 1;
-  while(i < machine_name_len) {
-    js_builder_add_char(jsb, machine_name[i]);
+  js_builder_add_char(jsb, toupper(state->source[machine_node->name_start]));
+  int i = machine_node->name_start + 1;
+  while(i < machine_node->name_end) {
+    js_builder_add_char(jsb, state->source[i]);
     i++;
   }
 }
 
 static inline void compile_machine(PrintState* state, JSBuilder* jsb, MachineNode* machine_node, bool is_nested) {
   if(!is_nested) {
-    if(machine_node->name == NULL) {
+    if(machine_node->name_start == 0) {
       js_builder_add_str(jsb, "\nexport default function(");
       add_machine_fn_args(state, jsb, machine_node);
       js_builder_add_str(jsb, ") {\n");
@@ -52,7 +50,7 @@ static inline void compile_machine(PrintState* state, JSBuilder* jsb, MachineNod
     } else {
       js_builder_add_export(jsb);
       js_builder_add_str(jsb, "function ");
-      xs_add_machine_binding_name(jsb, machine_node);
+      xs_add_machine_binding_name(state, jsb, machine_node);
       js_builder_add_str(jsb, "(");
       add_machine_fn_args(state, jsb, machine_node);
       js_builder_add_str(jsb, ") {\n");
@@ -75,7 +73,7 @@ void xs_enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
   bool is_nested = node_machine_is_nested(node);
   compile_machine(state, jsb, machine_node, is_nested);
   if(state->flags & XS_FLAG_DTS) {
-    ts_printer_add_machine_name(state->tsprinter, machine_node->name);
+    ts_printer_add_machine_name(state->tsprinter, machine_node->name_start, machine_node->name_end);
   }
 }
 
