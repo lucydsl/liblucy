@@ -32,7 +32,6 @@ static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* 
 
 void xs_add_machine_binding_name(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "create");
-
   js_builder_add_char(jsb, toupper(state->source[machine_node->name_start]));
   int i = machine_node->name_start + 1;
   while(i < machine_node->name_end) {

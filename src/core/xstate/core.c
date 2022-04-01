@@ -106,13 +106,13 @@ void xs_end_assign_call(JSBuilder* jsb) {
 
 char* xs_copy_str_from_source(PrintState* state, size_t start, size_t end) {
   size_t len = end - start;
-  char* out = malloc(len + 1);
+  char* out = malloc(len + sizeof(char));
   size_t i = start;
   while(i < end) {
     out[i - start] = state->source[i];
     i++;
   }
-  out[i] = '\0';
+  out[i - start] = '\0';
   return out;
 }
 
