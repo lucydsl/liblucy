@@ -95,7 +95,8 @@ int parser_consume_machine(State* state) {
     err = 1;
     goto end;
   }
-  machine_node->name = state_take_word(state);
+  machine_node->name_start = state->word_start;
+  machine_node->name_end = state->word_end;
 
   token = consume_token(state);
 

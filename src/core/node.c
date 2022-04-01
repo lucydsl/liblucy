@@ -53,7 +53,8 @@ MachineNode* node_create_machine() {
   Node* node = node_create_type(NODE_MACHINE_TYPE, sizeof(MachineNode));
   MachineNode *machine_node = (MachineNode*)node;
   machine_node->initial = NULL;
-  machine_node->name = NULL;
+  machine_node->name_start = 0;
+  machine_node->name_end = 0;
   machine_node->impl_flags = 0;
   machine_node->flags = 0;
   return machine_node;

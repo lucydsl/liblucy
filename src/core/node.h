@@ -53,7 +53,8 @@ typedef struct MachineNode {
 
   int impl_flags;
   int flags;
-  char* name;
+  size_t name_start;
+  size_t name_end;
   char* initial;
 } MachineNode;
 

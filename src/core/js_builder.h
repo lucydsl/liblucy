@@ -17,6 +17,7 @@ void js_builder_destroy(JSBuilder*);
 
 void js_builder_add_char(JSBuilder*, char);
 void js_builder_add_str(JSBuilder*, char*);
+void js_builder_copy_str(JSBuilder*, char*, size_t, size_t);
 void js_builder_safe_key(JSBuilder*, char*);
 void js_builder_add_string(JSBuilder*, char*);
 
