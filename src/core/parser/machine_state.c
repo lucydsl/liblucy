@@ -32,7 +32,6 @@ int parser_consume_state(State* state) {
   switch(token) {
     case TOKEN_IDENTIFIER: {
       // Set the name of the state
-      char* state_name = state_take_word(state);
       state_node->name_start = state->word_start;
       state_node->name_end = state->word_end;
 
@@ -40,7 +39,8 @@ int parser_consume_state(State* state) {
         case MODIFIER_TYPE_INITIAL: {
           state->modifier = MODIFIER_NONE;
           MachineNode* machine_node = (MachineNode*)parent_node;
-          machine_node->initial = strdup(state_name);
+          machine_node->initial_start = state_node->name_start;
+          machine_node->initial_end = state_node->name_end;
           break;
         }
         case MODIFIER_TYPE_FINAL: {

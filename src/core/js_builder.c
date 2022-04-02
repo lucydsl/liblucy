@@ -52,6 +52,12 @@ void js_builder_add_string(JSBuilder* jsb, char* value) {
   js_builder_add_str(jsb, "'");
 }
 
+void js_builder_copy_string(JSBuilder* jsb, char* input, size_t start, size_t end) {
+  js_builder_add_str(jsb, "'");
+  js_builder_copy_str(jsb, input, start, end);
+  js_builder_add_str(jsb, "'");
+}
+
 void js_builder_add_indent(JSBuilder* jsb) {
   char* indent = str_builder_dump(jsb->ib, NULL);
   str_builder_add_str(jsb->sb, indent, 0);

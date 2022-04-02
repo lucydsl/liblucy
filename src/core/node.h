@@ -55,7 +55,8 @@ typedef struct MachineNode {
   int flags;
   size_t name_start;
   size_t name_end;
-  char* initial;
+  size_t initial_start;
+  size_t initial_end;
 } MachineNode;
 
 typedef struct StateNode {
