@@ -60,9 +60,9 @@ static inline void compile_machine(PrintState* state, JSBuilder* jsb, MachineNod
     js_builder_start_object(jsb);
   }
 
-  if(machine_node->initial != NULL) {
+  if(machine_node->initial_start != 0) {
     js_builder_start_prop(jsb, "initial");
-    js_builder_add_string(jsb, machine_node->initial);
+    js_builder_copy_string(jsb, state->source, machine_node->initial_start, machine_node->initial_end);
   }
   js_builder_shorthand_prop(jsb, "context");
 }

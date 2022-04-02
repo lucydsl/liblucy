@@ -52,7 +52,8 @@ static TransitionDelay* create_transition_delay() {
 MachineNode* node_create_machine() {
   Node* node = node_create_type(NODE_MACHINE_TYPE, sizeof(MachineNode));
   MachineNode *machine_node = (MachineNode*)node;
-  machine_node->initial = NULL;
+  machine_node->initial_start = 0;
+  machine_node->initial_end = 0;
   machine_node->name_start = 0;
   machine_node->name_end = 0;
   machine_node->impl_flags = 0;
@@ -390,7 +391,7 @@ void node_destroy_import_specifier(ImportSpecifier* specifier) {
 }
 
 void node_destroy_machine(MachineNode* machine_node) {
-  free(machine_node->initial);
+  // TODO nothing to do, remove?
 }
 
 void node_destroy_state(StateNode* state_node) {
