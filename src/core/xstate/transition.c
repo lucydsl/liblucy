@@ -31,7 +31,7 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
       js_builder_add_string(jsb, action->name);
     } else {
       // Inline assign!
-      unsigned short expression_type = action->expression->type;
+      ExpressionType expression_type = action->expression->type;
       switch(expression_type) {
         case EXPRESSION_ASSIGN: {
           AssignExpression* assign_expression = (AssignExpression*)action->expression;
@@ -82,6 +82,9 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
                 }
                 break;
               }
+              default: {
+                break;
+              }
             }
           } else {
             xs_start_assign_call(jsb, assign_expression);
@@ -126,6 +129,9 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
           xs_add_send_call(jsb, send_expression);
           break;
         }
+        default: {
+          break;
+        }
       }
     }
 
@@ -146,11 +152,11 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
 
 void xs_compile_transition_key(PrintState* state, JSBuilder* jsb, Node* node, char* event_name) {
   TransitionNode* transition_node = (TransitionNode*)node;
-  int type = transition_node->type;
+  TransitionType type = transition_node->type;
 
   Node* parent_node = node->parent;
 
-  if(parent_node->type == NODE_INVOKE_TYPE) {
+  if(parent_node->type == NODE_INVOKE) {
     if(strcmp(event_name, "done") == 0) {
       js_builder_start_prop(jsb, "onDone");
     } else if(strcmp(event_name, "error") == 0) {
@@ -160,7 +166,7 @@ void xs_compile_transition_key(PrintState* state, JSBuilder* jsb, Node* node, ch
     }
   } else {
     switch(type) {
-      case TRANSITION_EVENT_TYPE: {
+      case TRANSITION_EVENT: {
         js_builder_start_prop(jsb, event_name);
 
         // If there is another event with this name, use an array.
@@ -171,7 +177,7 @@ void xs_compile_transition_key(PrintState* state, JSBuilder* jsb, Node* node, ch
 
         break;
       }
-      case TRANSITION_DELAY_TYPE: {
+      case TRANSITION_DELAY: {
         DelayExpression* delay = transition_node->delay->expression;
         if(delay->ref == NULL) {
           char str[12]; // Fits any int, sign and NUL included.
@@ -193,6 +199,9 @@ void xs_compile_transition_key(PrintState* state, JSBuilder* jsb, Node* node, ch
           }
         }
 
+        break;
+      }
+      default: {
         break;
       }
     }
@@ -247,7 +256,7 @@ static char* serialize_destination(PrintState* state, TransitionNode* transition
 }
 
 void xs_compile_inner_transition(PrintState* state, JSBuilder* jsb, TransitionNode* transition_node) {
-  bool is_always = transition_node->type == TRANSITION_IMMEDIATE_TYPE;
+  bool is_always = transition_node->type == TRANSITION_IMMEDIATE;
   bool has_guard = transition_node->guard != NULL;
   bool has_action = transition_node->action != NULL;
   bool has_guard_or_action = has_guard || has_action;

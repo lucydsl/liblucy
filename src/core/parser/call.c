@@ -5,7 +5,7 @@
 
 int consume_call_expression(State* state, const char* fn_name, void* expr, consume_call_expr_args on_args) {
   int err = 0;
-  int token = consume_token(state);
+  TokenType token = consume_token(state);
 
   bool in_call = false;
   if(token != TOKEN_BEGIN_CALL) {

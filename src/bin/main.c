@@ -59,8 +59,11 @@ static void version(void) {
   fputs(PROGRAM_VERSION "\n", stdout);
 }
 
-#define PRINT_TARGET_JS 0
-#define PRINT_TARGET_DTS 1
+// What --print prints.
+typedef enum PrintTarget {
+  PRINT_TARGET_JS,
+  PRINT_TARGET_DTS,
+} PrintTarget;
 
 static int mkdirp(const char *path, int is_file) {
     const size_t len = strlen(path);
@@ -143,7 +146,7 @@ static char* read_file(const char* filename) {
 }
 
 static int compile_file(char* filename, int use_remote_imports, int include_dts,
-  char* out_file, size_t outlen, int print_target) {
+  char* out_file, size_t outlen, PrintTarget print_target) {
   char* buffer = read_file(filename);
   if(buffer == NULL) {
     fprintf(stderr, "Error opening file!\n");
@@ -223,7 +226,7 @@ static char* relative_name(const char* rootdir, const char* filename, size_t fnl
 
 static int compile_dir(char* rootdir, char* dirname, size_t dirlen,
   int use_remote_imports, int include_dts, char* out_dir, size_t outdirlen,
-  int print_target) {
+  PrintTarget print_target) {
   DIR* fd;
   struct dirent* in_file;
   int ret = 0;
@@ -279,11 +282,14 @@ static int compile_dir(char* rootdir, char* dirname, size_t dirlen,
   return ret;
 }
 
-#define OPTION_REMOTE_IMPORTS 0
-#define OPTION_OUT_FILE 1
-#define OPTION_OUT_DIR 2
-#define OPTION_EXPERIMENTAL_DTS 3
-#define OPTION_PRINT 4
+// getopt_long's codes for the long options.
+enum {
+  OPTION_REMOTE_IMPORTS,
+  OPTION_OUT_FILE,
+  OPTION_OUT_DIR,
+  OPTION_EXPERIMENTAL_DTS,
+  OPTION_PRINT,
+};
 
 static struct option long_options[] = {
   {"remote-imports", no_argument, 0, OPTION_REMOTE_IMPORTS},
@@ -306,7 +312,7 @@ int main(int argc, char *argv[]) {
   char* out_file = NULL;
   size_t out_file_len = 0;
   char* out_dir = NULL;
-  int print_target = 0;
+  PrintTarget print_target = PRINT_TARGET_JS;
 
   int option_index = 0;
   int opt;

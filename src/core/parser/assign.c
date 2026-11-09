@@ -9,16 +9,16 @@ static inline void maybe_add_machine_uses_assign(AssignExpression* assign_expres
 }
 
 /* Public API */
-int parser_consume_inline_assign_args(State* state, void* expr, int token, char* arg, int argi) {
+int parser_consume_inline_assign_args(State* state, void* expr, TokenType token, char* arg, int argi) {
   int err = 0;
   AssignExpression* assign_expression = (AssignExpression*)expr;
 
   if(argi == 0) {
     assign_expression->key = arg;
   } else {
-    unsigned short key = keyword_get(arg);
+    Keyword key = keyword_get(arg);
     switch(key) {
-      case KW_SPAWN: {
+      case KEYWORD_SPAWN: {
         _check(parser_consume_inline_spawn(state, assign_expression));
         break;
       }
@@ -34,6 +34,9 @@ int parser_consume_inline_assign_args(State* state, void* expr, int token, char*
             SymbolExpression* symbol_expression = node_create_symbolexpression(state->arena);
             symbol_expression->name = arg;
             assign_expression->value = (Expression*)symbol_expression;
+            break;
+          }
+          default: {
             break;
           }
         }
@@ -54,17 +57,20 @@ int parser_consume_inline_assign(State* state, Node* node) {
   _check(consume_call_expression(state, "assign", assign_expression, &parser_consume_inline_assign_args));
 
   switch(node->type) {
-    case NODE_TRANSITION_TYPE: {
+    case NODE_TRANSITION: {
       TransitionNode* transition_node = (TransitionNode*)node;
       TransitionAction* action = node_transition_add_action(state->arena, transition_node, NULL);
       action->expression = (Expression*)assign_expression;
       break;
     }
-    case NODE_LOCAL_TYPE: {
+    case NODE_LOCAL: {
       LocalNode* local_node = (LocalNode*)node;
       TransitionAction* action = create_transition_action(state->arena);
       action->expression = (Expression*)assign_expression;
       node_local_add_action(local_node, action);
+      break;
+    }
+    default: {
       break;
     }
   }

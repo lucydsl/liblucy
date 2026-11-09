@@ -2,7 +2,7 @@
 
 #include "../support/arena.h"
 
-static Expression* create_expression(Arena* arena, unsigned short type, size_t size) {
+static Expression* create_expression(Arena* arena, ExpressionType type, size_t size) {
   Expression* expression = arena_alloc(arena, size);
   expression->type = type;
   return expression;

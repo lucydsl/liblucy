@@ -4,7 +4,7 @@
 
 static int consume_use_specifiers(ImportNode* import_node, State* state) {
   int err = 0;
-  int token;
+  TokenType token;
 
   // The specifier read but not yet added. Only add one once: `{ a,, b }`
   // used to append a twice, which made the list loop, and `{ }` appended
@@ -70,7 +70,7 @@ int parser_consume_use(State* state) {
   state_node_start_pos(state, node, 4);
   state_node_set(state, node);
 
-  int token;
+  TokenType token;
 
   token = consume_token(state);
 

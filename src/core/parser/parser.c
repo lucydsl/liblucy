@@ -6,7 +6,7 @@ static int consume_program(State* state) {
   int err = 0;
   Program* program = state->program;
 
-  int token;
+  TokenType token;
 
   while(true) {
     token = consume_token(state);
@@ -22,13 +22,13 @@ static int consume_program(State* state) {
           return 2;
         }
 
-        unsigned short key = keyword_get(identifier);
+        Keyword key = keyword_get(identifier);
         switch(key) {
-          case KW_USE: {
+          case KEYWORD_USE: {
             _check(parser_consume_use(state));
             break;
           }
-          case KW_MACHINE: {
+          case KEYWORD_MACHINE: {
             _check(parser_consume_machine(state));
             break;
           }
@@ -39,6 +39,9 @@ static int consume_program(State* state) {
           }
         }
 
+        break;
+      }
+      default: {
         break;
       }
     }

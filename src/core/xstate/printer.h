@@ -12,12 +12,12 @@
 #include "../support/str_set.h"
 #include "ts_printer.h"
 
-// API flags
-#define XS_FLAG_USE_REMOTE 1 << 0
-#define XS_FLAG_DTS 1 << 1
+// CompileResult.flags and PrintState.flags: the compile's options.
+#define XS_FLAG_USE_REMOTE (1u << 0)
+#define XS_FLAG_DTS (1u << 1)
 
-// Machine implementation flags
-#define XS_HAS_STATE_PROP 1 << 0
+// MachineNode.impl_flags: what the printer has printed for a machine.
+#define XS_HAS_STATE_PROP (1u << 0)
 
 /*
  * A named guard, action, delay or service that a machine's options
@@ -36,7 +36,7 @@ typedef struct Ref {
  * tsprinter, which compile_xstate destroys.
  */
 typedef struct PrintState {
-  int flags;
+  unsigned flags;
   Arena* arena;
   char* source;
   Program* program;

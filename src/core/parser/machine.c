@@ -1,8 +1,8 @@
 #include "internal.h"
 
-static int consume_machine_inner(State* state, bool is_implicit, int initial_token) {
+static int consume_machine_inner(State* state, bool is_implicit, TokenType initial_token) {
   int err = 0;
-  int token = is_implicit ? initial_token : consume_token(state);
+  TokenType token = is_implicit ? initial_token : consume_token(state);
 
   while(true) {
     switch(token) {
@@ -25,30 +25,33 @@ static int consume_machine_inner(State* state, bool is_implicit, int initial_tok
           goto end;
         }
 
-        unsigned short key = keyword_get(identifier);
+        Keyword key = keyword_get(identifier);
         switch(key) {
-          case KW_INITIAL: {
-            state->modifier = MODIFIER_TYPE_INITIAL;
+          case KEYWORD_INITIAL: {
+            state->modifier = MODIFIER_INITIAL;
             break;
           }
-          case KW_FINAL: {
-            state->modifier = MODIFIER_TYPE_FINAL;
+          case KEYWORD_FINAL: {
+            state->modifier = MODIFIER_FINAL;
             break;
           }
-          case KW_STATE: {
+          case KEYWORD_STATE: {
             _check(parser_consume_state(state));
             break;
           }
-          case KW_USE: {
+          case KEYWORD_USE: {
             _check(parser_consume_use(state));
             break;
           }
-          case KW_ACTION: {
+          case KEYWORD_ACTION: {
             _check(parser_consume_action(state));
             break;
           }
-          case KW_GUARD: {
+          case KEYWORD_GUARD: {
             _check(parser_consume_guard(state));
+            break;
+          }
+          default: {
             break;
           }
         }
@@ -86,7 +89,7 @@ static int consume_named_machine(State* state) {
   Node* node = (Node*)machine_node;
   state_node_set(state, node);
 
-  int token = consume_token(state);
+  TokenType token = consume_token(state);
   if(token != TOKEN_IDENTIFIER) {
     error_msg_with_code_block(state, node, "Machine must have a name.");
     err = 1;
@@ -125,7 +128,7 @@ int parser_consume_machine(State* state) {
 }
 
 // Only at the top level, so it can't be too deep.
-int parser_consume_implicit_machine(State* state, int current_token) {
+int parser_consume_implicit_machine(State* state, TokenType current_token) {
   int err = 0;
 
   MachineNode* machine_node = node_create_machine(state->arena);

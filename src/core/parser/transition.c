@@ -21,7 +21,7 @@ static void link_event_transition(Node* parent_node, TransitionNode* transition_
 
   TransitionNode* child_transition_node = NULL;
   switch(parent_node->type) {
-    case NODE_STATE_TYPE: {
+    case NODE_STATE: {
       StateNode* state_node = (StateNode*)parent_node;
       child_transition_node = state_node->event_transition;
       if(child_transition_node == NULL) {
@@ -30,13 +30,16 @@ static void link_event_transition(Node* parent_node, TransitionNode* transition_
       }
       break;
     }
-    case NODE_INVOKE_TYPE: {
+    case NODE_INVOKE: {
       InvokeNode* invoke_node = (InvokeNode*)parent_node;
       child_transition_node = invoke_node->event_transition;
       if(child_transition_node == NULL) {
         invoke_node->event_transition = transition_node;
         return;
       }
+      break;
+    }
+    default: {
       break;
     }
   }
@@ -94,7 +97,7 @@ static void link_delay_transition(StateNode* state_node, TransitionNode* transit
   }
 }
 
-static int consume_on_args(State* state, void* expr, int _token, char* arg, int _argi) {
+static int consume_on_args(State* state, void* expr, TokenType _token, char* arg, int _argi) {
   OnExpression* on_expression = (OnExpression*)expr;
   on_expression->name = arg;
   return 0;
@@ -117,7 +120,7 @@ static int consume_member_expression(State* state, TransitionNode* transition_no
   MemberExpression* top_member_expression = node_create_memberexpression(state->arena);
   top_member_expression->owner = state_take_word(state);
   state_next(state);
-  int token = consume_token(state);
+  TokenType token = consume_token(state);
 
   if(token != TOKEN_IDENTIFIER) {
     error_unexpected_identifier(state, (Node*)transition_node);
@@ -145,28 +148,28 @@ int parser_consume_transition(State* state) {
     error_msg_with_code_block(state, (Node*)transition_node, "Unexpected parent node to a transition.");
     return 2;
   }
-  size_t current_node_type = current_node->type;
+  NodeType current_node_type = current_node->type;
 
   char* event = state_take_word(state);
 
   // Always transition
   if(event == NULL) {
-    if(current_node->type != NODE_STATE_TYPE) {
+    if(current_node->type != NODE_STATE) {
       error_msg_with_code_block_dec(state, state->token_len, "An immediate transitions must be a child of state");
       err = 1;
     } else {
-      transition_node->type = TRANSITION_IMMEDIATE_TYPE;
+      transition_node->type = TRANSITION_IMMEDIATE;
       link_immediate_transition((StateNode*)current_node, transition_node);
     }
 
     // Currently in a call, so rewind to back out.
     state_rewind(state, 2);
   } else {
-    unsigned short key = keyword_get(event);
+    Keyword key = keyword_get(event);
 
     switch(key) {
-      case KW_DELAY: {
-        if(current_node->type != NODE_STATE_TYPE) {
+      case KEYWORD_DELAY: {
+        if(current_node->type != NODE_STATE) {
           error_msg_with_code_block_dec(state, state->token_len, "delay must be a child of a state");
           err = 1;
         } else {
@@ -176,7 +179,7 @@ int parser_consume_transition(State* state) {
 
         break;
       }
-      case KW_ON: {
+      case KEYWORD_ON: {
         _check(consume_on(state, transition_node));
         link_event_transition(current_node, transition_node);
         break;
@@ -196,12 +199,12 @@ int parser_consume_transition(State* state) {
   state_node_start_pos(state, transition_node_node, rewind_to_start);
 
   switch(current_node_type) {
-    case NODE_STATE_TYPE: {
+    case NODE_STATE: {
       node_append(current_node, transition_node_node);
       state->parent_node = current_node;
       break;
     }
-    case NODE_INVOKE_TYPE: {
+    case NODE_INVOKE: {
       node_append(current_node, transition_node_node);
       state->parent_node = current_node;
       break;
@@ -217,7 +220,7 @@ int parser_consume_transition(State* state) {
   bool block_transition = false;
   char* identifier = NULL;
   while(true) {
-    int token = consume_token(state);
+    TokenType token = consume_token(state);
 
     if(token == TOKEN_EOL) {
       if(block_transition) {
@@ -263,22 +266,22 @@ int parser_consume_transition(State* state) {
     switch(token) {
       case TOKEN_IDENTIFIER: {
         identifier = state_take_word(state);
-        unsigned short key = keyword_get(identifier);
+        Keyword key = keyword_get(identifier);
         switch(key) {
           // Inline guard
-          case KW_GUARD: {
+          case KEYWORD_GUARD: {
             _check(parser_consume_inline_guard(state, transition_node));
             break;
           }
-          case KW_ASSIGN: {
+          case KEYWORD_ASSIGN: {
             _check(parser_consume_inline_assign(state, transition_node_node));
             break;
           }
-          case KW_ACTION: {
+          case KEYWORD_ACTION: {
             _check(parser_consume_inline_action(state, transition_node_node));
             break;
           }
-          case KW_SEND: {
+          case KEYWORD_SEND: {
             _check(parser_consume_inline_send(state, transition_node_node));
             break;
           }

@@ -13,9 +13,12 @@
 #include "../support/arena.h"
 #include "../support/str_set.h"
 
-#define MODIFIER_NONE 0
-#define MODIFIER_TYPE_INITIAL 1
-#define MODIFIER_TYPE_FINAL 2
+// The keyword before a state: `initial state a` or `final state b`.
+typedef enum Modifier {
+  MODIFIER_NONE,
+  MODIFIER_INITIAL,
+  MODIFIER_FINAL,
+} Modifier;
 
 /*
  * The parser's state for one parse. It lives on parse()'s stack and is set
@@ -33,7 +36,7 @@ typedef struct State {
   size_t column;
   bool started;
 
-  size_t modifier;
+  Modifier modifier;
   size_t word_start;
   size_t word_end;
   // The current word, an arena string. state_take_word hands it to a node.
@@ -60,23 +63,25 @@ typedef struct pos_t {
 
 /* lexer.c: the cursor, words and tokens. */
 
-#define TOKEN_EOF 0
-#define TOKEN_EOL 1
-#define TOKEN_IDENTIFIER 2
-#define TOKEN_ASSIGNMENT 3
-#define TOKEN_CALL 4
-#define TOKEN_BEGIN_BLOCK 5
-#define TOKEN_END_BLOCK 6
-#define TOKEN_STRING 7
-#define TOKEN_INTEGER 8
-#define TOKEN_TIMEFRAME 9
-#define TOKEN_UNKNOWN 10
-#define TOKEN_BEGIN_CALL 11
-#define TOKEN_END_CALL 12
-#define TOKEN_COMMA 13
-#define TOKEN_LOCAL 14
-#define TOKEN_SYMBOL 15
-#define TOKEN_MEMBER_EXPRESSION 16
+typedef enum TokenType {
+  TOKEN_EOF,
+  TOKEN_EOL,               // a newline
+  TOKEN_IDENTIFIER,        // a word, keywords included
+  TOKEN_ASSIGNMENT,        // =
+  TOKEN_CALL,              // =>
+  TOKEN_BEGIN_BLOCK,       // {
+  TOKEN_END_BLOCK,         // }
+  TOKEN_STRING,            // 'text' or "text"
+  TOKEN_INTEGER,           // 200
+  TOKEN_TIMEFRAME,         // 2s
+  TOKEN_UNKNOWN,
+  TOKEN_BEGIN_CALL,        // (
+  TOKEN_END_CALL,          // )
+  TOKEN_COMMA,             // ,
+  TOKEN_LOCAL,             // @entry
+  TOKEN_SYMBOL,            // :name
+  TOKEN_MEMBER_EXPRESSION, // the first word of a.b
+} TokenType;
 
 int state_inbounds(State*);
 char state_char(State*);
@@ -100,13 +105,13 @@ void state_add_action(State*, char*);
 bool state_has_guard(State*, char*);
 bool state_has_action(State*, char*);
 
-int consume_token(State*);
+TokenType consume_token(State*);
 
 /* call.c: calls such as guard(x). */
 
 #define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
 
-typedef int (*consume_call_expr_args)(State*, void*, int, char*, int);
+typedef int (*consume_call_expr_args)(State*, void*, TokenType, char*, int);
 
 int consume_call_expression(State*, const char*, void*, consume_call_expr_args on_args);
 
@@ -128,28 +133,30 @@ void error_unexpected_identifier(State*, Node*);
 
 /* keyword.c: keywords and @entry/@exit. */
 
-#define KW_NOT_A_KEYWORD 0
-#define KW_USE 1
-#define KW_STATE 2
-#define KW_INITIAL 3
-#define KW_FINAL 4
-#define KW_ACTION 5
-#define KW_GUARD 6
-#define KW_ASSIGN 7
-#define KW_INVOKE 8
-#define KW_MACHINE 9
-#define KW_DELAY 10
-#define KW_ON 11
-#define KW_SPAWN 12
-#define KW_SEND 13
+typedef enum Keyword {
+  KEYWORD_NONE,  // not a keyword
+  KEYWORD_USE,
+  KEYWORD_STATE,
+  KEYWORD_INITIAL,
+  KEYWORD_FINAL,
+  KEYWORD_ACTION,
+  KEYWORD_GUARD,
+  KEYWORD_ASSIGN,
+  KEYWORD_INVOKE,
+  KEYWORD_MACHINE,
+  KEYWORD_DELAY,
+  KEYWORD_ON,
+  KEYWORD_SPAWN,
+  KEYWORD_SEND,
+} Keyword;
 
 bool is_keyword(const char*);
-/* The KW_ value for a word, or KW_NOT_A_KEYWORD (also for NULL). */
-unsigned short keyword_get(const char*);
+/* The keyword a word is, or KEYWORD_NONE (also for NULL). */
+Keyword keyword_get(const char*);
 
-/* LOCAL_ENTRY or LOCAL_EXIT for "@entry" or "@exit", otherwise 0. */
-unsigned short local_get(const char*);
-const char* local_get_name(unsigned short);
+/* LOCAL_ENTRY or LOCAL_EXIT for "@entry" or "@exit", otherwise LOCAL_NONE. */
+LocalKind local_get(const char*);
+const char* local_get_name(LocalKind);
 
 /* timeframe.c: delays such as 200 or 2s. */
 
@@ -167,19 +174,19 @@ Timeframe timeframe_parse(char*, size_t);
 /* The parsers for each construct, one file each. */
 
 int parser_consume_machine(State*);
-int parser_consume_implicit_machine(State*, int);
+int parser_consume_implicit_machine(State*, TokenType);
 int parser_consume_state(State*);
 int parser_consume_use(State*);
-int parser_consume_local(State*, unsigned short);
+int parser_consume_local(State*, LocalKind);
 int parser_consume_transition(State*);
 int parser_consume_invoke(State*);
 int parser_consume_action(State*);
 int parser_consume_inline_action(State*, Node*);
 int parser_consume_guard(State*);
 int parser_consume_inline_guard(State*, TransitionNode*);
-int parser_consume_inline_assign_args(State*, void*, int, char*, int);
+int parser_consume_inline_assign_args(State*, void*, TokenType, char*, int);
 int parser_consume_inline_assign(State*, Node*);
-int parser_consume_inline_send_args(State*, void*, int, char*, int);
+int parser_consume_inline_send_args(State*, void*, TokenType, char*, int);
 int parser_consume_inline_send(State*, Node*);
 int parser_consume_inline_spawn(State*, AssignExpression*);
 int parser_consume_inline_delay(State*, TransitionNode*, StateNode*);

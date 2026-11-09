@@ -1,6 +1,6 @@
 #include "internal.h"
 
-static int consume_inline_guard_args(State* state, void* expr, int token, char* arg, int _argi) {
+static int consume_inline_guard_args(State* state, void* expr, TokenType token, char* arg, int _argi) {
   GuardExpression* guard_expression = (GuardExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
@@ -46,7 +46,7 @@ int parser_consume_guard(State* state) {
   Node* node = (Node*)assignment;
   state_node_set(state, node);
 
-  int token;
+  TokenType token;
 
   token = consume_token(state);
 

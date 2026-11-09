@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int consume_inline_delay_args(State* state, void* expr, int token, char* arg, int _argi) {
+static int consume_inline_delay_args(State* state, void* expr, TokenType token, char* arg, int _argi) {
   DelayExpression* delay_expression = (DelayExpression*)expr;
 
   int time = 0;
@@ -59,7 +59,7 @@ static int consume_inline_delay_args(State* state, void* expr, int token, char* 
 int parser_consume_inline_delay(State* state, TransitionNode* transition_node, StateNode* state_node) {
   int err = 0;
 
-  transition_node->type = TRANSITION_DELAY_TYPE;
+  transition_node->type = TRANSITION_DELAY;
   DelayExpression* expression = node_create_delayexpression(state->arena);
 
   _check(consume_call_expression(state, "delay", expression, &consume_inline_delay_args));

@@ -30,6 +30,9 @@ void xs_compile_invoke(PrintState* state, JSBuilder* jsb, InvokeNode* invoke_nod
       }
       break;
     }
+    default: {
+      break;
+    }
   }
 
   if(invoke_node->event_transition != NULL) {

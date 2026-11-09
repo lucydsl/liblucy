@@ -267,7 +267,7 @@ static void consume_timeframe(State* state) {
 }
 
 /* Public API */
-int consume_token(State* state) {
+TokenType consume_token(State* state) {
   int len = 0;
   while(state_inbounds(state)) {
     state_next(state);
