@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <limits.h>
 #include "timeframe.h"
 #include "str_builder.h"
 
@@ -44,6 +45,28 @@ bool timeframe_is_suffix(const char* key) {
   return timeframe_get(key) > 0;
 }
 
+// The digits as a number, or -1 if it is bigger than INT_MAX. (atoi, used
+// before, is undefined for numbers that don't fit.)
+static long long parse_digits(const char* digits) {
+  long long value = 0;
+  for(const char* p = digits; *p; p++) {
+    value = value * 10 + (*p - '0');
+    if(value > INT_MAX) {
+      return -1;
+    }
+  }
+  return value;
+}
+
+static Timeframe timeframe_error(const char* message) {
+  Timeframe tf = {
+    .is_integer = false,
+    .time = 0,
+    .error = (char*)message
+  };
+  return tf;
+}
+
 Timeframe timeframe_parse(char* word, size_t word_len) {
   str_builder_t* int_sb = str_builder_create();
   str_builder_t* tf_sb = str_builder_create();
@@ -51,7 +74,7 @@ Timeframe timeframe_parse(char* word, size_t word_len) {
   size_t tf_len = 0;
   bool is_int = true;
 
-  int i = 0;
+  size_t i = 0;
   char c;
   while(i < word_len) {
     c = word[i];
@@ -69,14 +92,10 @@ Timeframe timeframe_parse(char* word, size_t word_len) {
   char* int_str = str_builder_dump(int_sb, &int_len);
   char* tf_str = str_builder_dump(tf_sb, &tf_len);
 
-  int value = atoi(int_str);
+  long long value = parse_digits(int_str);
   if(!is_int) {
     if(!timeframe_is_suffix(tf_str)) {
-      Timeframe tf = {
-        .is_integer = false,
-        .time = 0,
-        .error = "Unknown timeframe suffix"
-      };
+      Timeframe tf = timeframe_error("Unknown timeframe suffix");
       free(int_str);
       free(tf_str);
       str_builder_destroy(tf_sb);
@@ -108,9 +127,15 @@ Timeframe timeframe_parse(char* word, size_t word_len) {
   str_builder_destroy(tf_sb);
   str_builder_destroy(int_sb);
 
+  // Delays are printed as ints, so anything bigger can't be represented.
+  // The multiplication used to overflow int.
+  if(value < 0 || value > INT_MAX) {
+    return timeframe_error("Delay is too long. The longest delay is 2147483647ms.");
+  }
+
   Timeframe tf = {
     .is_integer = is_int,
-    .time = value,
+    .time = (int)value,
     .error = NULL
   };
 

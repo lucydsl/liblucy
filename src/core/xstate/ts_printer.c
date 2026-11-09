@@ -128,7 +128,7 @@ static void build_machine_name(ts_printer_t* printer, JSBuilder* buffer) {
   if(printer->machine_name_start == 0) {
     js_builder_add_str(buffer, "Machine");
   } else {
-    js_builder_add_char(buffer, toupper(printer->source[printer->machine_name_start]));
+    js_builder_add_char(buffer, toupper((unsigned char)printer->source[printer->machine_name_start]));
     js_builder_copy_str(buffer, printer->source, printer->machine_name_start + 1, printer->machine_name_end);
   }
 }
@@ -361,7 +361,7 @@ static void write_machine_name(ts_printer_t* printer, str_builder_t* sb) {
   if(printer->machine_name_start == 0) {
     str_builder_add_str(sb, "Machine", 0);
   } else {
-    str_builder_add_char(sb, toupper(printer->source[printer->machine_name_start]));
+    str_builder_add_char(sb, toupper((unsigned char)printer->source[printer->machine_name_start]));
     str_builder_copy_str(sb, printer->source, printer->machine_name_start, printer->machine_name_end);
   }
 }

@@ -31,8 +31,8 @@ static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* 
 
 void xs_add_machine_binding_name(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "create");
-  js_builder_add_char(jsb, toupper(state->source[machine_node->name_start]));
-  int i = machine_node->name_start + 1;
+  js_builder_add_char(jsb, toupper((unsigned char)state->source[machine_node->name_start]));
+  size_t i = machine_node->name_start + 1;
   while(i < machine_node->name_end) {
     js_builder_add_char(jsb, state->source[i]);
     i++;
@@ -142,8 +142,11 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
 
             xs_start_assign_call(jsb, assign);
 
-            char* identifier;
-            switch(assign->value->type) {
+            // assign(key) has no value. It used to crash here; print what
+            // an inline assign(key) prints instead.
+            if(assign->value == NULL) {
+              js_builder_add_str(jsb, "(context, event) => event.data");
+            } else switch(assign->value->type) {
               case EXPRESSION_IDENTIFIER: {
                 char* identifier = ((IdentifierExpression*)assign->value)->name;
                 js_builder_add_str(jsb, identifier);

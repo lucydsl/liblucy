@@ -47,16 +47,19 @@ int state_inbounds(State* state) {
   return state->index < state->source_len;
 }
 
-static inline char state_char_at(State* state, unsigned short index) {
-  return state->source[index];
+// Every read of the source goes through here. The lexer steps past the
+// end in a few places (a ':' or an unterminated string at the end of the
+// file), so anything past the end reads as the terminating NUL.
+static inline char state_char_at(State* state, size_t index) {
+  return index < state->source_len ? state->source[index] : '\0';
 }
 
 char state_char(State* state) {
-  return state->source[state->index];
+  return state_char_at(state, state->index);
 }
 
 char state_peek(State* state) {
-  return state->source[state->index + 1];
+  return state_char_at(state, state->index + 1);
 }
 
 char state_next(State* state) {
@@ -102,7 +105,7 @@ void state_find_position(State* state, pos_t* pos, int inc) {
 void state_rewind(State* state, int inc) {
   pos_t pos;
   state_find_position(state, &pos, inc);
-  state->index = state->index - inc;
+  state->index = (size_t)inc < state->index ? state->index - inc : 0;
   state->line = pos.line;
   state->column = pos.column;
 }
