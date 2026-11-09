@@ -48,10 +48,12 @@ test-native:
 
 test-wasm:
 	@LUCYC=scripts/lucyc.mjs scripts/test_snapshots
+	@scripts/test_reuse.mjs
 .PHONY: test-wasm
 
 test-wasm-release:
 	@LUCYC=scripts/lucyc.mjs NODE_ENV=production scripts/test_snapshots
+	@NODE_ENV=production scripts/test_reuse.mjs
 .PHONY: test-wasm-release
 
 test: test-native test-wasm test-wasm-release

@@ -183,10 +183,8 @@ void xs_compile_transition_key(PrintState* state, JSBuilder* jsb, Node* node, ch
       case TRANSITION_DELAY_TYPE: {
         DelayExpression* delay = transition_node->delay->expression;
         if(delay->ref == NULL) {
-          int ms = delay->time;
-          int length = (int)((ceil(log10(ms))+1)*sizeof(char));
-          char str[length];
-          sprintf(str, "%i", ms);
+          char str[12]; // Fits any int, sign and NUL included.
+          snprintf(str, sizeof(str), "%i", delay->time);
           js_builder_start_prop(jsb, str);
         } else {
           if(delay->ref->type == EXPRESSION_IDENTIFIER) {

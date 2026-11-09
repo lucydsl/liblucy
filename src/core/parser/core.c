@@ -237,12 +237,12 @@ int consume_call_expression(State* state, const char* fn_name, void* expr, consu
   bool in_call = false;
   if(token != TOKEN_BEGIN_CALL) {
     if(token == TOKEN_IDENTIFIER) {
-      char buffer[100];
-      sprintf(buffer, "%s must be called like a function. Expected %s(%s)", fn_name, fn_name, state->word);
+      char buffer[256];
+      snprintf(buffer, sizeof(buffer), "%s must be called like a function. Expected %s(%s)", fn_name, fn_name, state->word);
       error_msg_with_code_block_dec(state, state->word_len, buffer);
     } else if(token == TOKEN_CALL) {
-      char buffer[100];
-      sprintf(buffer, "%s must be called like a function.", fn_name);
+      char buffer[256];
+      snprintf(buffer, sizeof(buffer), "%s must be called like a function.", fn_name);
       error_msg_with_code_block_dec(state, state->token_len, buffer);
     } else {
       // What should this be?
@@ -284,9 +284,9 @@ int consume_call_expression(State* state, const char* fn_name, void* expr, consu
     if(token != TOKEN_END_CALL) {
       // Only show this error message if we are currently within a call.
       if(in_call) {
-        char buffer[100];
+        char buffer[256];
         char* key = identifier == NULL ? "" : identifier;
-        sprintf(buffer, "Inline assigns must be called like a function. Expected assign(%s)", key);
+        snprintf(buffer, sizeof(buffer), "Inline assigns must be called like a function. Expected assign(%s)", key);
         error_msg_with_code_block_dec(state, state->token_len, buffer);
       }
 

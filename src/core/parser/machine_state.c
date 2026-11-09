@@ -109,13 +109,14 @@ int parser_consume_state(State* state) {
             break;
           }
           default: {
-            char buffer[100];
-            sprintf(buffer, "Unknown local variable (%s)", state->word);
+            char buffer[256];
+            snprintf(buffer, sizeof(buffer), "Unknown local variable (%s)", local);
             error_msg_with_code_block_dec(state, state->token_len, buffer);
             err = 1;
             break;
           }
         }
+        free(local);
         break;
       }
       default: {

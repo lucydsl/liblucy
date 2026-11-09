@@ -21,8 +21,8 @@ int parser_consume_local(State* state, unsigned short key) {
 
   Node* parent_node = state->node;
   if(parent_node->type != NODE_STATE_TYPE) {
-    char buffer[100];
-    sprintf(buffer, "Unexpected parent of %s", local_get_name(key));
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "Unexpected parent of %s", local_get_name(key));
     error_msg_with_code_block_dec(state, state->token_len, buffer);
     err = 1;
   }
@@ -77,8 +77,8 @@ int parser_consume_local(State* state, unsigned short key) {
       }
       case KW_GUARD: {
         err = 1;
-        char buffer[100];
-        sprintf(buffer, "Guards are not allowed in %s", local_get_name(key));
+        char buffer[256];
+        snprintf(buffer, sizeof(buffer), "Guards are not allowed in %s", local_get_name(key));
         error_msg_with_code_block_dec(state, state->token_len, buffer);
         free(identifier);
         break;
@@ -91,8 +91,8 @@ int parser_consume_local(State* state, unsigned short key) {
           node_local_add_action(local_node, action);
         } else {
           err = 1;
-          char buffer[100];
-          sprintf(buffer, "Unknown action [%s]. Did you mean to declare this action at the top of the machine?", identifier);
+          char buffer[256];
+          snprintf(buffer, sizeof(buffer), "Unknown action [%s]. Did you mean to declare this action at the top of the machine?", identifier);
           error_msg_with_code_block_dec(state, state->token_len, buffer);
           free(identifier);
         }
