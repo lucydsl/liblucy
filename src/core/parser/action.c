@@ -103,7 +103,7 @@ ParseStatus parser_consume_action(Parser* parser) {
           // the compile still succeeds.
           (void)parser_consume_call(parser, "assign", expression, &parser_consume_inline_assign_args);
           assignment->value = (Expression*)expression;
-          program_add_flag(parser->program, PROGRAM_USES_ASSIGN);
+          parser->program->flags |= PROGRAM_USES_ASSIGN;
           break;
         }
         case KEYWORD_SEND: {
@@ -111,7 +111,7 @@ ParseStatus parser_consume_action(Parser* parser) {
           // Known bug: as for assign above.
           (void)parser_consume_call(parser, "send", expression, &parser_consume_inline_send_args);
           assignment->value = (Expression*)expression;
-          program_add_flag(parser->program, PROGRAM_USES_SEND);
+          parser->program->flags |= PROGRAM_USES_SEND;
           break;
         }
         default: {

@@ -75,14 +75,14 @@ static void str_builder_ensure_space(StrBuilder *sb, size_t add_len)
 
 /* - - - - */
 
-void str_builder_add_str(StrBuilder *sb, const char *str, size_t len)
+void str_builder_add_str(StrBuilder *sb, const char *str)
 {
-    if (sb == NULL || str == NULL || *str == '\0')
+    size_t len;
+
+    if (sb == NULL || str == NULL)
         return;
 
-    if (len == 0)
-        len = strlen(str);
-
+    len = strlen(str);
     str_builder_ensure_space(sb, len);
     memmove(sb->str+sb->len, str, len);
     sb->len += len;
@@ -165,20 +165,6 @@ const char *str_builder_peek(const StrBuilder *sb)
     if (sb == NULL)
         return NULL;
     return sb->str;
-}
-
-char *str_builder_dump(const StrBuilder *sb, size_t *len)
-{
-    char *out;
-
-    if (sb == NULL)
-        return NULL;
-
-    if (len != NULL)
-        *len = sb->len;
-    out = xmalloc(size_add(sb->len, 1));
-    memcpy(out, sb->str, sb->len+1);
-    return out;
 }
 
 char *str_builder_release(StrBuilder *sb, size_t *len)

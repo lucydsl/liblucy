@@ -156,7 +156,7 @@ static char* read_file(const char* filename) {
 }
 
 static int compile_file(char* filename, int use_remote_imports, int include_dts,
-  char* out_file, size_t outlen, PrintTarget print_target) {
+  char* out_file, PrintTarget print_target) {
   char* buffer = read_file(filename);
   if(buffer == NULL) {
     fprintf(stderr, "Error opening file!\n");
@@ -178,10 +178,11 @@ static int compile_file(char* filename, int use_remote_imports, int include_dts,
       if(ret == 0 && include_dts) {
         // out.js -> out.d.ts. This took outlen - 3 unsigned, so a name
         // shorter than ".js" wrapped around and overran the buffer.
+        size_t outlen = strlen(out_file);
         size_t base_len = outlen >= 3 ? outlen - 3 : outlen;
         StrBuilder* sb = str_builder_create();
         str_builder_copy_str(sb, out_file, 0, base_len);
-        str_builder_add_str(sb, ".d.ts", 0);
+        str_builder_add_str(sb, ".d.ts");
         char* dtsname = str_builder_release(sb, NULL);
         ret = write_file(dtsname, lucy_result_dts(result));
         free(dtsname);
@@ -235,8 +236,8 @@ static char* relative_name(const char* rootdir, const char* filename, size_t fnl
   return str_builder_release(sb, NULL);
 }
 
-static int compile_dir(char* rootdir, char* dirname, size_t dirlen,
-  int use_remote_imports, int include_dts, char* out_dir, size_t outdirlen,
+static int compile_dir(char* rootdir, char* dirname,
+  int use_remote_imports, int include_dts, char* out_dir,
   PrintTarget print_target) {
   DIR* fd;
   struct dirent* in_file;
@@ -253,9 +254,9 @@ static int compile_dir(char* rootdir, char* dirname, size_t dirlen,
     }
 
     StrBuilder *sb = str_builder_create();
-    str_builder_add_str(sb, dirname, dirlen);
+    str_builder_add_str(sb, dirname);
     str_builder_add_char(sb, '/');
-    str_builder_add_str(sb, in_file->d_name, strlen(in_file->d_name));
+    str_builder_add_str(sb, in_file->d_name);
 
     size_t fplen;
     char* fp = str_builder_release(sb, &fplen);
@@ -265,14 +266,13 @@ static int compile_dir(char* rootdir, char* dirname, size_t dirlen,
       size_t bnamelen = strlen(bname);
 
       StrBuilder *sbb = str_builder_create();
-      str_builder_add_str(sbb, out_dir, outdirlen);
+      str_builder_add_str(sbb, out_dir);
       str_builder_add_char(sbb, '/');
       str_builder_copy_str(sbb, bname, 0, bnamelen - 5); // without .lucy
-      str_builder_add_str(sbb, ".js", 3);
-      size_t outlen;
-      char* outfp = str_builder_release(sbb, &outlen);
+      str_builder_add_str(sbb, ".js");
+      char* outfp = str_builder_release(sbb, NULL);
 
-      ret = compile_file(fp, use_remote_imports, include_dts, outfp, outlen, print_target);
+      ret = compile_file(fp, use_remote_imports, include_dts, outfp, print_target);
 
       free(bname);
       free(outfp);
@@ -281,8 +281,8 @@ static int compile_dir(char* rootdir, char* dirname, size_t dirlen,
       // stat left path_stat uninitialised.)
       struct stat path_stat;
       if(stat(fp, &path_stat) == 0 && S_ISDIR(path_stat.st_mode)) {
-        ret = compile_dir(rootdir, fp, fplen, use_remote_imports, include_dts,
-          out_dir, outdirlen, print_target);
+        ret = compile_dir(rootdir, fp, use_remote_imports, include_dts,
+          out_dir, print_target);
       }
     }
 
@@ -321,7 +321,6 @@ int main(int argc, char *argv[]) {
 
   // These point into argv, which outlives everything here.
   char* out_file = NULL;
-  size_t out_file_len = 0;
   char* out_dir = NULL;
   PrintTarget print_target = PRINT_TARGET_JS;
 
@@ -339,7 +338,6 @@ int main(int argc, char *argv[]) {
       }
       case OPTION_OUT_FILE: {
         out_file = optarg;
-        out_file_len = strlen(out_file);
         break;
       }
       case OPTION_OUT_DIR: {
@@ -391,10 +389,8 @@ int main(int argc, char *argv[]) {
         return 1;
       }
 
-      size_t dir_len = strlen(filename);
-      size_t out_dir_len = strlen(out_dir);
-      int ret = compile_dir(filename, filename, dir_len, use_remote_imports,
-        include_dts, out_dir, out_dir_len, print_target);
+      int ret = compile_dir(filename, filename, use_remote_imports,
+        include_dts, out_dir, print_target);
       return ret;
     } else if(S_ISREG(path_stat.st_mode)) {
       // Check if the out_file is a directory.
@@ -407,7 +403,7 @@ int main(int argc, char *argv[]) {
       }
 
       int ret = compile_file(filename, use_remote_imports, include_dts,
-        out_file, out_file_len, print_target);
+        out_file, print_target);
       return ret;
     }
   } else {

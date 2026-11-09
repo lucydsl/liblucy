@@ -81,7 +81,7 @@ ParseStatus parser_consume_inline_assign(Parser* parser, Node* node) {
     }
   }
 
-  program_add_flag(parser->program, PROGRAM_USES_ASSIGN);
+  parser->program->flags |= PROGRAM_USES_ASSIGN;
   maybe_add_machine_uses_assign(assign_expression, node);
 
   return status;
