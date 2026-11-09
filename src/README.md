@@ -17,8 +17,11 @@
     ...) and expressions (`Expression`, `IdentifierExpression`, ...).
   - `parser/`: turns source into a `Program`. `parser.h` is all the rest of
     the compiler sees; `internal.h` is shared by the parser's own files.
-    `lexer.c` holds the cursor and the tokens, and the other files each
-    parse one construct (`machine.c`, `state.c`, `transition.c`, ...).
+    `parser.c` is the entry point and keeps the parser's state, `lexer.c`
+    holds the cursor and the tokens, `error.c` reports errors, and
+    `keyword.c` and `timeframe.c` read keywords and delays. The other files
+    each parse one construct (`machine.c`, `state.c`, `transition.c`,
+    `call.c` for calls like `guard(x)`, ...).
   - `xstate/`: prints a `Program` as XState JavaScript. `xstate.h` is its
     interface; `printer.h` is shared by the files that print each construct.
     `ts_printer.c` prints the TypeScript declarations, and `js_builder.c`
