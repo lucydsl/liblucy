@@ -204,7 +204,7 @@ int parser_consume_transition(State* state) {
   }
 
   Node* transition_node_node = (Node*)transition_node;
-  int rewind_to_start = event == NULL ? 2 : strlen(event);
+  size_t rewind_to_start = event == NULL ? 2 : strlen(event);
   state_node_start_pos(state, transition_node_node, rewind_to_start);
 
   switch(current_node_type) {
