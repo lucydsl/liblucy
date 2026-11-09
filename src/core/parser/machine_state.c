@@ -15,7 +15,7 @@
 int parser_consume_state(State* state) {
   int err = 0;
 
-  StateNode* state_node = node_create_state();
+  StateNode* state_node = node_create_state(state->arena);
   Node* state_node_node = (Node*)state_node;
   state_node_start_pos(state, state_node_node, 5);
 
@@ -116,7 +116,6 @@ int parser_consume_state(State* state) {
             break;
           }
         }
-        free(local);
         break;
       }
       default: {

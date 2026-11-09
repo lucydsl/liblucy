@@ -9,32 +9,14 @@
 
 typedef void (*set_ref)(PrintState*, Ref*);
 
-static void destroy_ref(Ref* ref) {
-  if(ref->next != NULL) {
-    destroy_ref(ref->next);
-  }
-  if(ref->key != NULL) {
-    free(ref->key);
-  }
-  if(ref->value != NULL) {
-    node_destroy_expression(ref->value);
-  }
-  free(ref);
-}
-
-void xs_destroy_state_refs(PrintState *state) {
-  if(state->guard != NULL) {
-    destroy_ref(state->guard);
-    state->guard = NULL;
-  }
-  if(state->action != NULL) {
-    destroy_ref(state->action);
-    state->action = NULL;
-  }
-  if(state->delay != NULL) {
-    destroy_ref(state->delay);
-    state->delay = NULL;
-  }
+// Forget the guard, action and delay refs at the end of a machine. They
+// are arena memory, so there is nothing to free. The service list is not
+// reset here, as it never has been; see the services leaking into a later
+// machine's options in the report on this change.
+void xs_clear_state_refs(PrintState *state) {
+  state->guard = NULL;
+  state->action = NULL;
+  state->delay = NULL;
 }
 
 static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, SimpleSet* set, set_ref setter) {
@@ -43,10 +25,9 @@ static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, 
     return;
   }
 
-  Ref *ref = malloc(sizeof(Ref));
-  ref->key = strdup(key);
-  ref->value = node_clone_expression(value);
-  ref->next = NULL;
+  Ref *ref = ARENA_NEW(state->arena, Ref);
+  ref->key = key;
+  ref->value = value;
 
   if(head == NULL) {
     setter(state, ref);
@@ -65,7 +46,7 @@ static void set_action_ref(PrintState* state, Ref* ref) {
 }
 
 void xs_add_action_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->action, state->action_names, *set_action_ref);
+  add_ref(state, key, value, state->action, &state->action_names, *set_action_ref);
 }
 
 static void set_guard_ref(PrintState* state, Ref* ref) {
@@ -73,7 +54,7 @@ static void set_guard_ref(PrintState* state, Ref* ref) {
 }
 
 void xs_add_guard_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->guard, state->guard_names, *set_guard_ref);
+  add_ref(state, key, value, state->guard, &state->guard_names, *set_guard_ref);
 }
 
 static void set_delay_ref(PrintState* state, Ref* ref) {
@@ -81,7 +62,7 @@ static void set_delay_ref(PrintState* state, Ref* ref) {
 }
 
 void xs_add_delay_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->delay, state->delay_names, *set_delay_ref);
+  add_ref(state, key, value, state->delay, &state->delay_names, *set_delay_ref);
 }
 
 static void set_service_ref(PrintState* state, Ref* ref) {
@@ -89,7 +70,7 @@ static void set_service_ref(PrintState* state, Ref* ref) {
 }
 
 void xs_add_service_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->service, state->service_names, *set_service_ref);
+  add_ref(state, key, value, state->service, &state->service_names, *set_service_ref);
 }
 
 void xs_start_assign_call(JSBuilder* jsb, AssignExpression* assign_expression) {

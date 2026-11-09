@@ -14,7 +14,7 @@
 int parser_consume_local(State* state, unsigned short key) {
   int err = 0;
 
-  LocalNode* local_node = node_create_local();
+  LocalNode* local_node = node_create_local(state->arena);
   Node* node = (Node*)local_node;
   local_node->key = key;
   state_node_start_pos(state, node, state->token_len);
@@ -62,17 +62,14 @@ int parser_consume_local(State* state, unsigned short key) {
     switch(key) {
       case KW_ACTION: {
         _check(parser_consume_inline_action(state, node));
-        free(identifier);
         break;
       }
       case KW_ASSIGN: {
         _check(parser_consume_inline_assign(state, node));
-        free(identifier);
         break;
       }
       case KW_SEND: {
         _check(parser_consume_inline_send(state, node));
-        free(identifier);
         break;
       }
       case KW_GUARD: {
@@ -80,13 +77,12 @@ int parser_consume_local(State* state, unsigned short key) {
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "Guards are not allowed in %s", local_get_name(key));
         error_msg_with_code_block_dec(state, state->token_len, buffer);
-        free(identifier);
         break;
       }
       // Not a keyword
       case KW_NOT_A_KEYWORD: {
         if(state_has_action(state, identifier)) {
-          TransitionAction* action = create_transition_action();
+          TransitionAction* action = create_transition_action(state->arena);
           action->name = identifier;
           node_local_add_action(local_node, action);
         } else {
@@ -94,14 +90,12 @@ int parser_consume_local(State* state, unsigned short key) {
           char buffer[256];
           snprintf(buffer, sizeof(buffer), "Unknown action [%s]. Did you mean to declare this action at the top of the machine?", identifier);
           error_msg_with_code_block_dec(state, state->token_len, buffer);
-          free(identifier);
         }
         break;
       }
       default: {
         error_msg_with_code_block_dec(state, state->token_len, "Unexpected keyword in action assignment.");
         err = 1;
-        free(identifier);
         break;
       }
     }

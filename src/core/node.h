@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include "arena.h"
 
 #define NODE_MACHINE_TYPE 0
 #define NODE_STATE_TYPE 1
@@ -199,50 +200,45 @@ typedef struct Assignment {
   Expression* value;
 } Assignment;
 
-Node* node_create_type(unsigned short, size_t);
-TransitionNode* node_create_transition();
-MachineNode* node_create_machine();
-StateNode* node_create_state();
-ImportNode* node_create_import_statement();
-ImportSpecifier* node_create_import_specifier(char*);
-Assignment* node_create_assignment(unsigned short);
-InvokeNode* node_create_invoke();
-AssignExpression* node_create_assignexpression();
-IdentifierExpression* node_create_identifierexpression();
-SymbolExpression* node_create_symbolexpression();
-GuardExpression* node_create_guardexpression();
-ActionExpression* node_create_actionexpression();
-DelayExpression* node_create_delayexpression();
-OnExpression* node_create_onexpression();
-SpawnExpression* node_create_spawnexpression();
-SendExpression* node_create_sendexpression();
-InvokeExpression* node_create_invokeexpression();
-MemberExpression* node_create_memberexpression();
-LocalNode* node_create_local();
+/*
+ * Every node and expression is allocated from the compile's arena (see
+ * arena.h). None is freed on its own: they all go when the compile's arena
+ * is destroyed. They come back zeroed, so pointer fields start out NULL
+ * and flags start out 0. Strings stored in them (names, keys, paths) are
+ * arena strings too, or point into the source.
+ */
+Node* node_create_type(Arena*, unsigned short, size_t);
+TransitionNode* node_create_transition(Arena*);
+MachineNode* node_create_machine(Arena*);
+StateNode* node_create_state(Arena*);
+ImportNode* node_create_import_statement(Arena*);
+ImportSpecifier* node_create_import_specifier(Arena*, char*);
+Assignment* node_create_assignment(Arena*, unsigned short);
+InvokeNode* node_create_invoke(Arena*);
+AssignExpression* node_create_assignexpression(Arena*);
+IdentifierExpression* node_create_identifierexpression(Arena*);
+SymbolExpression* node_create_symbolexpression(Arena*);
+GuardExpression* node_create_guardexpression(Arena*);
+ActionExpression* node_create_actionexpression(Arena*);
+DelayExpression* node_create_delayexpression(Arena*);
+OnExpression* node_create_onexpression(Arena*);
+SpawnExpression* node_create_spawnexpression(Arena*);
+SendExpression* node_create_sendexpression(Arena*);
+InvokeExpression* node_create_invokeexpression(Arena*);
+MemberExpression* node_create_memberexpression(Arena*);
+LocalNode* node_create_local(Arena*);
 
-TransitionAction* create_transition_action();
+TransitionAction* create_transition_action(Arena*);
 
 bool node_machine_is_nested(Node*);
 
 void node_append(Node*, Node*);
 void node_after_last(Node*, Node*);
 
-TransitionGuard* node_transition_add_guard(TransitionNode*, char*);
-TransitionAction* node_transition_add_action(TransitionNode*, char*);
-TransitionDelay* node_transition_add_delay(TransitionNode*, char*, DelayExpression*);
+TransitionGuard* node_transition_add_guard(Arena*, TransitionNode*, char*);
+TransitionAction* node_transition_add_action(Arena*, TransitionNode*, char*);
+TransitionDelay* node_transition_add_delay(Arena*, TransitionNode*, char*, DelayExpression*);
 void node_local_add_action(LocalNode*, TransitionAction*);
 
 Node* find_closest_node_of_type(Node*, int);
 MachineNode* find_closest_machine_node(Node*);
-Expression* node_clone_expression(Expression*);
-
-void node_destroy_assignment(Assignment*);
-void node_destroy_import(ImportNode*);
-void node_destroy_import_specifier(ImportSpecifier*);
-void node_destroy_machine(MachineNode*);
-void node_destroy_state(StateNode*);
-void node_destroy_transition(TransitionNode*);
-void node_destroy_expression(Expression*);
-void node_destroy_invoke(InvokeNode*);
-void node_destroy_local(LocalNode*);
-void node_destroy(Node*);

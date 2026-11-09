@@ -22,7 +22,7 @@ static int consume_use_specifiers(ImportNode* import_node, State* state) {
           return 2;
         }
 
-        specifier = node_create_import_specifier(identifier);
+        specifier = node_create_import_specifier(state->arena, identifier);
         break;
       }
       case TOKEN_END_BLOCK: {
@@ -58,7 +58,7 @@ int parser_consume_use(State* state) {
     goto end;
   }
 
-  ImportNode *import_node = node_create_import_statement();
+  ImportNode *import_node = node_create_import_statement(state->arena);
   Node *node = (Node*)import_node;
   state_node_start_pos(state, node, 4);
   state_node_set(state, node);

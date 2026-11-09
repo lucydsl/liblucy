@@ -266,9 +266,9 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     ts_printer_create_machine(state->tsprinter);
   }
 
-  set_clear(state->guard_names);
-  set_clear(state->action_names);
-  set_clear(state->delay_names);
-  set_clear(state->service_names);
-  xs_destroy_state_refs(state);
+  set_clear(&state->guard_names);
+  set_clear(&state->action_names);
+  set_clear(&state->delay_names);
+  set_clear(&state->service_names);
+  xs_clear_state_refs(state);
 }

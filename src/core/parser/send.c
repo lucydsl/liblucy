@@ -17,19 +17,19 @@ int parser_consume_inline_send_args(State* state, void* expr, int _token, char* 
 int parser_consume_inline_send(State* state, Node* node) {
   int err = 0;
 
-  SendExpression* send_expression = node_create_sendexpression();
+  SendExpression* send_expression = node_create_sendexpression(state->arena);
   _check(consume_call_expression(state, "send", send_expression, &parser_consume_inline_send_args));
 
   switch(node->type) {
     case NODE_TRANSITION_TYPE: {
       TransitionNode* transition_node = (TransitionNode*)node;
-      TransitionAction* action = node_transition_add_action(transition_node, NULL);
+      TransitionAction* action = node_transition_add_action(state->arena, transition_node, NULL);
       action->expression = (Expression*)send_expression;
       break;
     }
     case NODE_LOCAL_TYPE: {
       LocalNode* local_node = (LocalNode*)node;
-      TransitionAction* action = create_transition_action();
+      TransitionAction* action = create_transition_action(state->arena);
       action->expression = (Expression*)send_expression;
       node_local_add_action(local_node, action);
       break;

@@ -12,11 +12,11 @@ static int consume_inline_action_args(State* state, void* expr, int token, char*
   ActionExpression* action_expression = (ActionExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
-    IdentifierExpression* ref = node_create_identifierexpression();
+    IdentifierExpression* ref = node_create_identifierexpression(state->arena);
     ref->name = arg;
     action_expression->ref = (Expression*)ref;
   } else if(token == TOKEN_SYMBOL) {
-    SymbolExpression* ref = node_create_symbolexpression();
+    SymbolExpression* ref = node_create_symbolexpression(state->arena);
     ref->name = arg;
     action_expression->ref = (Expression*)ref;
 
@@ -31,14 +31,14 @@ static int consume_inline_action_args(State* state, void* expr, int token, char*
 int parser_consume_inline_action(State* state, Node* node) {
   int err = 0;
 
-  ActionExpression* action_expression = node_create_actionexpression();
+  ActionExpression* action_expression = node_create_actionexpression(state->arena);
 
   _check(consume_call_expression(state, "action", action_expression, &consume_inline_action_args));
 
   switch(node->type) {
     case NODE_TRANSITION_TYPE: {
       TransitionNode* transition_node = (TransitionNode*)node;
-      TransitionAction* action = node_transition_add_action(transition_node, NULL);
+      TransitionAction* action = node_transition_add_action(state->arena, transition_node, NULL);
       action->expression = (Expression*)action_expression;
 
       if(action_expression->ref->type == EXPRESSION_SYMBOL) {
@@ -49,7 +49,7 @@ int parser_consume_inline_action(State* state, Node* node) {
     }
     case NODE_LOCAL_TYPE: {
       LocalNode* local_node = (LocalNode*)node;
-      TransitionAction* action = create_transition_action();
+      TransitionAction* action = create_transition_action(state->arena);
       action->expression = (Expression*)action_expression;
       node_local_add_action(local_node, action);
       break;
@@ -67,7 +67,7 @@ int parser_consume_inline_action(State* state, Node* node) {
 int parser_consume_action(State* state) {
   int err = 0;
 
-  Assignment* assignment = node_create_assignment(ASSIGNMENT_ACTION);
+  Assignment* assignment = node_create_assignment(state->arena, ASSIGNMENT_ACTION);
   Node *node = (Node*)assignment;
   state_node_set(state, node);
 
@@ -95,23 +95,21 @@ int parser_consume_action(State* state) {
       unsigned short key = keyword_get(identifier);
       switch(key) {
         case KW_ASSIGN: {
-          AssignExpression *expression = node_create_assignexpression();
+          AssignExpression *expression = node_create_assignexpression(state->arena);
           consume_call_expression(state, "assign", expression, &parser_consume_inline_assign_args);
           assignment->value = (Expression*)expression;
           program_add_flag(state->program, PROGRAM_USES_ASSIGN);
-          free(identifier);
           break;
         }
         case KW_SEND: {
-          SendExpression* expression = node_create_sendexpression();
+          SendExpression* expression = node_create_sendexpression(state->arena);
           consume_call_expression(state, "send", expression, &parser_consume_inline_send_args);
           assignment->value = (Expression*)expression;
           program_add_flag(state->program, PROGRAM_USES_SEND);
-          free(identifier);
           break;
         }
         default: {
-          IdentifierExpression* expression = node_create_identifierexpression();
+          IdentifierExpression* expression = node_create_identifierexpression(state->arena);
           expression->name = identifier;
           assignment->value = (Expression*)expression;
         }
@@ -119,7 +117,7 @@ int parser_consume_action(State* state) {
       break;
     }
     case TOKEN_SYMBOL: {
-      SymbolExpression* expression = node_create_symbolexpression();
+      SymbolExpression* expression = node_create_symbolexpression(state->arena);
       expression->name = state_take_word(state);
       assignment->value = (Expression*)expression;
       break;

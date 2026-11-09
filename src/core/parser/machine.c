@@ -85,7 +85,7 @@ static int consume_machine_inner(State* state, bool is_implicit, int initial_tok
 int parser_consume_machine(State* state) {
   int err = 0;
 
-  MachineNode* machine_node = node_create_machine();
+  MachineNode* machine_node = node_create_machine(state->arena);
   Node* node = (Node*)machine_node;
   state_node_set(state, node);
 
@@ -119,7 +119,7 @@ int parser_consume_machine(State* state) {
 int parser_consume_implicit_machine(State* state, int current_token) {
   int err = 0;
 
-  MachineNode* machine_node = node_create_machine();
+  MachineNode* machine_node = node_create_machine(state->arena);
   Node* node = (Node*)machine_node;
 
   state_node_set(state, node);

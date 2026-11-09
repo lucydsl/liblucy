@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include "../error.h"
 #include "../keyword.h"
 #include "../program.h"
@@ -56,17 +55,17 @@ static int consume_program(State* state) {
   }
 }
 
-ParseResult* parse(char* source, char* filename) {
-  int err = 0;
-  Program* program = new_program();
-  State* state = state_new_state(source, filename);
-  state->program = program;
+ParseResult parse(Arena* arena, char* source, char* filename) {
+  Program* program = new_program(arena);
+  State state;
+  state_init(&state, arena, program, source, filename);
 
-  err = consume_program(state);
+  int err = consume_program(&state);
+  state_destroy(&state);
 
-  ParseResult *result = malloc(sizeof(*result));
-  result->success = err == 0;
-  result->program = program;
-
+  ParseResult result = {
+    .success = err == 0,
+    .program = program
+  };
   return result;
 }

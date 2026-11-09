@@ -9,11 +9,11 @@ static int consume_invoke_args(State* state, void* expr, int token, char* arg, i
   InvokeExpression* invoke_expression = (InvokeExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
-    IdentifierExpression* identifier_expression = node_create_identifierexpression();
+    IdentifierExpression* identifier_expression = node_create_identifierexpression(state->arena);
     identifier_expression->name = arg;
     invoke_expression->ref = (Expression*)identifier_expression;
   } else if(token == TOKEN_SYMBOL) {
-    SymbolExpression* symbol_expression = node_create_symbolexpression();
+    SymbolExpression* symbol_expression = node_create_symbolexpression(state->arena);
     symbol_expression->name = arg;
     invoke_expression->ref = (Expression*)symbol_expression;
   } else {
@@ -32,7 +32,7 @@ static inline void link_invoke(Node* state_node_node, InvokeNode* invoke_node) {
 int parser_consume_invoke(State* state) {
   int err = 0;
 
-  InvokeNode* invoke_node = node_create_invoke();
+  InvokeNode* invoke_node = node_create_invoke(state->arena);
   Node* node = (Node*)invoke_node;
   state_node_start_pos(state, node, 6); // "invoke"
 
@@ -45,7 +45,7 @@ int parser_consume_invoke(State* state) {
   state_node_set(state, node);
   link_invoke(parent_node, invoke_node);
 
-  invoke_node->expr = node_create_invokeexpression();
+  invoke_node->expr = node_create_invokeexpression(state->arena);
   _check(consume_call_expression(state, "invoke", invoke_node->expr, &consume_invoke_args));
   if(invoke_node->expr->ref->type == EXPRESSION_SYMBOL) {
     MachineNode* machine_node = find_closest_machine_node(parent_node);

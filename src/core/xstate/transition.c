@@ -3,7 +3,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include "../arena.h"
 #include "../js_builder.h"
+#include "../mem.h"
 #include "../set.h"
 #include "../str_builder.h"
 #include "../node.h"
@@ -64,16 +66,13 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
                   if(use_multiline) {
                     js_builder_add_indent(jsb);
                   }
-                  str_builder_t* sb_name = str_builder_create();
-                  str_builder_add_str(sb_name, "spawn", 5);
-                  str_builder_add_char(sb_name, toupper(symbol_expression->name[0]));
-                  char* t = symbol_expression->name;
-                  t++;
-                  for(; *t != '\0'; t++) {
-                    str_builder_add_char(sb_name, *t);
-                  }
-                  char* action_name = str_builder_dump(sb_name, 0);
-                  str_builder_destroy(sb_name);
+                  // "spawn" + the symbol with its first letter upper-cased.
+                  const char* symbol_name = symbol_expression->name;
+                  size_t symbol_len = strlen(symbol_name);
+                  char* action_name = arena_alloc(state->arena, size_add(symbol_len, sizeof("spawn")));
+                  memcpy(action_name, "spawn", 5);
+                  memcpy(action_name + 5, symbol_name, symbol_len);
+                  action_name[5] = toupper((unsigned char)action_name[5]);
                   js_builder_add_string(jsb, action_name);
                   xs_add_action_ref(state, action_name, (Expression*)assign_expression);
 
@@ -111,13 +110,9 @@ void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
 
             if(state->flags & XS_FLAG_DTS) {
               if(state->in_entry && state->cur_state_start != 0) {
-                size_t i = state->cur_state_start;
-                char* cur_state_name = malloc((state->cur_state_end - state->cur_state_start) + 1);
-                while(i < state->cur_state_end) {
-                  cur_state_name[i - state->cur_state_start] = state->source[i];
-                  i++;
-                }
-                cur_state_name[i - state->cur_state_start] = '\0';
+                char* cur_state_name = arena_strndup(state->arena,
+                  state->source + state->cur_state_start,
+                  state->cur_state_end - state->cur_state_start);
                 ts_printer_add_entry_action(state->tsprinter, cur_state_name, expr->name);
               } else {
                 ts_printer_add_action(state->tsprinter, expr->name, state->cur_event_name);
@@ -225,7 +220,9 @@ static inline void compile_guard_expression(PrintState* state, JSBuilder* jsb, G
   }
 }
 
-static char* serialize_destination(TransitionNode* transition_node) {
+// The destination as text. Member expressions are joined into an arena
+// string; plain names are returned as they are.
+static char* serialize_destination(PrintState* state, TransitionNode* transition_node) {
   Expression* dest = transition_node->dest;
   switch(dest->type) {
     case EXPRESSION_IDENTIFIER: {
@@ -243,7 +240,7 @@ static char* serialize_destination(TransitionNode* transition_node) {
       IdentifierExpression* prop = (IdentifierExpression*)member_expression->property;
       str_builder_add_char(sb_name, '.');
       str_builder_add_str(sb_name, prop->name, 0);
-      char* d_name = str_builder_dump(sb_name, 0);
+      char* d_name = arena_strdup(state->arena, str_builder_peek(sb_name));
       str_builder_destroy(sb_name);
       return d_name;
     }
@@ -265,11 +262,11 @@ void xs_compile_inner_transition(PrintState* state, JSBuilder* jsb, TransitionNo
 
     if(transition_node->dest != NULL) {
       js_builder_start_prop(jsb, "target");
-      js_builder_add_string(jsb, serialize_destination(transition_node));
+      js_builder_add_string(jsb, serialize_destination(state, transition_node));
 
       if(state->flags & XS_FLAG_DTS) {
         if(state->cur_event_name != NULL) {
-          ts_printer_add_state_entry(state->tsprinter, state->cur_event_name, serialize_destination(transition_node));
+          ts_printer_add_state_entry(state->tsprinter, state->cur_event_name, serialize_destination(state, transition_node));
         }
       }
     }
@@ -317,7 +314,7 @@ void xs_compile_inner_transition(PrintState* state, JSBuilder* jsb, TransitionNo
 
     js_builder_end_object(jsb);
   } else {
-    js_builder_add_string(jsb, serialize_destination(transition_node));
+    js_builder_add_string(jsb, serialize_destination(state, transition_node));
   }
 }
 
@@ -327,7 +324,7 @@ void xs_compile_event_transition(PrintState* state, JSBuilder* jsb, TransitionNo
     ((IdentifierExpression*)transition_node->event)->name;
 
   // If this transition was already compiled from a previous link.
-  if(event_name != NULL && set_contains(state->events, event_name) == SET_TRUE) {
+  if(event_name != NULL && set_contains(&state->events, event_name) == SET_TRUE) {
     return;
   }
 
@@ -351,5 +348,5 @@ void xs_compile_event_transition(PrintState* state, JSBuilder* jsb, TransitionNo
   }
 
   state->cur_event_name = NULL;
-  set_add(state->events, event_name);
+  set_add(&state->events, event_name);
 }
