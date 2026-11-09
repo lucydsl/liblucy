@@ -10,14 +10,16 @@ export default async function(createModule) {
     UTF8ToString
   } = Module;
 
+  // The C API, from src/core/lucy.h.
   const _malloc = Module._malloc;
   const _free = Module._free;
-  const _compileXstate = Module._compile_xstate;
-  const _xsGetJS = Module._xs_get_js;
-  const _xsGetDTS = Module._xs_get_dts;
-  const _xsCreate = Module._xs_create;
-  const _xsInit = Module._xs_init;
-  const _destroyXstateResult = Module._destroy_xstate_result;
+  const _resultCreate = Module._lucy_result_create;
+  const _resultDestroy = Module._lucy_result_destroy;
+  const _resultSetOptions = Module._lucy_result_set_options;
+  const _compileXstate = Module._lucy_compile_xstate;
+  const _resultSuccess = Module._lucy_result_success;
+  const _resultJS = Module._lucy_result_js;
+  const _resultDTS = Module._lucy_result_dts;
 
   // A NUL-terminated UTF-8 copy of str on the wasm heap, which the caller
   // must _free. These used to go on the stack, which is 64 KB, at four
@@ -37,11 +39,12 @@ export default async function(createModule) {
   }
 
   /**
-   * Compile Lucy source a module of XState machines.
+   * Compile Lucy source to a module of XState machines.
    * @param source {String} the input Lucy source.
    * @param filename {String} the name of the Lucy file.
-   * @param options {Object}
-   * @returns {String} The compiled JavaScript module.
+   * @param options {{ useRemote?: boolean, dts?: boolean }}
+   * @returns {{ js: string, dts?: string }} The compiled JavaScript module,
+   *   and its TypeScript declarations if options.dts is set.
    */
   function compileXstate(source, filename, options = {
     useRemote: false
@@ -63,27 +66,24 @@ export default async function(createModule) {
       _free(srcPtr);
       throw err;
     }
-    const resPtr = _xsCreate();
-    _xsInit(resPtr, useRemote, dts);
+    const resPtr = _resultCreate();
+    _resultSetOptions(resPtr, useRemote, dts);
     _compileXstate(resPtr, srcPtr, fnPtr);
     _free(fnPtr);
     _free(srcPtr);
 
-    // Read the heap only now: it may have grown during the compile.
-    const success = !!Module.HEAPU8[resPtr];
-
     let out = null;
-    if(success) {
+    if(_resultSuccess(resPtr)) {
       out = {};
-      out.js = UTF8ToString(_xsGetJS(resPtr));
+      out.js = UTF8ToString(_resultJS(resPtr));
       if(dts) {
-        out.dts = UTF8ToString(_xsGetDTS(resPtr));
+        out.dts = UTF8ToString(_resultDTS(resPtr));
       }
     }
 
     // Destroy the result whether or not the compile succeeded. A failed
     // compile used to skip this and leak it.
-    _destroyXstateResult(resPtr);
+    _resultDestroy(resPtr);
 
     if(out === null) {
       throw new Error('Compiler error');

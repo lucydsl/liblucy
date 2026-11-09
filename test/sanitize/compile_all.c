@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../../src/core/xstate/compiler.h"
+#include "../../src/core/lucy.h"
 
 #define OPTION_SETS 4
 
@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
 
   // One result is reused for every compile of the last round, as a caller
   // may do; the earlier rounds create and destroy one per compile.
-  CompileResult* reused = xs_create();
+  LucyResult* reused = lucy_result_create();
 
   for(int round = 0; round < rounds; round++) {
     bool reuse = round == rounds - 1 && rounds > 1;
@@ -214,30 +214,30 @@ int main(int argc, char** argv) {
       for(int set = 0; set < OPTION_SETS; set++) {
         bool use_remote = set & 1;
         bool include_dts = set & 2;
-        CompileResult* result = reuse ? reused : xs_create();
-        xs_init(result, use_remote, include_dts);
-        compile_xstate(result, sources[i].text, (char*)filename);
+        LucyResult* result = reuse ? reused : lucy_result_create();
+        lucy_result_set_options(result, use_remote, include_dts);
+        lucy_compile_xstate(result, sources[i].text, filename);
 
         Output* expected = &outputs[i * OPTION_SETS + set];
         if(round == 0) {
-          expected->success = result->success;
-          expected->js = copy(result->js);
-          expected->dts = copy(result->dts);
-        } else if(result->success != expected->success ||
-          !same(result->js, expected->js) || !same(result->dts, expected->dts)) {
+          expected->success = lucy_result_success(result);
+          expected->js = copy(lucy_result_js(result));
+          expected->dts = copy(lucy_result_dts(result));
+        } else if(lucy_result_success(result) != expected->success ||
+          !same(lucy_result_js(result), expected->js) || !same(lucy_result_dts(result), expected->dts)) {
           printf("FAILED - %s (remote %d, dts %d) changed in round %d\n",
             filename, use_remote, include_dts, round + 1);
           failed = 1;
         }
 
         if(!reuse) {
-          destroy_xstate_result(result);
+          lucy_result_destroy(result);
         }
       }
     }
   }
 
-  destroy_xstate_result(reused);
+  lucy_result_destroy(reused);
   for(int i = 0; i < count * OPTION_SETS; i++) {
     free(outputs[i].js);
     free(outputs[i].dts);

@@ -12,10 +12,6 @@
 #include "../support/str_set.h"
 #include "ts_printer.h"
 
-// CompileResult.flags and Printer.flags: the compile's options.
-#define XS_FLAG_USE_REMOTE (1u << 0)
-#define XS_FLAG_DTS (1u << 1)
-
 // MachineNode.printer_flags: what the printer has printed for a machine.
 #define MACHINE_PRINTED_STATES (1u << 0)
 
@@ -31,12 +27,12 @@ typedef struct Ref {
 } Ref;
 
 /*
- * The printer's state for one compile. compile_xstate owns it, on its
- * stack. Everything it points to is in arena (the AST included), except
- * ts_printer, which compile_xstate destroys.
+ * The printer's state for one compile. xstate_print owns it, on its stack.
+ * Everything it points to is in arena (the AST included), except
+ * ts_printer, which xstate_print destroys. ts_printer is NULL unless the
+ * .d.ts was asked for.
  */
 typedef struct Printer {
-  unsigned flags;
   Arena* arena;
   char* source;
   Program* program;

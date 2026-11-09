@@ -25,7 +25,7 @@ void printer_compile_invoke(Printer* printer, JSBuilder* jsb, InvokeNode* invoke
       js_builder_add_string(jsb, symbol_expression->name);
       printer_add_service_ref(printer, symbol_expression->name, (Expression*)invoke_expression);
 
-      if(printer->flags & XS_FLAG_DTS) {
+      if(printer->ts_printer != NULL) {
         ts_printer_add_invoke(printer->ts_printer, symbol_expression->name);
       }
       break;

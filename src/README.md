@@ -5,8 +5,8 @@
 - `bin/main.c`: `lucyc`, the command-line compiler.
 - `wasm/main.c`: the wasm module's own entry points.
 - `core/`: the compiler itself, built into both.
-  - `xstate/compiler.c` (with `compiler.h`): the API that `lucyc` and the
-    wasm module call. It parses the source and prints the result.
+  - `lucy.h`: the library's API, which `lucyc` and the wasm module call.
+    `lucy.c` implements it: it parses the source and prints the result.
   - `support/`: general-purpose code that knows nothing about Lucy: the
     arena allocator, checked `malloc` (`mem.h`), a string builder, and a
     string set, map and list.
@@ -16,9 +16,10 @@
     the compiler sees; `internal.h` is shared by the parser's own files.
     `lexer.c` holds the cursor and the tokens, and the other files each
     parse one construct (`machine.c`, `state.c`, `transition.c`, ...).
-  - `xstate/`: prints a `Program` as XState JavaScript (`printer.h` and the
-    files that include it), and its TypeScript declarations
-    (`ts_printer.c`). `js_builder.c` builds indented JavaScript text.
+  - `xstate/`: prints a `Program` as XState JavaScript. `xstate.h` is its
+    interface; `printer.h` is shared by the files that print each construct.
+    `ts_printer.c` prints the TypeScript declarations, and `js_builder.c`
+    builds indented JavaScript text.
 
 ## Conventions
 
@@ -47,6 +48,9 @@ with Emscripten. `lucyc` also uses POSIX.
     stack.
   - The exceptions are the allocators in `support/mem.h`, which follow the
     common `xmalloc` idiom, and `size_add` and `size_mul` there.
+- **The public API** in `lucy.h` starts every name with `lucy_` (types with
+  `Lucy`, constants with `LUCY_`), then follows the same scheme:
+  `lucy_result_js` works on a `LucyResult`.
 - **Enums** are typedef'd `PascalCase` types whose constants are
   `UPPER_SNAKE_CASE` and start with the type's name: `NodeType` has
   `NODE_MACHINE` and `NODE_STATE`, `TokenType` has `TOKEN_EOF`, `Keyword`

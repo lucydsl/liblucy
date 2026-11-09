@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <getopt.h>
-#include "../core/xstate/compiler.h"
+#include "../core/lucy.h"
 #include "../core/support/mem.h"
 #include "../core/support/str_builder.h"
 
@@ -104,7 +104,7 @@ static int mkdirp(const char *path, int is_file) {
     return 0;
 }
 
-static int write_file(char* outfile, char* output) {
+static int write_file(char* outfile, const char* output) {
   FILE *fp;
 
   mkdirp(outfile, true);
@@ -153,16 +153,16 @@ static int compile_file(char* filename, int use_remote_imports, int include_dts,
     return 1;
   }
 
-  CompileResult* result = xs_create();
-  xs_init(result, use_remote_imports, include_dts);
-  compile_xstate(result, buffer, filename);
+  LucyResult* result = lucy_result_create();
+  lucy_result_set_options(result, use_remote_imports, include_dts);
+  lucy_compile_xstate(result, buffer, filename);
   // The result has its own copies of everything it needs.
   free(buffer);
 
   int ret = 0;
-  if(result->success) {
+  if(lucy_result_success(result)) {
     if(out_file != NULL) {
-      ret = write_file(out_file, result->js);
+      ret = write_file(out_file, lucy_result_js(result));
 
       if(ret == 0 && include_dts) {
         // out.js -> out.d.ts. This took outlen - 3 unsigned, so a name
@@ -172,17 +172,17 @@ static int compile_file(char* filename, int use_remote_imports, int include_dts,
         str_builder_copy_str(sb, out_file, 0, base_len);
         str_builder_add_str(sb, ".d.ts", 0);
         char* dtsname = str_builder_release(sb, NULL);
-        ret = write_file(dtsname, result->dts);
+        ret = write_file(dtsname, lucy_result_dts(result));
         free(dtsname);
       }
     } else {
       // Without --experimental-dts there is no d.ts to print, so print the
       // JavaScript, as scripts/lucyc.mjs does. This used to pass NULL to
       // printf.
-      if(print_target == PRINT_TARGET_DTS && result->dts != NULL) {
-        printf("%s\n", result->dts);
+      if(print_target == PRINT_TARGET_DTS && lucy_result_dts(result) != NULL) {
+        printf("%s\n", lucy_result_dts(result));
       } else {
-        printf("%s\n", result->js);
+        printf("%s\n", lucy_result_js(result));
       }
     }
   } else {
@@ -190,7 +190,7 @@ static int compile_file(char* filename, int use_remote_imports, int include_dts,
     ret = 1;
   }
 
-  destroy_xstate_result(result);
+  lucy_result_destroy(result);
   return ret;
 }
 
