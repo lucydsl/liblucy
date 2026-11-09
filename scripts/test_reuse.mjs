@@ -51,8 +51,9 @@ function compileSnapshots(round) {
 
 compileSnapshots(1);
 
-// The source used to be copied onto the 64 KB stack, which this overflowed.
-const longName = 'a'.repeat(100000);
+// The source used to be copied onto the 64 KB stack, which this
+// overflowed, and the heap was a fixed 16 MB, which this outgrew.
+const longName = 'a'.repeat(5000000);
 try {
   const result = compileXstate(`state ${longName} {\n  go => b\n}\n`, 'long.lucy');
   if(!result.js.includes(`\n      ${longName}: {\n`)) {
