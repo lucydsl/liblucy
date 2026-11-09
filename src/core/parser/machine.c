@@ -101,8 +101,8 @@ static ParseStatus consume_named_machine(Parser* parser) {
     status = PARSE_ERROR;
     goto end;
   }
-  machine_node->name_start = parser->word_start;
-  machine_node->name_end = parser->word_end;
+  machine_node->has_name = true;
+  machine_node->name = (SourceSpan){ .start = parser->word_start, .end = parser->word_end };
 
   token = parser_next_token(parser);
 

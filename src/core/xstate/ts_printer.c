@@ -127,11 +127,11 @@ static char* build_extract_clause(StringList* event_list) {
 }
 
 static void build_machine_name(TSPrinter* printer, JSBuilder* buffer) {
-  if(printer->machine_name_start == 0) {
+  if(!printer->has_machine_name) {
     js_builder_add_str(buffer, "Machine");
   } else {
-    js_builder_add_char(buffer, toupper((unsigned char)printer->source[printer->machine_name_start]));
-    js_builder_copy_str(buffer, printer->source, printer->machine_name_start + 1, printer->machine_name_end);
+    js_builder_add_char(buffer, toupper((unsigned char)printer->source[printer->machine_name.start]));
+    js_builder_copy_str(buffer, printer->source, printer->machine_name.start + 1, printer->machine_name.end);
   }
 }
 
@@ -360,11 +360,14 @@ char* ts_printer_dump(TSPrinter* printer) {
 }
 
 static void write_machine_name(TSPrinter* printer, StrBuilder* sb) {
-  if(printer->machine_name_start == 0) {
+  if(!printer->has_machine_name) {
     str_builder_add_str(sb, "Machine");
   } else {
-    str_builder_add_char(sb, toupper((unsigned char)printer->source[printer->machine_name_start]));
-    str_builder_copy_str(sb, printer->source, printer->machine_name_start, printer->machine_name_end);
+    str_builder_add_char(sb, toupper((unsigned char)printer->source[printer->machine_name.start]));
+    // Known bug: this copies the name from its first letter, not the one
+    // after, so "light" comes out as "Llight". build_machine_name gets it
+    // right.
+    str_builder_copy_str(sb, printer->source, printer->machine_name.start, printer->machine_name.end);
   }
 }
 
@@ -495,13 +498,13 @@ void ts_printer_create_machine(TSPrinter* printer) {
   str_builder_add_str(sb, "Options<TContext, TEvent>): StateMachine<TContext, any, TEvent>;");
 }
 
-void ts_printer_add_machine_name(TSPrinter* printer, size_t name_start, size_t name_end) {
-  if(name_start == 0) {
-    printer->machine_flags |= TS_MACHINE_DEFAULT;
-  } else {
-    printer->machine_name_start = name_start;
-    printer->machine_name_end = name_end;
-  }
+void ts_printer_add_machine_name(TSPrinter* printer, SourceSpan name) {
+  printer->has_machine_name = true;
+  printer->machine_name = name;
+}
+
+void ts_printer_add_default_machine(TSPrinter* printer) {
+  printer->machine_flags |= TS_MACHINE_DEFAULT;
 }
 
 void ts_printer_add_state_entry(TSPrinter* printer, char* event_name, char* state_name) {

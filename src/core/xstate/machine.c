@@ -28,9 +28,9 @@ static void add_machine_fn_args(JSBuilder* jsb, MachineNode* machine_node) {
 
 void printer_add_machine_binding_name(Printer* printer, JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "create");
-  js_builder_add_char(jsb, toupper((unsigned char)printer->source[machine_node->name_start]));
-  size_t i = machine_node->name_start + 1;
-  while(i < machine_node->name_end) {
+  js_builder_add_char(jsb, toupper((unsigned char)printer->source[machine_node->name.start]));
+  size_t i = machine_node->name.start + 1;
+  while(i < machine_node->name.end) {
     js_builder_add_char(jsb, printer->source[i]);
     i++;
   }
@@ -38,7 +38,7 @@ void printer_add_machine_binding_name(Printer* printer, JSBuilder* jsb, MachineN
 
 static inline void compile_machine(Printer* printer, JSBuilder* jsb, MachineNode* machine_node, bool is_nested) {
   if(!is_nested) {
-    if(machine_node->name_start == 0) {
+    if(!machine_node->has_name) {
       js_builder_add_str(jsb, "\nexport default function(");
       add_machine_fn_args(jsb, machine_node);
       js_builder_add_str(jsb, ") {\n");
@@ -56,9 +56,9 @@ static inline void compile_machine(Printer* printer, JSBuilder* jsb, MachineNode
     js_builder_start_object(jsb);
   }
 
-  if(machine_node->initial_start != 0) {
+  if(machine_node->has_initial) {
     js_builder_start_prop(jsb, "initial");
-    js_builder_copy_string(jsb, printer->source, machine_node->initial_start, machine_node->initial_end);
+    js_builder_copy_string(jsb, printer->source, machine_node->initial.start, machine_node->initial.end);
   }
   js_builder_shorthand_prop(jsb, "context");
 }
@@ -68,7 +68,11 @@ void printer_enter_machine(Printer* printer, JSBuilder* jsb, Node* node) {
   bool is_nested = node_is_nested_machine(node);
   compile_machine(printer, jsb, machine_node, is_nested);
   if(printer->ts_printer != NULL) {
-    ts_printer_add_machine_name(printer->ts_printer, machine_node->name_start, machine_node->name_end);
+    if(machine_node->has_name) {
+      ts_printer_add_machine_name(printer->ts_printer, machine_node->name);
+    } else {
+      ts_printer_add_default_machine(printer->ts_printer);
+    }
   }
 }
 

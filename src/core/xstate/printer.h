@@ -52,9 +52,8 @@ typedef struct Printer {
   StrSet event_names;
   TSPrinter* ts_printer;
   char* current_event;
-  size_t entry_state_start;
-  size_t entry_state_end;
-  bool in_entry;
+  // The state whose @entry actions are being printed, or NULL.
+  const StateNode* entry_state;
 } Printer;
 
 void printer_clear_refs(Printer*);

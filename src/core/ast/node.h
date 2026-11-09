@@ -66,23 +66,30 @@ typedef struct Node {
   struct Node* next;
 } Node;
 
+// A stretch of the source: the characters from start up to, but not
+// including, end. Names are kept as spans rather than copied.
+typedef struct SourceSpan {
+  size_t start;
+  size_t end;
+} SourceSpan;
+
 typedef struct MachineNode {
   Node node;
 
   unsigned printer_flags;
   unsigned flags;
-  size_t name_start;
-  size_t name_end;
-  size_t initial_start;
-  size_t initial_end;
+  // `machine name { ... }`. A machine made of states at the top level of
+  // the file has no name.
+  bool has_name;
+  SourceSpan name;
+  // The name of the state marked `initial`, if one is.
+  bool has_initial;
+  SourceSpan initial;
 } MachineNode;
 
 typedef struct StateNode {
   Node node;
-  // Where the name is in the source. These were ints, which offsets past
-  // 2 GB don't fit, and the printer copies the name out with them.
-  size_t name_start;
-  size_t name_end;
+  SourceSpan name;
 
   bool final;
   struct LocalNode* entry;

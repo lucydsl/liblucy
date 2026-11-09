@@ -110,10 +110,10 @@ bool printer_add_top_level_machine_name(Printer* printer, JSBuilder* jsb, char* 
   while(cur != NULL) {
     if(cur->type == NODE_MACHINE) {
       MachineNode* cur_machine = (MachineNode*)cur;
-      if(cur_machine->name_start != 0) {
-        size_t len = cur_machine->name_end - cur_machine->name_start;
+      if(cur_machine->has_name) {
+        size_t len = cur_machine->name.end - cur_machine->name.start;
         if(len == matching_len &&
-          memcmp(printer->source + cur_machine->name_start, matching_name, len) == 0) {
+          memcmp(printer->source + cur_machine->name.start, matching_name, len) == 0) {
           printer_add_machine_binding_name(printer, jsb, cur_machine);
           return true;
         }

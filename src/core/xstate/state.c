@@ -3,9 +3,7 @@
 static void compile_local_node(Printer* printer, JSBuilder* jsb, LocalNode* local_node) {
   switch(local_node->key) {
     case LOCAL_ENTRY: {
-      printer->in_entry = true;
       printer_compile_transition_action(printer, jsb, local_node->action, "entry");
-      printer->in_entry = false;
       break;
     }
     case LOCAL_EXIT: {
@@ -27,7 +25,7 @@ void printer_enter_state(Printer* printer, JSBuilder* jsb, Node* node) {
     js_builder_start_object(jsb);
   }
 
-  js_builder_start_prop_no_copy(jsb, printer->source, state_node->name_start, state_node->name_end);
+  js_builder_start_prop_no_copy(jsb, printer->source, state_node->name.start, state_node->name.end);
   js_builder_start_object(jsb);
 
   if(state_node->final) {
@@ -36,11 +34,9 @@ void printer_enter_state(Printer* printer, JSBuilder* jsb, Node* node) {
   }
 
   if(state_node->entry != NULL) {
-    printer->entry_state_start = state_node->name_start;
-    printer->entry_state_end = state_node->name_end;
+    printer->entry_state = state_node;
     compile_local_node(printer, jsb, state_node->entry);
-    printer->entry_state_start = 0;
-    printer->entry_state_end = 0;
+    printer->entry_state = NULL;
   }
   if(state_node->exit != NULL) {
     compile_local_node(printer, jsb, state_node->exit);

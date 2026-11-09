@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../ast/node.h"
 #include "../support/arena.h"
 #include "../support/str_map.h"
 #include "js_builder.h"
@@ -42,8 +43,10 @@ typedef struct TSPrinter {
   char* source;
 
   unsigned machine_flags;
-  size_t machine_name_start;
-  size_t machine_name_end;
+  // The name of the last named machine. Known bug: it is kept for the
+  // machines after it, named or not.
+  bool has_machine_name;
+  SourceSpan machine_name;
   char* xstate_specifier;
   JSBuilder* buffer;
   StrBuilder* event_names_sb;
@@ -75,7 +78,8 @@ void ts_printer_add_invoke(TSPrinter*, char*);
 void ts_printer_add_actor(TSPrinter*, char*);
 void ts_printer_add_delay(TSPrinter*, char*);
 void ts_printer_create_machine(TSPrinter*);
-void ts_printer_add_machine_name(TSPrinter*, size_t, size_t);
+void ts_printer_add_machine_name(TSPrinter*, SourceSpan);
+void ts_printer_add_default_machine(TSPrinter*);
 void ts_printer_add_state_entry(TSPrinter*, char*, char*);
 void ts_printer_add_entry_action(TSPrinter*, char*, char*);
 void ts_printer_figure_out_entry_events(TSPrinter*);
