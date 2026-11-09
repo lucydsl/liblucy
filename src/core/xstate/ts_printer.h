@@ -8,10 +8,10 @@
 #include "js_builder.h"
 
 // TSPrinter.flags: which XState types the .d.ts imports.
-#define TS_USES_GUARD (1u << 0)
+#define TS_USES_GUARD  (1u << 0)
 #define TS_USES_ACTION (1u << 1)
 #define TS_USES_INVOKE (1u << 2)
-#define TS_USES_DELAY (1u << 3)
+#define TS_USES_DELAY  (1u << 3)
 #define TS_USES_ASSIGN (1u << 4)
 
 // TSPrinter.machine_flags.

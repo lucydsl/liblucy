@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+
 #include "arena.h"
 
 /*
@@ -16,7 +17,7 @@
 typedef struct StrSet {
   Arena* arena;
   const char** slots;
-  size_t capacity;  // 0 or a power of two
+  size_t capacity; // 0 or a power of two
   size_t length;
 } StrSet;
 

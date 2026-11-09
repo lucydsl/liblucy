@@ -1,0 +1,35 @@
+# liblucy's C style; see src/README.md. Apply with clang-format 18 or later:
+#   clang-format -i $(git ls-files 'src/*.[ch]' 'test/*.[ch]')
+Language: Cpp
+BasedOnStyle: LLVM
+IndentWidth: 2
+ContinuationIndentWidth: 2
+UseTab: Never
+ColumnLimit: 0
+BreakBeforeBraces: Attach
+SpaceBeforeParens: Never
+PointerAlignment: Left
+DerivePointerAlignment: false
+IndentCaseLabels: true
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: false
+AlignAfterOpenBracket: DontAlign
+AlignConsecutiveMacros: Consecutive
+AlignEscapedNewlines: Left
+AlignTrailingComments: true
+SpacesBeforeTrailingComments: 1
+Cpp11BracedListStyle: false
+IndentPPDirectives: AfterHash
+PPIndentWidth: 1
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+InsertNewlineAtEOF: true
+ReflowComments: false
+BreakStringLiterals: false
+BreakBeforeTernaryOperators: false
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve

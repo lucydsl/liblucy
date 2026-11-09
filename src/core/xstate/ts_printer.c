@@ -198,9 +198,9 @@ static void print_machine_definitions(TSPrinter* printer) {
     StrSet actions_added;
     str_set_init(&actions_added, printer->arena);
 
-    if(printer-> actions != NULL) {
+    if(printer->actions != NULL) {
       StrMapIterator it = str_map_iterator(printer->actions);
-      while (str_map_next(&it)) {
+      while(str_map_next(&it)) {
         const char* action_name = it.key;
         js_builder_start_prop(buffer, action_name);
         js_builder_add_str(buffer, "Action<\n");
@@ -230,7 +230,7 @@ static void print_machine_definitions(TSPrinter* printer) {
 
     if(printer->entry_actions != NULL) {
       StrMapIterator it = str_map_iterator(printer->entry_actions);
-      while (str_map_next(&it)) {
+      while(str_map_next(&it)) {
         StringList* actions = (StringList*)it.value;
         StringListIterator itea = string_list_iterator(actions);
         while(string_list_next(&itea)) {
@@ -256,7 +256,7 @@ static void print_machine_definitions(TSPrinter* printer) {
     js_builder_start_prop(buffer, "assigns");
     js_builder_start_object(buffer);
     StrMapIterator it = str_map_iterator(printer->assigns);
-    while (str_map_next(&it)) {
+    while(str_map_next(&it)) {
       const char* cb_name = it.key;
       js_builder_start_prop(buffer, cb_name);
       js_builder_add_str(buffer, "PartialAssigner<\n");
@@ -299,7 +299,7 @@ static void print_machine_definitions(TSPrinter* printer) {
     js_builder_start_prop(buffer, "guards");
     js_builder_start_object(buffer);
     StrMapIterator it = str_map_iterator(printer->guards);
-    while (str_map_next(&it)) {
+    while(str_map_next(&it)) {
       /**
        * Guard<
        *   TContext,
@@ -307,7 +307,7 @@ static void print_machine_definitions(TSPrinter* printer) {
        * >;
        **/
       // Extract<TEvent, { type: 'next' | 'go_back' }>
-      
+
       js_builder_start_prop(buffer, it.key);
       js_builder_add_str(buffer, "ConditionPredicate<\n");
       js_builder_increase_indent(buffer);
@@ -551,7 +551,7 @@ void ts_printer_figure_out_entry_events(TSPrinter* printer) {
 
   if(printer->state_entries != NULL && printer->entry_actions != NULL) {
     StrMapIterator it = str_map_iterator(printer->state_entries);
-    while (str_map_next(&it)) {
+    while(str_map_next(&it)) {
       const char* state_name = it.key;
       StringList* event_list = (StringList*)it.value;
 

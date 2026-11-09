@@ -12,7 +12,7 @@ void string_list_init(StringList* list, Arena* arena) {
 }
 
 void string_list_append(StringList* list, const char* value) {
-  StringListNode *node = ARENA_NEW(list->arena, StringListNode);
+  StringListNode* node = ARENA_NEW(list->arena, StringListNode);
   node->value = arena_strdup(list->arena, value);
 
   if(list->tail != NULL) {

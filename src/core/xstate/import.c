@@ -1,10 +1,9 @@
 #include "printer.h"
 
-
 void printer_enter_import(Printer* printer, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, "import ");
 
-  ImportNode *import_node = (ImportNode*)node;
+  ImportNode* import_node = (ImportNode*)node;
   Node* child = node->child;
   bool multiple = false;
 
@@ -16,7 +15,7 @@ void printer_enter_import(Printer* printer, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, "{ ");
 
   while(child != NULL) {
-    ImportSpecifierNode *specifier = (ImportSpecifierNode*)child;
+    ImportSpecifierNode* specifier = (ImportSpecifierNode*)child;
 
     if(multiple) {
       js_builder_add_str(jsb, ", ");

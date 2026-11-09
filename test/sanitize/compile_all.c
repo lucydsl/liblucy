@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "../../src/core/lucy.h"
 
 #define OPTION_SETS 4
@@ -98,7 +99,7 @@ static char* repeat(char c, size_t count) {
 }
 
 static char* nested_machines(size_t depth) {
-  Text text = {0};
+  Text text = { 0 };
   text_add(&text, "machine m {\n  state a {\n", depth);
   text_add(&text, "    go => b\n    @entry => action(:x)\n", 1);
   text_add(&text, "  }\n}\n", depth);
@@ -111,7 +112,7 @@ static char* nested_machines(size_t depth) {
 static int add_generated(Source* sources) {
   char* a = repeat('a', 100000);
   char* b = repeat('b', 100000);
-  Text text = {0};
+  Text text = { 0 };
   text_add(&text, "state ", 1);
   text_add(&text, a, 1);
   text_add(&text, " {\n  ", 1);
@@ -136,7 +137,7 @@ static int add_generated(Source* sources) {
   sources[1] = (Source){ "<generated: 64 nested machines>", nested_machines(64) };
   sources[2] = (Source){ "<generated: 65 nested machines>", nested_machines(65) };
 
-  Text states = {0};
+  Text states = { 0 };
   text_add(&states, "machine m {\n", 1);
   for(int i = 0; i < 2000; i++) {
     char line[64];
@@ -224,7 +225,7 @@ int main(int argc, char** argv) {
           expected->js = copy(lucy_result_js(result));
           expected->dts = copy(lucy_result_dts(result));
         } else if(lucy_result_success(result) != expected->success ||
-          !same(lucy_result_js(result), expected->js) || !same(lucy_result_dts(result), expected->dts)) {
+                  !same(lucy_result_js(result), expected->js) || !same(lucy_result_dts(result), expected->dts)) {
           printf("FAILED - %s (remote %d, dts %d) changed in round %d\n",
             filename, use_remote, include_dts, round + 1);
           failed = 1;

@@ -5,8 +5,8 @@
 
 // Program.flags: which XState functions the output imports.
 #define PROGRAM_USES_ASSIGN (1u << 0)
-#define PROGRAM_USES_SPAWN (1u << 1)
-#define PROGRAM_USES_SEND (1u << 2)
+#define PROGRAM_USES_SPAWN  (1u << 1)
+#define PROGRAM_USES_SEND   (1u << 2)
 
 typedef struct Program {
   Node* body;

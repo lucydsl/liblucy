@@ -158,7 +158,6 @@ static char* consume_string(Parser* parser) {
     parser_advance_column(parser);
     parser_next(parser);
 
-
     c = parser_char(parser);
   } while(c != quote && c != '\n' && parser_in_bounds(parser));
 

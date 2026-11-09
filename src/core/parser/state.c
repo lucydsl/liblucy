@@ -1,6 +1,5 @@
 #include "internal.h"
 
-
 ParseStatus parser_consume_state(Parser* parser) {
   ParseStatus status = PARSE_OK;
 
@@ -124,8 +123,8 @@ ParseStatus parser_consume_state(Parser* parser) {
     }
   }
 
-  end: {
-    parser_leave_node(parser);
-    return status;
-  }
+end: {
+  parser_leave_node(parser);
+  return status;
+}
 }

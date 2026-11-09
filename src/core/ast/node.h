@@ -1,27 +1,28 @@
 #pragma once
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
+
 #include "../support/arena.h"
 
 // Node.type: which struct a node is.
 typedef enum NodeType {
-  NODE_MACHINE,     // MachineNode
-  NODE_STATE,       // StateNode
-  NODE_TRANSITION,  // TransitionNode
-  NODE_IMPORT,      // ImportNode
+  NODE_MACHINE,          // MachineNode
+  NODE_STATE,            // StateNode
+  NODE_TRANSITION,       // TransitionNode
+  NODE_IMPORT,           // ImportNode
   NODE_IMPORT_SPECIFIER, // ImportSpecifierNode
-  NODE_ASSIGNMENT,  // AssignmentNode
-  NODE_INVOKE,      // InvokeNode
-  NODE_LOCAL,       // LocalNode
+  NODE_ASSIGNMENT,       // AssignmentNode
+  NODE_INVOKE,           // InvokeNode
+  NODE_LOCAL,            // LocalNode
 } NodeType;
 
 // TransitionNode.type.
 typedef enum TransitionType {
-  TRANSITION_EVENT,      // event => target
-  TRANSITION_IMMEDIATE,  // => target, taken as soon as the state is entered
-  TRANSITION_DELAY,      // delay(...) => target
+  TRANSITION_EVENT,     // event => target
+  TRANSITION_IMMEDIATE, // => target, taken as soon as the state is entered
+  TRANSITION_DELAY,     // delay(...) => target
 } TransitionType;
 
 // AssignmentNode.binding_type: `action name = ...` or `guard name = ...`.
@@ -48,15 +49,15 @@ typedef enum ExpressionType {
 // LocalNode.key: which of a state's actions a local sets.
 typedef enum LocalKind {
   LOCAL_NONE,
-  LOCAL_ENTRY,  // @entry
-  LOCAL_EXIT,   // @exit
+  LOCAL_ENTRY, // @entry
+  LOCAL_EXIT,  // @exit
 } LocalKind;
 
 // MachineNode.flags: what the machine's options have to provide.
-#define MACHINE_USES_GUARD (1u << 0)
-#define MACHINE_USES_ACTION (1u << 1)
-#define MACHINE_USES_ASSIGN (1u << 2)
-#define MACHINE_USES_DELAY (1u << 3)
+#define MACHINE_USES_GUARD   (1u << 0)
+#define MACHINE_USES_ACTION  (1u << 1)
+#define MACHINE_USES_ASSIGN  (1u << 2)
+#define MACHINE_USES_DELAY   (1u << 3)
 #define MACHINE_USES_SERVICE (1u << 4)
 
 typedef struct Node {

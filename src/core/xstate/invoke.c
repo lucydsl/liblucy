@@ -45,4 +45,3 @@ void printer_compile_invoke(Printer* printer, JSBuilder* jsb, InvokeNode* invoke
 
   js_builder_end_object(jsb);
 }
-

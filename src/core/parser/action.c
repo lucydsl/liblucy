@@ -1,6 +1,5 @@
 #include "internal.h"
 
-
 static ParseStatus consume_inline_action_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   (void)index;
   ActionExpression* action_expression = (ActionExpression*)expr;
@@ -28,9 +27,7 @@ ParseStatus parser_consume_inline_action(Parser* parser, Node* node) {
   ActionExpression* action_expression = expression_create_action(parser->arena);
 
   if(parse_merge(&status, parser_consume_call(parser, "action", action_expression, &consume_inline_action_args)) == PARSE_FATAL) {
-
     return PARSE_FATAL;
-
   }
   if(parse_merge(&status, parser_expect_call_argument(parser, "action", action_expression->ref, status)) == PARSE_FATAL) {
     return PARSE_FATAL;
@@ -70,7 +67,7 @@ ParseStatus parser_consume_action(Parser* parser) {
   ParseStatus status = PARSE_OK;
 
   AssignmentNode* assignment = node_create_assignment(parser->arena, ASSIGNMENT_ACTION);
-  Node *node = (Node*)assignment;
+  Node* node = (Node*)assignment;
   parser_enter_node(parser, node);
 
   TokenType token;
@@ -97,7 +94,7 @@ ParseStatus parser_consume_action(Parser* parser) {
       Keyword key = keyword_lookup(identifier);
       switch(key) {
         case KEYWORD_ASSIGN: {
-          AssignExpression *expression = expression_create_assign(parser->arena);
+          AssignExpression* expression = expression_create_assign(parser->arena);
           // Known bug: an error in the call is reported but ignored, so
           // the compile still succeeds.
           (void)parser_consume_call(parser, "assign", expression, &parser_consume_inline_assign_args);

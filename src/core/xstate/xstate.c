@@ -16,7 +16,7 @@ XStateOutput xstate_print(Arena* arena, Program* program, const char* source,
     xstate_specifier = "xstate";
   }
 
-  JSBuilder *jsb;
+  JSBuilder* jsb;
   jsb = js_builder_create();
 
   Printer printer = {

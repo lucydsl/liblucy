@@ -10,8 +10,8 @@
 
 #include "../ast/node.h"
 #include "../ast/program.h"
-#include "../support/arena.h"
 #include "../diagnostic.h"
+#include "../support/arena.h"
 #include "../support/str_builder.h"
 #include "../support/str_set.h"
 
@@ -99,7 +99,7 @@ typedef struct Position {
 /* lexer.c: the cursor, words and tokens. */
 
 typedef enum TokenType {
-  TOKEN_EOF,
+  TOKEN_EOF,               // the end of the source
   TOKEN_EOL,               // a newline
   TOKEN_IDENTIFIER,        // a word, keywords included
   TOKEN_ASSIGNMENT,        // =
@@ -109,7 +109,7 @@ typedef enum TokenType {
   TOKEN_STRING,            // 'text' or "text"
   TOKEN_INTEGER,           // 200
   TOKEN_TIMEFRAME,         // 2s
-  TOKEN_UNKNOWN,
+  TOKEN_UNKNOWN,           // anything else
   TOKEN_BEGIN_CALL,        // (
   TOKEN_END_CALL,          // )
   TOKEN_COMMA,             // ,
@@ -200,7 +200,7 @@ void parser_error_unexpected_identifier(Parser*);
 /* keyword.c: keywords and @entry/@exit. */
 
 typedef enum Keyword {
-  KEYWORD_NONE,  // not a keyword
+  KEYWORD_NONE, // not a keyword
   KEYWORD_USE,
   KEYWORD_STATE,
   KEYWORD_INITIAL,

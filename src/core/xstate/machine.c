@@ -64,7 +64,7 @@ static inline void compile_machine(Printer* printer, JSBuilder* jsb, MachineNode
 }
 
 void printer_enter_machine(Printer* printer, JSBuilder* jsb, Node* node) {
-  MachineNode *machine_node = (MachineNode*)node;
+  MachineNode* machine_node = (MachineNode*)node;
   bool is_nested = node_is_nested_machine(node);
   compile_machine(printer, jsb, machine_node, is_nested);
   if(printer->ts_printer != NULL) {
@@ -121,7 +121,7 @@ void printer_exit_machine(Printer* printer, JSBuilder* jsb, Node* node) {
         ref = ref->next;
       }
 
-      end_guardloop: {};
+    end_guardloop: {};
 
       js_builder_end_object(jsb);
     }
@@ -146,25 +146,27 @@ void printer_exit_machine(Printer* printer, JSBuilder* jsb, Node* node) {
             // an inline assign(key) prints instead.
             if(assign->value == NULL) {
               js_builder_add_str(jsb, "(context, event) => event.data");
-            } else switch(assign->value->type) {
-              case EXPRESSION_IDENTIFIER: {
-                const char* identifier = ((IdentifierExpression*)assign->value)->name;
-                js_builder_add_str(jsb, identifier);
-                break;
-              }
-              case EXPRESSION_SPAWN: {
-                SpawnExpression* spawn_expression = (SpawnExpression*)assign->value;
-                printer_add_spawn_call(printer, jsb, spawn_expression);
-                break;
-              }
-              case EXPRESSION_SYMBOL: {
-                SymbolExpression* symbol_expression = (SymbolExpression*)assign->value;
-                js_builder_add_str(jsb, "assigns.");
-                js_builder_add_str(jsb, symbol_expression->name);
-                break;
-              }
-              default: {
-                break;
+            } else {
+              switch(assign->value->type) {
+                case EXPRESSION_IDENTIFIER: {
+                  const char* identifier = ((IdentifierExpression*)assign->value)->name;
+                  js_builder_add_str(jsb, identifier);
+                  break;
+                }
+                case EXPRESSION_SPAWN: {
+                  SpawnExpression* spawn_expression = (SpawnExpression*)assign->value;
+                  printer_add_spawn_call(printer, jsb, spawn_expression);
+                  break;
+                }
+                case EXPRESSION_SYMBOL: {
+                  SymbolExpression* symbol_expression = (SymbolExpression*)assign->value;
+                  js_builder_add_str(jsb, "assigns.");
+                  js_builder_add_str(jsb, symbol_expression->name);
+                  break;
+                }
+                default: {
+                  break;
+                }
               }
             }
 

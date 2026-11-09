@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+
 #include "../support/str_builder.h"
 
 /*

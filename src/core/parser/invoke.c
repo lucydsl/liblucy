@@ -45,7 +45,7 @@ ParseStatus parser_consume_invoke(Parser* parser) {
   }
   MachineNode* machine_node = node_find_machine(parent_node);
   if(invoke_node->expr->ref != NULL &&
-    invoke_node->expr->ref->type == EXPRESSION_SYMBOL && machine_node != NULL) {
+     invoke_node->expr->ref->type == EXPRESSION_SYMBOL && machine_node != NULL) {
     machine_node->flags |= MACHINE_USES_SERVICE;
   }
 
@@ -78,8 +78,8 @@ ParseStatus parser_consume_invoke(Parser* parser) {
     }
   }
 
-  end: {
-    parser_leave_node(parser);
-    return status;
-  }
+end: {
+  parser_leave_node(parser);
+  return status;
+}
 }

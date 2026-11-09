@@ -21,7 +21,7 @@
 
 // Usual block size. Bigger allocations get a block to themselves.
 #define ARENA_BLOCK_SIZE (16 * 1024)
-#define ARENA_BIG_ALLOC (ARENA_BLOCK_SIZE / 4)
+#define ARENA_BIG_ALLOC  (ARENA_BLOCK_SIZE / 4)
 
 struct ArenaBlock {
   ArenaBlock* next;
