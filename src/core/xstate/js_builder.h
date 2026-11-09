@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
-#include "str_builder.h"
+#include "../support/str_builder.h"
 
 /*
  * Builds JavaScript (and TypeScript) source text with indentation.

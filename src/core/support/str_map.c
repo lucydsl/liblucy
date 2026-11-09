@@ -24,7 +24,7 @@ SOFTWARE.
 
 // Simple hash table implemented in C.
 
-#include "ht.h"
+#include "str_map.h"
 #include "mem.h"
 
 #include <assert.h>

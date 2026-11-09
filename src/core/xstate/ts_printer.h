@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../arena.h"
-#include "../ht.h"
-#include "../js_builder.h"
-#include "../str_set.h"
-#include "../string_list.h"
+#include "../support/arena.h"
+#include "../support/str_map.h"
+#include "js_builder.h"
+#include "../support/str_set.h"
+#include "../support/string_list.h"
 
 #define XS_TS_PROGRAM_USES_GUARD 1 << 0
 #define XS_TS_PROGRAM_USES_ACTION 1 << 1

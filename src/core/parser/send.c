@@ -1,5 +1,5 @@
-#include "../node.h"
-#include "../state.h"
+#include "../ast/node.h"
+#include "lexer.h"
 #include "core.h"
 
 int parser_consume_inline_send_args(State* state, void* expr, int _token, char* arg, int argi) {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../state.h"
+#include "lexer.h"
 
 #define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
 

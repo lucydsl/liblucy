@@ -1,6 +1,6 @@
 #pragma once
 
-#include "arena.h"
+#include "../support/arena.h"
 #include "node.h"
 
 #define PROGRAM_USES_ASSIGN 1 << 0

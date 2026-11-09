@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <limits.h>
-#include "node.h"
-#include "state.h"
-#include "str_builder.h"
+#include "../ast/node.h"
+#include "lexer.h"
+#include "../support/str_builder.h"
 
 #define RESET   "\033[0m"
 #define BLACK   "\033[30m"      /* Black */

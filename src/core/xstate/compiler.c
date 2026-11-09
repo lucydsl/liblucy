@@ -1,10 +1,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "../arena.h"
-#include "../mem.h"
+#include "../support/arena.h"
+#include "../support/mem.h"
 #include "../parser/parser.h"
-#include "../program.h"
+#include "../ast/program.h"
 #include "assignment.h"
 #include "compiler.h"
 #include "core.h"

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "arena.h"
-#include "node.h"
-#include "str_set.h"
-#include "program.h"
+#include "../support/arena.h"
+#include "../ast/node.h"
+#include "../support/str_set.h"
+#include "../ast/program.h"
 
 #define MODIFIER_NONE 0
 #define MODIFIER_TYPE_INITIAL 1

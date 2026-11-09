@@ -1,9 +1,9 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../arena.h"
-#include "../str_builder.h"
-#include "../str_set.h"
+#include "../support/arena.h"
+#include "../support/str_builder.h"
+#include "../support/str_set.h"
 #include "ts_printer.h"
 
 static void add_str_union(str_builder_t* sb, char* value) {

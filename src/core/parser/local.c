@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../error.h"
-#include "../keyword.h"
-#include "../local.h"
-#include "../node.h"
-#include "../state.h"
+#include "error.h"
+#include "keyword.h"
+#include "local_kind.h"
+#include "../ast/node.h"
+#include "lexer.h"
 #include "action.h"
 #include "assign.h"
 #include "core.h"

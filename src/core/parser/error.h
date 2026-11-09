@@ -1,7 +1,7 @@
 #pragma once
 
-#include "node.h"
-#include "state.h"
+#include "../ast/node.h"
+#include "lexer.h"
 
 void error_message(const char*);
 void error_msg_with_code_block(State*, Node*, const char*);

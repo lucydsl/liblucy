@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <string.h>
-#include "../arena.h"
-#include "../error.h"
-#include "../identifier.h"
-#include "../node.h"
-#include "../state.h"
-#include "../timeframe.h"
+#include "../support/arena.h"
+#include "error.h"
+#include "identifier.h"
+#include "../ast/node.h"
+#include "lexer.h"
+#include "timeframe.h"
 #include "core.h"
 #include "token.h"
 

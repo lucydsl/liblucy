@@ -1,6 +1,6 @@
 #include <stddef.h>
 #include <string.h>
-#include "local.h"
+#include "local_kind.h"
 
 unsigned short local_get(const char* key) {
   if(key == NULL) {

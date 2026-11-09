@@ -1,5 +1,5 @@
-#include "../arena.h"
-#include "../node.h"
+#include "../support/arena.h"
+#include "node.h"
 
 static Expression* create_expression(Arena* arena, unsigned short type, size_t size) {
   Expression* expression = arena_alloc(arena, size);

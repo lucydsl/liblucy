@@ -1,8 +1,8 @@
 #include <stdlib.h>
-#include "../error.h"
-#include "../keyword.h"
-#include "../node.h"
-#include "../state.h"
+#include "error.h"
+#include "keyword.h"
+#include "../ast/node.h"
+#include "lexer.h"
 #include "assign.h"
 #include "core.h"
 #include "send.h"
