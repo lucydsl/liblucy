@@ -1,6 +1,6 @@
 #include "internal.h"
 
-static ParseStatus consume_inline_spawn_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+static ParseStatus consume_inline_spawn_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   (void)index;
   SpawnExpression* spawn_expression = (SpawnExpression*)expr;
   switch(token) {

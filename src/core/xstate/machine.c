@@ -102,12 +102,12 @@ void printer_exit_machine(Printer* printer, JSBuilder* jsb, Node* node) {
 
         switch(expression->type) {
           case EXPRESSION_IDENTIFIER: {
-            char* identifier = ((IdentifierExpression*)expression)->name;
+            const char* identifier = ((IdentifierExpression*)expression)->name;
             js_builder_add_str(jsb, identifier);
             break;
           }
           case EXPRESSION_SYMBOL: {
-            char* identifier = ((SymbolExpression*)expression)->name;
+            const char* identifier = ((SymbolExpression*)expression)->name;
             js_builder_add_str(jsb, "guards.");
             js_builder_add_str(jsb, identifier);
             break;
@@ -148,7 +148,7 @@ void printer_exit_machine(Printer* printer, JSBuilder* jsb, Node* node) {
               js_builder_add_str(jsb, "(context, event) => event.data");
             } else switch(assign->value->type) {
               case EXPRESSION_IDENTIFIER: {
-                char* identifier = ((IdentifierExpression*)assign->value)->name;
+                const char* identifier = ((IdentifierExpression*)assign->value)->name;
                 js_builder_add_str(jsb, identifier);
                 break;
               }

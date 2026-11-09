@@ -56,7 +56,7 @@ void js_builder_copy_str(JSBuilder* jsb, const char* str, size_t start, size_t e
   str_builder_copy_str(jsb->text, str, start, end);
 }
 
-void js_builder_add_string(JSBuilder* jsb, char* value) {
+void js_builder_add_string(JSBuilder* jsb, const char* value) {
   js_builder_add_str(jsb, "'");
   js_builder_add_str(jsb, value);
   js_builder_add_str(jsb, "'");
@@ -94,7 +94,7 @@ void js_builder_end_object(JSBuilder* jsb) {
   js_builder_add_str(jsb, "}");
 }
 
-void js_builder_start_prop(JSBuilder* jsb, char* key) {
+void js_builder_start_prop(JSBuilder* jsb, const char* key) {
   start_entry(jsb);
   js_builder_add_str(jsb, key);
   js_builder_add_str(jsb, ": ");
@@ -106,12 +106,12 @@ void js_builder_start_prop_no_copy(JSBuilder* jsb, const char* key, size_t start
   js_builder_add_str(jsb, ": ");
 }
 
-void js_builder_shorthand_prop(JSBuilder* jsb, char* key) {
+void js_builder_shorthand_prop(JSBuilder* jsb, const char* key) {
   start_entry(jsb);
   js_builder_add_str(jsb, key);
 }
 
-void js_builder_start_call(JSBuilder* jsb, char* name) {
+void js_builder_start_call(JSBuilder* jsb, const char* name) {
   if(char_from_end(jsb, 1) == '\n') {
     js_builder_add_indent(jsb);
   }
@@ -148,7 +148,7 @@ void js_builder_add_export(JSBuilder* jsb) {
   js_builder_add_str(jsb, "\nexport ");
 }
 
-void js_builder_add_arg(JSBuilder* jsb, char* identifier) {
+void js_builder_add_arg(JSBuilder* jsb, const char* identifier) {
   char c = char_from_end(jsb, 1);
 
   // Add a comma if we need to

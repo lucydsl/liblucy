@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static char* get_event_name(TransitionNode* transition_node) {
-  char* name = NULL;
+static const char* get_event_name(TransitionNode* transition_node) {
+  const char* name = NULL;
   Expression* event_expression = transition_node->event;
   if(event_expression->type == EXPRESSION_IDENTIFIER) {
     IdentifierExpression* idexpr = (IdentifierExpression*)event_expression;
@@ -17,7 +17,7 @@ static char* get_event_name(TransitionNode* transition_node) {
 }
 
 static void link_event_transition(Node* parent_node, TransitionNode* transition_node) {
-  char* event_name = get_event_name(transition_node);
+  const char* event_name = get_event_name(transition_node);
 
   TransitionNode* child_transition_node = NULL;
   switch(parent_node->type) {
@@ -52,7 +52,7 @@ static void link_event_transition(Node* parent_node, TransitionNode* transition_
     // printer never finished).
     bool linked_already = false;
     do {
-      char* name = get_event_name(child_transition_node);
+      const char* name = get_event_name(child_transition_node);
       if(!linked_already && name != NULL && event_name != NULL &&
         strcmp(name, event_name) == 0) {
         TransitionNode* linked = child_transition_node;
@@ -81,7 +81,7 @@ static void append_transition(TransitionNode** list, TransitionNode* transition_
   *list = transition_node;
 }
 
-static ParseStatus consume_on_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+static ParseStatus consume_on_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   (void)parser;
   (void)token;
   (void)index;
@@ -141,7 +141,7 @@ ParseStatus parser_consume_transition(Parser* parser) {
   }
   NodeType current_node_type = current_node->type;
 
-  char* event = parser_take_word(parser);
+  const char* event = parser_take_word(parser);
 
   // Always transition
   if(event == NULL) {
@@ -211,7 +211,7 @@ ParseStatus parser_consume_transition(Parser* parser) {
   parser->node = transition_node_node;
 
   bool block_transition = false;
-  char* identifier = NULL;
+  const char* identifier = NULL;
   while(true) {
     TokenType token = parser_next_token(parser);
 

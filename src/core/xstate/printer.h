@@ -23,7 +23,7 @@
  * key and value point at AST data, which lives just as long.
  */
 typedef struct Ref {
-  char* key;
+  const char* key;
   struct Ref* next;
   Expression* value;
 } Ref;
@@ -38,7 +38,7 @@ typedef struct Printer {
   Arena* arena;
   // Where warnings go. The compile's result owns it.
   DiagnosticList* diagnostics;
-  char* source;
+  const char* source;
   Program* program;
   Ref* guard_refs;
   StrSet guard_names;
@@ -51,7 +51,7 @@ typedef struct Printer {
   // The events printed for the state being printed.
   StrSet event_names;
   TSPrinter* ts_printer;
-  char* current_event;
+  const char* current_event;
   // The state whose @entry actions are being printed, or NULL.
   const StateNode* entry_state;
 } Printer;
@@ -68,11 +68,11 @@ void printer_start_assign_call(JSBuilder*, AssignExpression*);
 void printer_end_assign_call(JSBuilder*);
 void printer_add_spawn_call(Printer*, JSBuilder*, SpawnExpression*);
 void printer_add_send_call(JSBuilder*, SendExpression*);
-bool printer_add_top_level_machine_name(Printer*, JSBuilder*, char*);
-void printer_add_action_ref(Printer*, char*, Expression*);
-void printer_add_guard_ref(Printer*, char*, Expression*);
-void printer_add_delay_ref(Printer*, char*, Expression*);
-void printer_add_service_ref(Printer*, char*, Expression*);
+bool printer_add_top_level_machine_name(Printer*, JSBuilder*, const char*);
+void printer_add_action_ref(Printer*, const char*, Expression*);
+void printer_add_guard_ref(Printer*, const char*, Expression*);
+void printer_add_delay_ref(Printer*, const char*, Expression*);
+void printer_add_service_ref(Printer*, const char*, Expression*);
 
 /* machine.c */
 
@@ -101,5 +101,5 @@ void printer_compile_invoke(Printer*, JSBuilder*, InvokeNode*);
 
 void printer_compile_event_transition(Printer*, JSBuilder*, TransitionNode*);
 void printer_compile_transition_action(Printer*, JSBuilder*, TransitionAction*, const char*);
-void printer_compile_transition_key(Printer*, JSBuilder*, TransitionNode*, char*);
+void printer_compile_transition_key(Printer*, JSBuilder*, TransitionNode*, const char*);
 void printer_compile_inner_transition(Printer*, JSBuilder*, TransitionNode*);

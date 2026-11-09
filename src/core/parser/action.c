@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-static ParseStatus consume_inline_action_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+static ParseStatus consume_inline_action_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   (void)index;
   ActionExpression* action_expression = (ActionExpression*)expr;
 
@@ -82,7 +82,7 @@ ParseStatus parser_consume_action(Parser* parser) {
     return PARSE_FATAL;
   }
 
-  char* binding_name = parser_take_word(parser);
+  const char* binding_name = parser_take_word(parser);
   assignment->binding_name = binding_name;
 
   token = parser_next_token(parser);
@@ -94,7 +94,7 @@ ParseStatus parser_consume_action(Parser* parser) {
   token = parser_next_token(parser);
   switch(token) {
     case TOKEN_IDENTIFIER: {
-      char* identifier = parser_take_word(parser);
+      const char* identifier = parser_take_word(parser);
       Keyword key = keyword_lookup(identifier);
       switch(key) {
         case KEYWORD_ASSIGN: {

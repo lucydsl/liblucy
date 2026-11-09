@@ -101,13 +101,13 @@ typedef struct StateNode {
 } StateNode;
 
 typedef struct TransitionGuard {
-  char* name;
+  const char* name;
   struct TransitionGuard* next;
   struct GuardExpression* expression;
 } TransitionGuard;
 
 typedef struct TransitionAction {
-  char* name;
+  const char* name;
   struct TransitionAction* next;
   struct Expression* expression;
 } TransitionAction;
@@ -139,13 +139,13 @@ typedef struct LocalNode {
 typedef struct ImportSpecifierNode {
   Node node;
 
-  char* imported;
+  const char* imported;
 } ImportSpecifierNode;
 
 typedef struct ImportNode {
   Node node;
 
-  char* from;
+  const char* from;
 } ImportNode;
 
 typedef struct InvokeNode {
@@ -160,12 +160,12 @@ typedef struct Expression {
 
 typedef struct IdentifierExpression {
   Expression expression;
-  char* name;
+  const char* name;
 } IdentifierExpression;
 
 typedef struct AssignExpression {
   Expression expression;
-  char* key;
+  const char* key;
   Expression* value;
 } AssignExpression;
 
@@ -187,7 +187,7 @@ typedef struct DelayExpression {
 
 typedef struct OnExpression {
   Expression expression;
-  char* name;
+  const char* name;
 } OnExpression;
 
 typedef struct SpawnExpression {
@@ -197,13 +197,13 @@ typedef struct SpawnExpression {
 
 typedef struct SendExpression {
   Expression expression;
-  char* actor;
-  char* event;
+  const char* actor;
+  const char* event;
 } SendExpression;
 
 typedef struct SymbolExpression {
   Expression expression;
-  char* name;
+  const char* name;
 } SymbolExpression;
 
 typedef struct InvokeExpression {
@@ -213,14 +213,14 @@ typedef struct InvokeExpression {
 
 typedef struct MemberExpression {
   Expression expression;
-  char* owner;
+  const char* owner;
   Expression* property;
 } MemberExpression;
 
 typedef struct AssignmentNode {
   Node node;
   AssignmentKind binding_type;
-  char* binding_name;
+  const char* binding_name;
   Expression* value;
 } AssignmentNode;
 
@@ -236,7 +236,7 @@ TransitionNode* node_create_transition(Arena*);
 MachineNode* node_create_machine(Arena*);
 StateNode* node_create_state(Arena*);
 ImportNode* node_create_import(Arena*);
-ImportSpecifierNode* node_create_import_specifier(Arena*, char*);
+ImportSpecifierNode* node_create_import_specifier(Arena*, const char*);
 AssignmentNode* node_create_assignment(Arena*, AssignmentKind);
 InvokeNode* node_create_invoke(Arena*);
 AssignExpression* expression_create_assign(Arena*);
@@ -259,8 +259,8 @@ bool node_is_nested_machine(Node*);
 void node_append_child(Node*, Node*);
 void node_append_sibling(Node*, Node*);
 
-TransitionGuard* node_transition_add_guard(Arena*, TransitionNode*, char*);
-TransitionAction* node_transition_add_action(Arena*, TransitionNode*, char*);
+TransitionGuard* node_transition_add_guard(Arena*, TransitionNode*, const char*);
+TransitionAction* node_transition_add_action(Arena*, TransitionNode*, const char*);
 TransitionDelay* node_transition_set_delay(Arena*, TransitionNode*, DelayExpression*);
 void node_local_add_action(LocalNode*, TransitionAction*);
 

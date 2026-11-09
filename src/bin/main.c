@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <limits.h>     /* PATH_MAX */
+#include <stdbool.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -27,7 +28,7 @@
 
 #define U_INDENT "    "
 
-static void usage(char* program_name) {
+static void usage(const char* program_name) {
   fprintf(stderr, "%s - Compile Lucy programs.\n\n", program_name);
   fprintf(stderr, BOLDWHITE "Usage:\n" RESET);
   fprintf(stderr, "%s%s [options] [file ...]\n\n", U_INDENT, program_name);
@@ -65,7 +66,7 @@ typedef enum PrintTarget {
   PRINT_TARGET_DTS,
 } PrintTarget;
 
-static int mkdirp(const char *path, int is_file) {
+static int mkdirp(const char *path, bool is_file) {
     const size_t len = strlen(path);
     char _path[PATH_MAX];
     char *p; 
@@ -104,7 +105,7 @@ static int mkdirp(const char *path, int is_file) {
     return 0;
 }
 
-static int write_file(char* outfile, const char* output) {
+static int write_file(const char* outfile, const char* output) {
   FILE *fp;
 
   mkdirp(outfile, true);
@@ -155,8 +156,8 @@ static char* read_file(const char* filename) {
   return buffer;
 }
 
-static int compile_file(char* filename, int use_remote_imports, int include_dts,
-  char* out_file, PrintTarget print_target) {
+static int compile_file(const char* filename, bool use_remote_imports, bool include_dts,
+  const char* out_file, PrintTarget print_target) {
   char* buffer = read_file(filename);
   if(buffer == NULL) {
     fprintf(stderr, "Error opening file!\n");
@@ -206,13 +207,13 @@ static int compile_file(char* filename, int use_remote_imports, int include_dts,
   return ret;
 }
 
-static int ends_with(const char *str, const char *suffix) {
+static bool ends_with(const char *str, const char *suffix) {
     if (!str || !suffix)
-        return 0;
+        return false;
     size_t lenstr = strlen(str);
     size_t lensuffix = strlen(suffix);
     if (lensuffix >  lenstr)
-        return 0;
+        return false;
     return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
 }
 
@@ -236,8 +237,8 @@ static char* relative_name(const char* rootdir, const char* filename, size_t fnl
   return str_builder_release(sb, NULL);
 }
 
-static int compile_dir(char* rootdir, char* dirname,
-  int use_remote_imports, int include_dts, char* out_dir,
+static int compile_dir(const char* rootdir, const char* dirname,
+  bool use_remote_imports, bool include_dts, const char* out_dir,
   PrintTarget print_target) {
   DIR* fd;
   struct dirent* in_file;
@@ -315,9 +316,9 @@ static struct option long_options[] = {
   {0, 0, 0, 0},
 };
 
-int main(int argc, char *argv[]) {
-  int use_remote_imports = 0;
-  int include_dts = 0;
+int main(int argc, char* argv[]) {
+  bool use_remote_imports = false;
+  bool include_dts = false;
 
   // These point into argv, which outlives everything here.
   char* out_file = NULL;
@@ -329,11 +330,11 @@ int main(int argc, char *argv[]) {
   while ((opt = getopt_long(argc, argv, "hv", long_options, &option_index)) != -1) {
     switch(opt) {
       case OPTION_REMOTE_IMPORTS: {
-        use_remote_imports = 1;
+        use_remote_imports = true;
         break;
       }
       case OPTION_EXPERIMENTAL_DTS: {
-        include_dts = 1;
+        include_dts = true;
         break;
       }
       case OPTION_OUT_FILE: {
@@ -368,8 +369,8 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  char* program_name = argv[0];
-  char* filename = argv[optind];
+  const char* program_name = argv[0];
+  const char* filename = argv[optind];
 
   if(filename != NULL) {
     struct stat path_stat;

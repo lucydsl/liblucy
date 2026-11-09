@@ -15,7 +15,7 @@ static ParseStatus consume_use_specifiers(ImportNode* import_node, Parser* parse
     
     switch(token) {
       case TOKEN_IDENTIFIER: {
-        char* identifier = parser_take_word(parser);
+        const char* identifier = parser_take_word(parser);
         if(strcmp(identifier, "as") == 0) {
 
           parser_error(parser, "Import aliases are not currently supported.");

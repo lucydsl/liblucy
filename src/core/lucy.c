@@ -64,10 +64,10 @@ void lucy_compile_xstate(LucyResult* result, const char* source, const char* fil
   Arena arena;
   arena_init(&arena);
 
-  ParseResult parsed = parse(&arena, (char*)source, (char*)filename,
+  ParseResult parsed = parse(&arena, source, filename,
     &result->diagnostics);
   if(parsed.success) {
-    XStateOutput output = xstate_print(&arena, parsed.program, (char*)source,
+    XStateOutput output = xstate_print(&arena, parsed.program, source,
       result->use_remote_imports, result->include_dts, &result->diagnostics);
     result->success = true;
     result->js = output.js;

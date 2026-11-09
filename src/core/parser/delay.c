@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   (void)index;
   DelayExpression* delay_expression = (DelayExpression*)expr;
 

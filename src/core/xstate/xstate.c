@@ -7,9 +7,9 @@
 #include "printer.h"
 #include "ts_printer.h"
 
-XStateOutput xstate_print(Arena* arena, Program* program, char* source,
+XStateOutput xstate_print(Arena* arena, Program* program, const char* source,
   bool use_remote_imports, bool include_dts, DiagnosticList* diagnostics) {
-  char* xstate_specifier;
+  const char* xstate_specifier;
   if(use_remote_imports) {
     xstate_specifier = "https://cdn.skypack.dev/xstate";
   } else {

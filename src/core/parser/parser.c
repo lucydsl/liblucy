@@ -55,7 +55,7 @@ static ParseStatus consume_program(Parser* parser) {
   }
 }
 
-ParseResult parse(Arena* arena, char* source, char* filename, DiagnosticList* diagnostics) {
+ParseResult parse(Arena* arena, const char* source, const char* filename, DiagnosticList* diagnostics) {
   Program* program = program_create(arena);
   Parser parser;
   parser_init(&parser, arena, program, source, filename, diagnostics);
