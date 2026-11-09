@@ -67,7 +67,6 @@ ParseStatus parser_consume_use(Parser* parser) {
 
   ImportNode *import_node = node_create_import(parser->arena);
   Node *node = (Node*)import_node;
-  parser_node_start_pos(parser, node, 4);
   parser_enter_node(parser, node);
 
   TokenType token;
@@ -83,10 +82,8 @@ ParseStatus parser_consume_use(Parser* parser) {
   import_node->from = parser_take_word(parser);
 
   // Start grabbing specififers
-  bool consumed_loc = false;
   bool consumed_specifiers = false;
-  bool consumed_from = false;
-  loop: while(true) {
+  while(true) {
     token = parser_next_token(parser);
 
     switch(token) {

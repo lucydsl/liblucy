@@ -90,8 +90,6 @@ void printer_enter_state(Printer* printer, JSBuilder* jsb, Node* node) {
 }
 
 void printer_exit_state(Printer* printer, JSBuilder* jsb, Node* node) {
-  StateNode* state_node = (StateNode*)node;
-
   // Close out this state node.
   js_builder_end_object(jsb);
 

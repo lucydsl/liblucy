@@ -1,6 +1,7 @@
 #include "internal.h"
 
-static ParseStatus consume_invoke_args(Parser* parser, void* expr, TokenType token, char* arg, size_t _index) {
+static ParseStatus consume_invoke_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+  (void)index;
   InvokeExpression* invoke_expression = (InvokeExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
@@ -29,7 +30,6 @@ ParseStatus parser_consume_invoke(Parser* parser) {
 
   InvokeNode* invoke_node = node_create_invoke(parser->arena);
   Node* node = (Node*)invoke_node;
-  parser_node_start_pos(parser, node, 6); // "invoke"
 
   Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_STATE) {

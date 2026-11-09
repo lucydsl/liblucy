@@ -63,13 +63,6 @@ void str_builder_add_char(StrBuilder *sb, char c);
 void str_builder_add_format(StrBuilder *sb, const char *format, ...)
     STR_BUILDER_PRINTF(2, 3);
 
-/*! Add an integer as to the builder.
- *
- * param[in,out] sb  Builder.
- * param[in]     val Int to add.
- */
-void str_builder_add_int(StrBuilder *sb, int val);
-
 /* - - - - */
 
 /*! Clear the builder.
@@ -85,13 +78,6 @@ void str_builder_clear(StrBuilder *sb);
  *                    Anything after this length is removed.
  */
 void str_builder_truncate(StrBuilder *sb, size_t len);
-
-/*! Remove data from the beginning of the builder.
- *
- * param[in,out] sb  Builder.
- * param[in]     len The length to remove.
- */
-void str_builder_drop(StrBuilder *sb, size_t len);
 
 /* - - - - */
 

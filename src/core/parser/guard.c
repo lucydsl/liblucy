@@ -1,6 +1,7 @@
 #include "internal.h"
 
-static ParseStatus consume_inline_guard_args(Parser* parser, void* expr, TokenType token, char* arg, size_t _index) {
+static ParseStatus consume_inline_guard_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+  (void)index;
   GuardExpression* guard_expression = (GuardExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {

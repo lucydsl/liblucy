@@ -98,9 +98,8 @@ void node_local_add_action(LocalNode* local_node, TransitionAction* action) {
   }
 }
 
-TransitionDelay* node_transition_set_delay(Arena* arena, TransitionNode* transition_node, char* ref, DelayExpression* expression) {
+TransitionDelay* node_transition_set_delay(Arena* arena, TransitionNode* transition_node, DelayExpression* expression) {
   TransitionDelay* delay = ARENA_NEW(arena, TransitionDelay);
-  delay->ref = ref;
   delay->expression = expression;
   transition_node->delay = delay;
   return delay;

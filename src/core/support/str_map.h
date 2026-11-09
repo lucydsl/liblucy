@@ -50,9 +50,6 @@ void* str_map_get(StrMap* table, const char* key);
 // arena. Return address of copied key.
 const char* str_map_set(StrMap* table, const char* key, void* value);
 
-// Return number of items in hash table.
-size_t str_map_length(StrMap* table);
-
 // Hash table iterator: create with str_map_iterator, iterate with str_map_next.
 typedef struct {
     const char* key;  // current key

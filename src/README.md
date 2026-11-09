@@ -88,8 +88,8 @@ rather than return NULL. Each header says who owns what it returns.
 
 - The library never prints. The parser and the printer add errors and
   warnings to the result's diagnostics (`diagnostic.h`), and `lucyc` and
-  `wasm/main.c` print them. The one exception is `mem_fail` in
-  `support/mem.h`, which prints a line before it aborts.
+  `wasm/main.c` print them. The one exception is the allocators in
+  `support/mem.h`, which print a line before they abort.
 - Parse functions return a `ParseStatus`: `PARSE_OK`, `PARSE_ERROR` (an
   error was reported, but parsing can go on and find more) or `PARSE_FATAL`
   (stop now). Combine the status of a nested parse with `parse_merge`, and

@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-static void add_machine_fn_args(Printer* printer, JSBuilder* jsb, MachineNode* machine_node) {
+static void add_machine_fn_args(JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "{ ");
   if(machine_node->flags & MACHINE_USES_ACTION) {
     js_builder_add_arg(jsb, "actions");
@@ -40,7 +40,7 @@ static inline void compile_machine(Printer* printer, JSBuilder* jsb, MachineNode
   if(!is_nested) {
     if(machine_node->name_start == 0) {
       js_builder_add_str(jsb, "\nexport default function(");
-      add_machine_fn_args(printer, jsb, machine_node);
+      add_machine_fn_args(jsb, machine_node);
       js_builder_add_str(jsb, ") {\n");
       js_builder_increase_indent(jsb);
     } else {
@@ -48,7 +48,7 @@ static inline void compile_machine(Printer* printer, JSBuilder* jsb, MachineNode
       js_builder_add_str(jsb, "function ");
       printer_add_machine_binding_name(printer, jsb, machine_node);
       js_builder_add_str(jsb, "(");
-      add_machine_fn_args(printer, jsb, machine_node);
+      add_machine_fn_args(jsb, machine_node);
       js_builder_add_str(jsb, ") {\n");
       js_builder_increase_indent(jsb);
     }
@@ -65,7 +65,6 @@ static inline void compile_machine(Printer* printer, JSBuilder* jsb, MachineNode
 
 void printer_enter_machine(Printer* printer, JSBuilder* jsb, Node* node) {
   MachineNode *machine_node = (MachineNode*)node;
-  Node* parent_node = node->parent;
   bool is_nested = node_is_nested_machine(node);
   compile_machine(printer, jsb, machine_node, is_nested);
   if(printer->ts_printer != NULL) {

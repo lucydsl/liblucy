@@ -97,7 +97,10 @@ static void link_delay_transition(StateNode* state_node, TransitionNode* transit
   }
 }
 
-static ParseStatus consume_on_args(Parser* parser, void* expr, TokenType _token, char* arg, size_t _index) {
+static ParseStatus consume_on_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+  (void)parser;
+  (void)token;
+  (void)index;
   OnExpression* on_expression = (OnExpression*)expr;
   on_expression->name = arg;
   return PARSE_OK;
@@ -203,8 +206,6 @@ ParseStatus parser_consume_transition(Parser* parser) {
   }
 
   Node* transition_node_node = (Node*)transition_node;
-  size_t rewind_to_start = event == NULL ? 2 : strlen(event);
-  parser_node_start_pos(parser, transition_node_node, rewind_to_start);
 
   switch(current_node_type) {
     case NODE_STATE: {

@@ -32,10 +32,6 @@ char* parser_take_word(Parser* parser) {
   return word;
 }
 
-void parser_reset_word(Parser* parser) {
-  parser->word = NULL;
-}
-
 void parser_advance_column(Parser* parser) {
   parser->column++;
 }
@@ -146,13 +142,6 @@ void parser_leave_node(Parser* parser) {
   }
 }
 
-void parser_node_start_pos(Parser* parser, Node* node, size_t rewind_amount) {
-  // A keyword at the very start of the source is shorter than the amount
-  // some callers rewind by, which wrapped start around to SIZE_MAX.
-  node->start = rewind_amount < parser->index ? parser->index - rewind_amount : 0;
-  node->line = parser->line;
-}
-
 void parser_add_guard_name(Parser* parser, char* name) {
   str_set_add(&parser->guard_names, name);
 }
@@ -170,7 +159,7 @@ bool parser_has_action_name(Parser* parser, char* name) {
 }
 
 /* Whether c can appear in an identifier: ASCII letters and underscore. */
-static int is_identifier_char(char c) {
+static bool is_identifier_char(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
@@ -182,7 +171,7 @@ static inline int is_whitespace(char c) {
   return c == ' ';
 }
 
-typedef bool (*CharPredicate)(Parser*, char);
+typedef bool (*CharPredicate)(char);
 
 static void consume_while(Parser* parser, CharPredicate cond) {
   char c = parser_char(parser);
@@ -205,7 +194,7 @@ static void consume_while(Parser* parser, CharPredicate cond) {
     parser_next(parser);
 
     c = parser_char(parser);
-  } while(parser_in_bounds(parser) && cond(parser, c));
+  } while(parser_in_bounds(parser) && cond(c));
   parser_rewind(parser, 1);
 
   if(is_newline(c)) {
@@ -247,24 +236,12 @@ static char* consume_string(Parser* parser) {
   return str;
 }
 
-static bool identifier_consume_condition(Parser* parser, char c) {
-  return is_identifier_char(c);
-}
-
 static void consume_identifier(Parser* parser) {
-  consume_while(parser, &identifier_consume_condition);
-}
-
-static bool member_consume_condition(Parser* parser, char c) {
-  return is_identifier_char(c) || c == '.';
-}
-
-static bool timeframe_consume_condition(Parser* parser, char c) {
-  return timeframe_is_char(c);
+  consume_while(parser, is_identifier_char);
 }
 
 static void consume_timeframe(Parser* parser) {
-  consume_while(parser, &timeframe_consume_condition);
+  consume_while(parser, timeframe_is_char);
 }
 
 /* Public API */
