@@ -73,28 +73,12 @@ static void link_event_transition(Node* parent_node, TransitionNode* transition_
   }
 }
 
-static void link_immediate_transition(StateNode* state_node, TransitionNode* transition_node) {
-  if(state_node->immediate_transition == NULL) {
-    state_node->immediate_transition = transition_node;
-  } else {
-    TransitionNode* child = state_node->immediate_transition;
-    while(child->next != NULL) {
-      child = child->next;
-    }
-    child->next = transition_node;
+// Add transition_node to the end of the list that starts at *list.
+static void append_transition(TransitionNode** list, TransitionNode* transition_node) {
+  while(*list != NULL) {
+    list = &(*list)->next;
   }
-}
-
-static void link_delay_transition(StateNode* state_node, TransitionNode* transition_node) {
-  if(state_node->delay_transition == NULL) {
-    state_node->delay_transition = transition_node;
-  } else {
-    TransitionNode* child = state_node->delay_transition;
-    while(child->next != NULL) {
-      child = child->next;
-    }
-    child->next = transition_node;
-  }
+  *list = transition_node;
 }
 
 static ParseStatus consume_on_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
@@ -166,7 +150,7 @@ ParseStatus parser_consume_transition(Parser* parser) {
       status = PARSE_ERROR;
     } else {
       transition_node->type = TRANSITION_IMMEDIATE;
-      link_immediate_transition((StateNode*)current_node, transition_node);
+      append_transition(&((StateNode*)current_node)->immediate_transition, transition_node);
     }
 
     // Currently in a call, so rewind to back out.
@@ -183,7 +167,7 @@ ParseStatus parser_consume_transition(Parser* parser) {
           if(parse_merge(&status, parser_consume_inline_delay(parser, transition_node, (StateNode*)current_node)) == PARSE_FATAL) {
             return PARSE_FATAL;
           }
-          link_delay_transition((StateNode*)current_node, transition_node);
+          append_transition(&((StateNode*)current_node)->delay_transition, transition_node);
         }
 
         break;

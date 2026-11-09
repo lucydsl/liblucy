@@ -142,9 +142,5 @@ Node* node_find_ancestor(Node* node, NodeType type) {
 }
 
 MachineNode* node_find_machine(Node* node) {
-  Node* found = node_find_ancestor(node, NODE_MACHINE);
-  if(found != NULL) {
-    return (MachineNode*)found;
-  }
-  return NULL;
+  return (MachineNode*)node_find_ancestor(node, NODE_MACHINE);
 }

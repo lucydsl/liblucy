@@ -181,11 +181,10 @@ char *str_builder_release(StrBuilder *sb, size_t *len)
     return out;
 }
 
-char str_builder_char_at(const StrBuilder *sb, long index) {
-    /* Callers look behind the end with len - 1 and len - 2, which go
-     * negative on a short string. Out of range reads as NUL. */
-    if (sb == NULL || index < 0 || (size_t)index >= sb->len)
+char str_builder_char_from_end(const StrBuilder *sb, size_t n)
+{
+    if (sb == NULL || n == 0 || n > sb->len)
         return '\0';
 
-    return sb->str[index];
+    return sb->str[sb->len - n];
 }

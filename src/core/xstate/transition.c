@@ -150,11 +150,10 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
   js_builder_end_array(jsb, use_multiline);
 }
 
-void printer_compile_transition_key(Printer* printer, JSBuilder* jsb, Node* node, char* event_name) {
-  TransitionNode* transition_node = (TransitionNode*)node;
+void printer_compile_transition_key(Printer* printer, JSBuilder* jsb, TransitionNode* transition_node, char* event_name) {
   TransitionType type = transition_node->type;
 
-  Node* parent_node = node->parent;
+  Node* parent_node = transition_node->node.parent;
 
   if(parent_node->type == NODE_INVOKE) {
     if(strcmp(event_name, "done") == 0) {
@@ -337,7 +336,7 @@ void printer_compile_event_transition(Printer* printer, JSBuilder* jsb, Transiti
   if(printer->ts_printer != NULL) {
     ts_printer_add_event(printer->ts_printer, event_name);
   }
-  printer_compile_transition_key(printer, jsb, (Node*)transition_node, event_name);
+  printer_compile_transition_key(printer, jsb, transition_node, event_name);
 
   printer_compile_inner_transition(printer, jsb, transition_node);
   TransitionNode* cur = transition_node->link;
