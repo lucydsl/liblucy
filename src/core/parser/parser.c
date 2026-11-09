@@ -61,7 +61,6 @@ ParseResult parse(Arena* arena, char* source, char* filename) {
   state_init(&state, arena, program, source, filename);
 
   int err = consume_program(&state);
-  state_destroy(&state);
 
   ParseResult result = {
     .success = err == 0,

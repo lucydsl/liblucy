@@ -1,8 +1,9 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../arena.h"
 #include "../str_builder.h"
-#include "../set.h"
+#include "../str_set.h"
 #include "ts_printer.h"
 
 static void add_str_union(str_builder_t* sb, char* value) {
@@ -17,144 +18,61 @@ static void add_str_union(str_builder_t* sb, char* value) {
   str_builder_add_char(sb, '\'');
 }
 
-static xs_executor_t* executor_alloc() {
-  xs_executor_t* executor = malloc(sizeof(*executor));
-  executor->events = malloc(sizeof(*executor->events));
-  executor->events_s = malloc(sizeof(*executor->events_s));
+static xs_executor_t* executor_create(Arena* arena) {
+  xs_executor_t* executor = ARENA_NEW(arena, xs_executor_t);
+  string_list_init(&executor->events, arena);
+  str_set_init(&executor->events_s, arena);
   return executor;
-}
-
-static void executor_init(xs_executor_t* executor) {
-  string_list_init(executor->events);
-  set_init(executor->events_s);
-}
-
-static void executor_destroy(xs_executor_t* executor) {
-  string_list_destroy(executor->events);
-  free(executor->events);
-  set_destroy(executor->events_s);
-  free(executor);
 }
 
 static void executor_add(xs_executor_t* executor, char* event_name) {
-  if(set_contains(executor->events_s, event_name) == SET_FALSE) {
-    set_add(executor->events_s, event_name);
-    string_list_append(executor->events, event_name);
+  if(str_set_add(&executor->events_s, event_name)) {
+    string_list_append(&executor->events, event_name);
   }
 }
 
-static xs_assign_executor_t* assign_executor_alloc() {
-  xs_assign_executor_t* executor = malloc(sizeof(*executor));
-  executor->events = malloc(sizeof(*executor->events));
-  executor->events_s = malloc(sizeof(*executor->events_s));
+static xs_assign_executor_t* assign_executor_create(Arena* arena) {
+  xs_assign_executor_t* executor = ARENA_NEW(arena, xs_assign_executor_t);
+  string_list_init(&executor->events, arena);
+  str_set_init(&executor->events_s, arena);
   return executor;
 }
 
-static void assign_executor_init(xs_assign_executor_t* executor) {
-  string_list_init(executor->events);
-  set_init(executor->events_s);
-  executor->data_prop = NULL;
-}
-
-static void assign_executor_destroy(xs_assign_executor_t* executor) {
-  string_list_destroy(executor->events);
-  free(executor->events);
-  set_destroy(executor->events_s);
-  free(executor->data_prop);
-  executor->data_prop = NULL;
-  free(executor);
-}
-
 static void assign_executor_add(xs_assign_executor_t* executor, char* event_name) {
-  if(set_contains(executor->events_s, event_name) == SET_FALSE) {
-    set_add(executor->events_s, event_name);
-    string_list_append(executor->events, event_name);
+  if(str_set_add(&executor->events_s, event_name)) {
+    string_list_append(&executor->events, event_name);
   }
 }
 
-void ts_printer_init(ts_printer_t* printer) {
-  printer->flags = 0;
-  printer->source = NULL;
-  printer->machine_flags = 0;
+static string_list_t* list_create(Arena* arena) {
+  string_list_t* list = ARENA_NEW(arena, string_list_t);
+  string_list_init(list, arena);
+  return list;
+}
+
+ts_printer_t* ts_printer_create(Arena* arena, char* source) {
+  // Zeroed: every list and table starts out NULL, meaning unused.
+  ts_printer_t* printer = ARENA_NEW(arena, ts_printer_t);
+  printer->arena = arena;
+  printer->source = source;
   printer->buffer = js_builder_create();
-  printer->machine_name_start = 0;
-  printer->machine_name_end = 0;
-  printer->xstate_specifier = NULL;
-  printer->imp_sb = NULL;
-  printer->event_names_sb = NULL;
-  printer->data_names_sb = NULL;
   printer->machine_def_sb = str_builder_create();
-  printer->guards = NULL;
-  printer->actions = NULL;
-  printer->assigns = NULL;
-  printer->invokes = NULL;
-  printer->actors = NULL;
-  printer->delays = NULL;
-  printer->state_entries = NULL;
-  printer->entry_actions = NULL;
+  return printer;
 }
 
 void ts_printer_destroy(ts_printer_t* printer) {
+  if(printer == NULL) {
+    return;
+  }
   js_builder_destroy(printer->buffer);
   str_builder_destroy(printer->machine_def_sb);
-  if(printer->event_names_sb != NULL) {
-    str_builder_destroy(printer->event_names_sb);
-  }
-  if(printer->data_names_sb != NULL) {
-    str_builder_destroy(printer->data_names_sb);
-  }
-  if(printer->actions != NULL) {
-    hti it = ht_iterator(printer->actions);
-    while (ht_next(&it)) {
-      xs_executor_t* executor = (xs_executor_t*)it.value;
-      executor_destroy(executor);
-    }
-  }
-  if(printer->guards != NULL) {
-    hti it = ht_iterator(printer->guards);
-    while (ht_next(&it)) {
-      xs_executor_t* executor = (xs_executor_t*)it.value;
-      executor_destroy(executor);
-    }
-  }
-  if(printer->assigns != NULL) {
-    hti it = ht_iterator(printer->assigns);
-    while (ht_next(&it)) {
-      xs_assign_executor_t* executor = (xs_assign_executor_t*)it.value;
-      assign_executor_destroy(executor);
-    }
-  }
-  if(printer->invokes != NULL) {
-    string_list_destroy(printer->invokes);
-    free(printer->invokes);
-  }
-  if(printer->actors != NULL) {
-    string_list_destroy(printer->actors);
-    free(printer->actors);
-  }
-  if(printer->delays != NULL) {
-    string_list_destroy(printer->delays);
-    free(printer->delays);
-  }
-  if(printer->state_entries != NULL) {
-    ht_destroy(printer->state_entries);
-  }
-  if(printer->entry_actions != NULL) {
-    ht_destroy(printer->entry_actions);
-  }
-
-  free(printer);
-}
-
-ts_printer_t* ts_printer_alloc() {
-  ts_printer_t* printer = malloc(sizeof(*printer));
-
-  return printer;
+  str_builder_destroy(printer->event_names_sb);
+  str_builder_destroy(printer->data_names_sb);
 }
 
 static void build_import_clause(ts_printer_t* printer, str_builder_t* buffer) {
   string_list_t identifiers;
-  string_list_init(&identifiers);
+  string_list_init(&identifiers, printer->arena);
 
   if(printer->flags & XS_TS_PROGRAM_USES_ACTION) {
     string_list_append(&identifiers, "Action");
@@ -265,8 +183,8 @@ static void print_machine_definitions(ts_printer_t* printer) {
     js_builder_start_object(buffer);
 
     // Keep track of actions already added.
-    SimpleSet* actions_added = malloc(sizeof(*actions_added));
-    set_init(actions_added);
+    str_set_t actions_added;
+    str_set_init(&actions_added, printer->arena);
 
     if(printer-> actions != NULL) {
       hti it = ht_iterator(printer->actions);
@@ -279,8 +197,8 @@ static void print_machine_definitions(ts_printer_t* printer) {
         js_builder_add_str(buffer, "TContext,\n");
         js_builder_add_indent(buffer);
         xs_executor_t* executor = (xs_executor_t*)it.value;
-        if(executor->events->length > 0) {
-          char* extract_clause = build_extract_clause(executor->events);
+        if(executor->events.length > 0) {
+          char* extract_clause = build_extract_clause(&executor->events);
           js_builder_add_str(buffer, "TEvent extends ");
           js_builder_add_str(buffer, extract_clause);
           js_builder_add_str(buffer, " ? ");
@@ -294,7 +212,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
         js_builder_add_indent(buffer);
         js_builder_add_str(buffer, ">");
 
-        set_add(actions_added, action_name);
+        str_set_add(&actions_added, action_name);
       }
     }
 
@@ -306,20 +224,19 @@ static void print_machine_definitions(ts_printer_t* printer) {
         while(string_list_next(&itea)) {
           char* action_name = itea.node->value;
 
-          if(set_contains(actions_added, action_name) == SET_TRUE) {
+          if(str_set_contains(&actions_added, action_name)) {
             continue;
           }
 
           js_builder_start_prop(buffer, action_name);
           js_builder_add_str(buffer, "Action<TContext, TEvent>");
 
-          set_add(actions_added, action_name);
+          str_set_add(&actions_added, action_name);
         }
       }
     }
 
     js_builder_end_object(buffer);
-    set_destroy(actions_added);
   }
   if(printer->assigns != NULL) {
     //PartialAssigner<TContext, TEvent extends EventObject, TKey extends keyof TContext> =
@@ -336,8 +253,8 @@ static void print_machine_definitions(ts_printer_t* printer) {
       js_builder_add_str(buffer, "TContext,\n");
       js_builder_add_indent(buffer);
       xs_assign_executor_t* executor = (xs_assign_executor_t*)it.value;
-      if(executor->events->length > 0) {
-        char* extract_clause = build_extract_clause(executor->events);
+      if(executor->events.length > 0) {
+        char* extract_clause = build_extract_clause(&executor->events);
         js_builder_add_str(buffer, "TEvent extends ");
         js_builder_add_str(buffer, extract_clause);
         js_builder_add_str(buffer, " ? ");
@@ -386,8 +303,8 @@ static void print_machine_definitions(ts_printer_t* printer) {
       js_builder_add_str(buffer, "TContext,\n");
       js_builder_add_indent(buffer);
       xs_executor_t* executor = (xs_executor_t*)it.value;
-      if(executor->events->length > 0) {
-        char* extract_clause = build_extract_clause(executor->events);
+      if(executor->events.length > 0) {
+        char* extract_clause = build_extract_clause(&executor->events);
         js_builder_add_str(buffer, "TEvent extends ");
         js_builder_add_str(buffer, extract_clause);
         js_builder_add_str(buffer, " ? ");
@@ -474,18 +391,17 @@ void ts_printer_add_data(ts_printer_t* printer, char* data_prop) {
 void ts_printer_add_assign(ts_printer_t* printer, char* data_prop, char* cb_name, char* event_name) {
   // TODO the cb_name should be the key
   if(printer->assigns == NULL) {
-    printer->assigns = ht_create();
+    printer->assigns = ht_create(printer->arena);
   }
 
   xs_assign_executor_t* assign = (xs_assign_executor_t*)ht_get(printer->assigns, cb_name);
   if(assign == NULL) {
-    assign = assign_executor_alloc();
-    assign_executor_init(assign);
+    assign = assign_executor_create(printer->arena);
     ht_set(printer->assigns, cb_name, assign);
   }
 
   // Set the prop
-  assign->data_prop = strdup(data_prop);
+  assign->data_prop = data_prop == NULL ? NULL : arena_strdup(printer->arena, data_prop);
 
   // Add an executor for this event.
   if(event_name != NULL) {
@@ -497,12 +413,11 @@ void ts_printer_add_assign(ts_printer_t* printer, char* data_prop, char* cb_name
 
 void ts_printer_add_guard(ts_printer_t* printer, char* guard_name, char* event_name) {
   if(printer->guards == NULL) {
-    printer->guards = ht_create();
+    printer->guards = ht_create(printer->arena);
   }
   xs_executor_t* guard = (xs_executor_t*)ht_get(printer->guards, guard_name);
   if(guard == NULL) {
-    guard = executor_alloc();
-    executor_init(guard);
+    guard = executor_create(printer->arena);
     ht_set(printer->guards, guard_name, guard);
   }
   executor_add(guard, event_name);
@@ -511,12 +426,11 @@ void ts_printer_add_guard(ts_printer_t* printer, char* guard_name, char* event_n
 
 void ts_printer_add_action(ts_printer_t* printer, char* action_name, char* event_name) {
   if(printer->actions == NULL) {
-    printer->actions = ht_create();
+    printer->actions = ht_create(printer->arena);
   }
   xs_executor_t* action = (xs_executor_t*)ht_get(printer->actions, action_name);
   if(action == NULL) {
-    action = executor_alloc();
-    executor_init(action);
+    action = executor_create(printer->arena);
     ht_set(printer->actions, action_name, action);
   }
 
@@ -530,8 +444,7 @@ void ts_printer_add_action(ts_printer_t* printer, char* action_name, char* event
 
 void ts_printer_add_invoke(ts_printer_t* printer, char* invoke_name) {
   if(printer->invokes == NULL) {
-    printer->invokes = malloc(sizeof(*printer->invokes));
-    string_list_init(printer->invokes);
+    printer->invokes = list_create(printer->arena);
   }
   string_list_append(printer->invokes, invoke_name);
   printer->flags |= XS_TS_PROGRAM_USES_INVOKE;
@@ -539,16 +452,14 @@ void ts_printer_add_invoke(ts_printer_t* printer, char* invoke_name) {
 
 void ts_printer_add_actor(ts_printer_t* printer, char* name) {
   if(printer->actors == NULL) {
-    printer->actors = malloc(sizeof(*printer->actors));
-    string_list_init(printer->actors);
+    printer->actors = list_create(printer->arena);
   }
   string_list_append(printer->actors, name);
 }
 
 void ts_printer_add_delay(ts_printer_t* printer, char* name) {
   if(printer->delays == NULL) {
-    printer->delays = malloc(sizeof(*printer->delays));
-    string_list_init(printer->delays);
+    printer->delays = list_create(printer->arena);
   }
   string_list_append(printer->delays, name);
   printer->flags |= XS_TS_PROGRAM_USES_DELAY;
@@ -593,12 +504,11 @@ void ts_printer_add_machine_name(ts_printer_t* printer, size_t name_start, size_
 
 void ts_printer_add_state_entry(ts_printer_t* printer, char* event_name, char* state_name) {
   if(printer->state_entries == NULL) {
-    printer->state_entries = ht_create();
+    printer->state_entries = ht_create(printer->arena);
   }
   string_list_t* event_list = (string_list_t*)ht_get(printer->state_entries, state_name);
   if(event_list == NULL) {
-    event_list = malloc(sizeof(*event_list));
-    string_list_init(event_list);
+    event_list = list_create(printer->arena);
     ht_set(printer->state_entries, state_name, event_list);
   }
 
@@ -608,13 +518,12 @@ void ts_printer_add_state_entry(ts_printer_t* printer, char* event_name, char* s
 void ts_printer_add_entry_action(ts_printer_t* printer, char* state_name, char* action_name) {
   // Map<state_name, List<ActionName>>
   if(printer->entry_actions == NULL) {
-    printer->entry_actions = ht_create();
+    printer->entry_actions = ht_create(printer->arena);
   }
 
   string_list_t* actions = (string_list_t*)ht_get(printer->entry_actions, state_name);
   if(actions == NULL) {
-    actions = malloc(sizeof(*actions));
-    string_list_init(actions);
+    actions = list_create(printer->arena);
     ht_set(printer->entry_actions, state_name, actions);
   }
 

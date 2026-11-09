@@ -1,9 +1,10 @@
 #pragma once
 
+#include "../arena.h"
 #include "../ht.h"
 #include "../js_builder.h"
+#include "../str_set.h"
 #include "../string_list.h"
-#include "../set.h"
 
 #define XS_TS_PROGRAM_USES_GUARD 1 << 0
 #define XS_TS_PROGRAM_USES_ACTION 1 << 1
@@ -13,18 +14,28 @@
 
 #define XS_TS_MACHINE_DEFAULT 1 << 0
 
+// The events a guard or action runs for, in order and without repeats.
 typedef struct xs_executor_t {
-  string_list_t* events;
-  SimpleSet* events_s;
+  string_list_t events;
+  str_set_t events_s;
 } xs_executor_t;
 
 typedef struct xs_assign_executor_t {
-  string_list_t* events;
-  SimpleSet* events_s;
+  string_list_t events;
+  str_set_t events_s;
   char* data_prop;
 } xs_assign_executor_t;
 
+/*
+ * Builds the .d.ts for a compile.
+ *
+ * Create with ts_printer_create and free with ts_printer_destroy. The
+ * printer itself and its tables, lists and executors are allocated from
+ * the arena it is given; ts_printer_destroy frees the string builders,
+ * which are heap-allocated because they grow.
+ */
 typedef struct ts_printer_t {
+  Arena* arena;
   int flags;
   char* source;
 
@@ -33,7 +44,6 @@ typedef struct ts_printer_t {
   size_t machine_name_end;
   char* xstate_specifier;
   JSBuilder* buffer;
-  str_builder_t* imp_sb;
   str_builder_t* event_names_sb;
   str_builder_t* data_names_sb;
   str_builder_t* machine_def_sb;
@@ -49,10 +59,10 @@ typedef struct ts_printer_t {
   ht* entry_actions; // Map<state, List<Actions>>
 } ts_printer_t;
 
-void ts_printer_init(ts_printer_t*);
+ts_printer_t* ts_printer_create(Arena*, char* source);
 void ts_printer_destroy(ts_printer_t*);
+/* The finished .d.ts, which the caller must free(). */
 char* ts_printer_dump(ts_printer_t*);
-ts_printer_t* ts_printer_alloc();
 
 void ts_printer_add_event(ts_printer_t*, char*);
 void ts_printer_add_data(ts_printer_t*, char*);

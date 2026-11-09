@@ -4,7 +4,7 @@
 #include "../js_builder.h"
 #include "../node.h"
 #include "../program.h"
-#include "../set.h"
+#include "../str_set.h"
 #include "ts_printer.h"
 
 // API flags
@@ -27,8 +27,8 @@ typedef struct Ref {
 
 /*
  * The printer's state for one compile. compile_xstate owns it, on its
- * stack. Everything it points to is in arena (the AST included) except
- * the sets, which compile_xstate destroys, and tsprinter.
+ * stack. Everything it points to is in arena (the AST included), except
+ * tsprinter, which compile_xstate destroys.
  */
 typedef struct PrintState {
   int flags;
@@ -36,14 +36,14 @@ typedef struct PrintState {
   char* source;
   Program* program;
   Ref* guard;
-  SimpleSet guard_names;
+  str_set_t guard_names;
   Ref* action;
-  SimpleSet action_names;
+  str_set_t action_names;
   Ref* delay;
-  SimpleSet delay_names;
+  str_set_t delay_names;
   Ref* service;
-  SimpleSet service_names;
-  SimpleSet events;
+  str_set_t service_names;
+  str_set_t events;
   ts_printer_t* tsprinter;
   char* cur_event_name;
   size_t cur_state_start;

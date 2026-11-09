@@ -3,7 +3,6 @@
 #include <string.h>
 #include "../js_builder.h"
 #include "../node.h"
-#include "../set.h"
 #include "core.h"
 #include "machine.h"
 
@@ -19,9 +18,9 @@ void xs_clear_state_refs(PrintState *state) {
   state->delay = NULL;
 }
 
-static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, SimpleSet* set, set_ref setter) {
+static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, str_set_t* set, set_ref setter) {
   // If already added, don't do so again.
-  if(set_contains(set, key) == SET_TRUE) {
+  if(str_set_contains(set, key)) {
     return;
   }
 
@@ -38,7 +37,7 @@ static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, 
     }
     cur->next = ref;
   }
-  set_add(set, key);
+  str_set_add(set, key);
 }
 
 static void set_action_ref(PrintState* state, Ref* ref) {

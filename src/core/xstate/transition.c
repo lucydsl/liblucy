@@ -6,7 +6,6 @@
 #include "../arena.h"
 #include "../js_builder.h"
 #include "../mem.h"
-#include "../set.h"
 #include "../str_builder.h"
 #include "../node.h"
 #include "core.h"
@@ -324,7 +323,7 @@ void xs_compile_event_transition(PrintState* state, JSBuilder* jsb, TransitionNo
     ((IdentifierExpression*)transition_node->event)->name;
 
   // If this transition was already compiled from a previous link.
-  if(event_name != NULL && set_contains(&state->events, event_name) == SET_TRUE) {
+  if(str_set_contains(&state->events, event_name)) {
     return;
   }
 
@@ -348,5 +347,5 @@ void xs_compile_event_transition(PrintState* state, JSBuilder* jsb, TransitionNo
   }
 
   state->cur_event_name = NULL;
-  set_add(&state->events, event_name);
+  str_set_add(&state->events, event_name);
 }

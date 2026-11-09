@@ -1,7 +1,6 @@
 #include "../js_builder.h"
 #include "../local.h"
 #include "../node.h"
-#include "../set.h"
 #include "core.h"
 #include "invoke.h"
 #include "transition.h"
@@ -103,5 +102,5 @@ void xs_exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
   if(!node->next || node->next->type != NODE_STATE_TYPE) {
     js_builder_end_object(jsb);
   }
-  set_clear(&state->events);
+  str_set_clear(&state->events);
 }

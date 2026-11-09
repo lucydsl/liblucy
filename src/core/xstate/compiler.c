@@ -12,14 +12,6 @@
 #include "state.h"
 #include "ts_printer.h"
 
-static void destroy_state(PrintState *state) {
-  set_destroy(&state->events);
-  set_destroy(&state->action_names);
-  set_destroy(&state->guard_names);
-  set_destroy(&state->delay_names);
-  set_destroy(&state->service_names);
-}
-
 CompileResult* xs_create() {
   CompileResult* result = malloc(sizeof(*result));
   return result;
@@ -80,16 +72,14 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     .cur_state_end = 0,
     .in_entry = false
   };
-  set_init(&state.events);
-  set_init(&state.guard_names);
-  set_init(&state.action_names);
-  set_init(&state.delay_names);
-  set_init(&state.service_names);
+  str_set_init(&state.events, &arena);
+  str_set_init(&state.guard_names, &arena);
+  str_set_init(&state.action_names, &arena);
+  str_set_init(&state.delay_names, &arena);
+  str_set_init(&state.service_names, &arena);
 
   if(state.flags & XS_FLAG_DTS) {
-    state.tsprinter = ts_printer_alloc();
-    ts_printer_init(state.tsprinter);
-    state.tsprinter->source = source;
+    state.tsprinter = ts_printer_create(&arena, source);
   }
 
   Node* node;
@@ -199,7 +189,6 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   }
 
   // Teardown
-  destroy_state(&state);
   arena_destroy(&arena);
 }
 
