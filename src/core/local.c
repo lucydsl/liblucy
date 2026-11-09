@@ -1,12 +1,18 @@
-#include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
-#include "dict.h"
 #include "local.h"
 
-static dict *locals;
-
-unsigned short local_get(char* key) {
-  return dict_search(locals, key);
+unsigned short local_get(const char* key) {
+  if(key == NULL) {
+    return 0;
+  }
+  if(strcmp(key, "@entry") == 0) {
+    return LOCAL_ENTRY;
+  }
+  if(strcmp(key, "@exit") == 0) {
+    return LOCAL_EXIT;
+  }
+  return 0;
 }
 
 const char* local_get_name(unsigned short key) {
@@ -17,11 +23,4 @@ const char* local_get_name(unsigned short key) {
   }
   // Should never happen.
   return NULL;
-}
-
-void local_init() {
-  locals = dict_create();
-
-  dict_insert(locals, "@entry", LOCAL_ENTRY);
-  dict_insert(locals, "@exit", LOCAL_EXIT);
 }

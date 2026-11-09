@@ -17,6 +17,6 @@
 #define KW_SPAWN 12
 #define KW_SEND 13
 
-bool is_keyword(char*);
-unsigned short keyword_get(char*);
-void keyword_init();
+bool is_keyword(const char*);
+/* The KW_ value for a word, or KW_NOT_A_KEYWORD (also for NULL). */
+unsigned short keyword_get(const char*);

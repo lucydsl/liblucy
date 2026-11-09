@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-#include "dict.h"
 #include "timeframe.h"
 #include "str_builder.h"
 
@@ -10,7 +9,24 @@
 #define TF_S 1
 #define TF_M 2
 
-static dict* suffixes;
+static const struct {
+  const char* name;
+  unsigned short key;
+} suffixes[] = {
+  { "ms", TF_MS },
+  { "s", TF_S },
+  { "m", TF_M },
+};
+
+// The TF_ value for a suffix, or -1 if it isn't one.
+static int timeframe_get(const char* key) {
+  for(size_t i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); i++) {
+    if(strcmp(suffixes[i].name, key) == 0) {
+      return suffixes[i].key;
+    }
+  }
+  return -1;
+}
 
 bool is_integer(char c) {
   return c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' ||
@@ -21,12 +37,11 @@ bool is_timeframe_char(char c) {
   return is_integer(c) || c == 'm' || c == 's';
 }
 
-bool timeframe_is_suffix(char* key) {
-  return dict_search(suffixes, key) > 0;
-}
-
-unsigned short timeframe_get(char* key) {
-  return dict_search(suffixes, key);
+bool timeframe_is_suffix(const char* key) {
+  // TF_MS is 0, which the dict this used to look suffixes up in couldn't
+  // tell apart from a missing key, so "ms" has always been rejected as an
+  // unknown suffix. Kept that way here; changing it changes behaviour.
+  return timeframe_get(key) > 0;
 }
 
 Timeframe timeframe_parse(char* word, size_t word_len) {
@@ -69,7 +84,7 @@ Timeframe timeframe_parse(char* word, size_t word_len) {
       return tf;
     }
     
-    unsigned short key = timeframe_get(tf_str);
+    int key = timeframe_get(tf_str);
     switch(key) {
       case TF_MS: {
         // 2ms = 2
@@ -100,12 +115,4 @@ Timeframe timeframe_parse(char* word, size_t word_len) {
   };
 
   return tf;
-}
-
-void timeframe_init() {
-  suffixes = dict_create();
-  
-  dict_insert(suffixes, "ms", TF_MS);
-  dict_insert(suffixes, "s", TF_S);
-  dict_insert(suffixes, "m", TF_M);
 }
