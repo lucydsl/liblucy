@@ -9,3 +9,12 @@ See the [contributing page](https://lucylang.org/docs/contributing/) for informa
 ## License
 
 BSD-2-Clause
+## Building
+
+The wasm build needs [Emscripten](https://emscripten.org/) 7.0.0 (the version CI uses). If you don't want to install it, the official container works:
+
+```sh
+podman run --rm -v "$PWD":/src -w /src docker.io/emscripten/emsdk:7.0.0 make all
+```
+
+The native compiler, `bin/lucyc`, only needs a C compiler: `make bin/lucyc`. Run the tests with `make test`.

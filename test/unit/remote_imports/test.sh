@@ -12,7 +12,9 @@ tmp="$(mktemp -d)/out.js"
 # Run compiler
 $LUCYC --remote-imports --out-file $tmp $input
 
-d=$(diff $expected $tmp | colordiff)
+COLORDIFF=colordiff
+command -v colordiff &> /dev/null || COLORDIFF=cat
+d=$(diff $expected $tmp | $COLORDIFF)
 
 if [ ${#d} -ge 1 ]; then
   echo -e "${red}FAILED${nc} - $input"

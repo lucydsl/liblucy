@@ -10,47 +10,26 @@ all: dist/liblucy-debug-node.mjs dist/liblucy-debug-browser.mjs \
 	dist/liblucy-release-node.mjs dist/liblucy-release-browser.mjs bin/lucyc
 .PHONY: all
 
-build:
-	@mkdir -p build
-
 dist:
 	@mkdir -p dist
 
-build/liblucy-debug.mjs: build $(SRC_FILES)
-	$(EMCC) $(WASM_C_FILES) $(CORE_C_FILES) -o $@ \
-		--pre-js src/pre_js.js \
-		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_xs_get_dts", "_xs_init", "_xs_create", "_destroy_xstate_result"]' \
-		-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "addOnPostRun", "stringToUTF8", "UTF8ToString"]' \
-		-s EXPORT_ES6 \
-		-s TEXTDECODER=1
-	scripts/post_compile_mjs $@
+EMCC_FLAGS=$(WASM_C_FILES) $(CORE_C_FILES) \
+	-sEXPORT_ES6 \
+	-sMODULARIZE \
+	-sEXPORTED_FUNCTIONS=_main,_compile_xstate,_xs_get_js,_xs_get_dts,_xs_init,_xs_create,_destroy_xstate_result \
+	-sEXPORTED_RUNTIME_METHODS=stringToUTF8,UTF8ToString,stackAlloc,stackSave,stackRestore,HEAPU8
 
-build/liblucy-release.mjs: build $(SRC_FILES)
-	$(EMCC) $(WASM_C_FILES) $(CORE_C_FILES) -o $@ \
-		--pre-js src/pre_js.js \
-		-s EXPORTED_FUNCTIONS='["_main", "_compile_xstate", "_xs_get_js", "_xs_get_dts", "_xs_init", "_xs_create", "_destroy_xstate_result"]' \
-		-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "addOnPostRun", "stringToUTF8", "UTF8ToString"]' \
-		-s TEXTDECODER=1 \
-		-O3
-	scripts/post_compile_mjs $@
+dist/liblucy-debug-node.mjs: $(SRC_FILES) | dist
+	$(EMCC) $(EMCC_FLAGS) -sENVIRONMENT=node -o $@
 
-dist/liblucy-debug.wasm: dist build/liblucy-debug.mjs
-	@mv build/liblucy-debug.wasm $@
+dist/liblucy-debug-browser.mjs: $(SRC_FILES) | dist
+	$(EMCC) $(EMCC_FLAGS) -sENVIRONMENT=web -o $@
 
-dist/liblucy-release.wasm: dist build/liblucy-release.mjs
-	@mv build/liblucy-release.wasm $@
+dist/liblucy-release-node.mjs: $(SRC_FILES) | dist
+	$(EMCC) $(EMCC_FLAGS) -sENVIRONMENT=node -O3 -o $@
 
-dist/liblucy-debug-node.mjs: dist build/liblucy-debug.mjs dist/liblucy-debug.wasm
-	scripts/mk_node_mjs build/liblucy-debug.mjs $@
-
-dist/liblucy-debug-browser.mjs: dist build/liblucy-debug.mjs dist/liblucy-debug.wasm
-	cp build/liblucy-debug.mjs $@
-
-dist/liblucy-release-node.mjs: dist build/liblucy-release.mjs dist/liblucy-release.wasm
-	scripts/mk_node_mjs build/liblucy-release.mjs $@
-
-dist/liblucy-release-browser.mjs: dist build/liblucy-release.mjs dist/liblucy-release.wasm
-	cp build/liblucy-release.mjs $@
+dist/liblucy-release-browser.mjs: $(SRC_FILES) | dist
+	$(EMCC) $(EMCC_FLAGS) -sENVIRONMENT=web -O3 -o $@
 
 bin/lucyc: $(SRC_FILES)
 	@mkdir -p bin
@@ -59,12 +38,7 @@ bin/lucyc: $(SRC_FILES)
 		-lm
 
 clean:
-	@rm -f dist/liblucy-debug-browser.mjs dist/liblucy-debug-node.mjs \
-		dist/liblucy-debug.wasm dist/liblucy-release-browser.mjs \
-		dist/liblucy-release-node.mjs dist/liblucy-release.wasm
-	@rm -f bin/lucyc
-	@rm -f build/liblucy-debug.mjs build/liblucy-release.mjs
-	@rmdir dist bin build 2> /dev/null
+	@rm -rf dist bin
 .PHONY: clean
 
 test-native:

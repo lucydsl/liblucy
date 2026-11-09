@@ -33,7 +33,7 @@ initial state disabled {
     await ready;
 
     const input = before.value;
-    const js = compileXstate(input, 'input.lucy');
+    const { js } = compileXstate(input, 'input.lucy');
 
     output.textContent = js;
   }
