@@ -1,24 +1,7 @@
 #include "internal.h"
 
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-
-void parser_init(Parser* parser, Arena* arena, Program* program, const char* source, const char* filename, DiagnosticList* diagnostics) {
-  // Zero everything first: the parser reads modifier and the word
-  // fields before it ever sets them.
-  memset(parser, 0, sizeof(*parser));
-  parser->arena = arena;
-  parser->program = program;
-  parser->source = source;
-  parser->filename = filename;
-  parser->diagnostics = diagnostics;
-  parser->source_len = strlen(source);
-
-  str_set_init(&parser->guard_names, arena);
-  str_set_init(&parser->action_names, arena);
-}
 
 void parser_set_word(Parser* parser, const char* word, size_t start, size_t end) {
   parser->word = word;
@@ -41,22 +24,22 @@ void parser_advance_line(Parser* parser) {
   parser->column = 0;
 }
 
-bool parser_in_bounds(Parser* parser) {
+bool parser_in_bounds(const Parser* parser) {
   return parser->index < parser->source_len;
 }
 
 // Every read of the source goes through here. The lexer steps past the
 // end in a few places (a ':' or an unterminated string at the end of the
 // file), so anything past the end reads as the terminating NUL.
-static inline char char_at(Parser* parser, size_t index) {
+static inline char char_at(const Parser* parser, size_t index) {
   return index < parser->source_len ? parser->source[index] : '\0';
 }
 
-char parser_char(Parser* parser) {
+char parser_char(const Parser* parser) {
   return char_at(parser, parser->index);
 }
 
-char parser_peek(Parser* parser) {
+char parser_peek(const Parser* parser) {
   return char_at(parser, parser->index + 1);
 }
 
@@ -74,7 +57,7 @@ char parser_next(Parser* parser) {
 // index. inc is a token length, so it is a size_t: as an int, as it was, a
 // token over INT_MAX characters went negative and parser_rewind went back to
 // the start of the source.
-void parser_find_position(Parser* parser, Position* pos, size_t inc) {
+void parser_find_position(const Parser* parser, Position* pos, size_t inc) {
   size_t index = parser->index;
   long col = 0;
   long line = (long)parser->line;
@@ -111,51 +94,6 @@ void parser_rewind(Parser* parser, size_t inc) {
   parser->index = inc < parser->index ? parser->index - inc : 0;
   parser->line = (size_t)pos.line;
   parser->column = (size_t)pos.column;
-}
-
-void parser_enter_node(Parser* parser, Node* node) {
-  if(parser->node != NULL) {
-    Node* parent_node = parser->node;
-    parser->parent_node = parent_node;
-
-    node_append_child(parent_node, node);
-  } else {
-    Program* program = parser->program;
-    if(program->body == NULL) {
-      program->body = node;
-    } else {
-      node_append_sibling(program->body, node);
-    }
-  }
-
-  parser->node = node;
-}
-
-void parser_leave_node(Parser* parser) {
-  Node* current_parent = parser->parent_node;
-  if(current_parent != NULL) {
-    Node* new_parent = current_parent->parent;
-    parser->node = current_parent;
-    parser->parent_node = new_parent;
-  } else {
-    parser->node = NULL;
-  }
-}
-
-void parser_add_guard_name(Parser* parser, const char* name) {
-  str_set_add(&parser->guard_names, name);
-}
-
-bool parser_has_guard_name(Parser* parser, const char* name) {
-  return str_set_contains(&parser->guard_names, name);
-}
-
-void parser_add_action_name(Parser* parser, const char* name) {
-  str_set_add(&parser->action_names, name);
-}
-
-bool parser_has_action_name(Parser* parser, const char* name) {
-  return str_set_contains(&parser->action_names, name);
 }
 
 /* Whether c can appear in an identifier: ASCII letters and underscore. */

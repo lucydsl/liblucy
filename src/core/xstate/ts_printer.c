@@ -2,11 +2,23 @@
 
 #include <ctype.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "../support/arena.h"
 #include "../support/str_builder.h"
 #include "../support/str_set.h"
+
+// The events a guard or action runs for, in order and without repeats.
+typedef struct Executor {
+  StringList events;
+  StrSet event_set;
+} Executor;
+
+// The same for an assign, with the context property it sets.
+typedef struct AssignExecutor {
+  StringList events;
+  StrSet event_set;
+  const char* data_prop;
+} AssignExecutor;
 
 static void add_str_union(StrBuilder* sb, const char* value) {
   if(str_builder_char_from_end(sb, 1) == '\'') {
@@ -21,12 +33,12 @@ static void add_str_union(StrBuilder* sb, const char* value) {
 static Executor* executor_create(Arena* arena) {
   Executor* executor = ARENA_NEW(arena, Executor);
   string_list_init(&executor->events, arena);
-  str_set_init(&executor->events_s, arena);
+  str_set_init(&executor->event_set, arena);
   return executor;
 }
 
 static void executor_add(Executor* executor, const char* event_name) {
-  if(str_set_add(&executor->events_s, event_name)) {
+  if(str_set_add(&executor->event_set, event_name)) {
     string_list_append(&executor->events, event_name);
   }
 }
@@ -34,12 +46,12 @@ static void executor_add(Executor* executor, const char* event_name) {
 static AssignExecutor* assign_executor_create(Arena* arena) {
   AssignExecutor* executor = ARENA_NEW(arena, AssignExecutor);
   string_list_init(&executor->events, arena);
-  str_set_init(&executor->events_s, arena);
+  str_set_init(&executor->event_set, arena);
   return executor;
 }
 
 static void assign_executor_add(AssignExecutor* executor, const char* event_name) {
-  if(str_set_add(&executor->events_s, event_name)) {
+  if(str_set_add(&executor->event_set, event_name)) {
     string_list_append(&executor->events, event_name);
   }
 }

@@ -2,10 +2,10 @@
 
 #include "../ast/node.h"
 #include "../support/arena.h"
+#include "../support/str_builder.h"
 #include "../support/str_map.h"
-#include "js_builder.h"
-#include "../support/str_set.h"
 #include "../support/string_list.h"
+#include "js_builder.h"
 
 // TSPrinter.flags: which XState types the .d.ts imports.
 #define TS_USES_GUARD (1u << 0)
@@ -16,18 +16,6 @@
 
 // TSPrinter.machine_flags.
 #define TS_MACHINE_DEFAULT (1u << 0)
-
-// The events a guard or action runs for, in order and without repeats.
-typedef struct Executor {
-  StringList events;
-  StrSet events_s;
-} Executor;
-
-typedef struct AssignExecutor {
-  StringList events;
-  StrSet events_s;
-  const char* data_prop;
-} AssignExecutor;
 
 /*
  * Builds the .d.ts for a compile.

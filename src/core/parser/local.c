@@ -1,7 +1,5 @@
 #include "internal.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 
 ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
   ParseStatus status = PARSE_OK;

@@ -1,6 +1,5 @@
 #include "internal.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 static const char* get_event_name(TransitionNode* transition_node) {
