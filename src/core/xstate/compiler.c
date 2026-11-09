@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../arena.h"
+#include "../mem.h"
 #include "../parser/parser.h"
 #include "../program.h"
 #include "assignment.h"
@@ -12,15 +13,26 @@
 #include "state.h"
 #include "ts_printer.h"
 
-CompileResult* xs_create() {
-  CompileResult* result = malloc(sizeof(*result));
-  return result;
-}
-
-void xs_init(CompileResult* result, bool use_remote_source, bool include_dts) {
+// Free the strings a compile left in result, so the result can be used
+// again.
+static void clear_output(CompileResult* result) {
+  free(result->js);
+  free(result->dts);
   result->success = false;
   result->js = NULL;
   result->dts = NULL;
+}
+
+CompileResult* xs_create() {
+  // Zeroed, so xs_init and compile_xstate can tell there is no output yet.
+  // malloc left the struct uninitialised until xs_init, and wasn't checked.
+  return xcalloc(1, sizeof(CompileResult));
+}
+
+void xs_init(CompileResult* result, bool use_remote_source, bool include_dts) {
+  // A result may be initialised again and reused; set js and dts to NULL
+  // without freeing them leaked the last compile's output.
+  clear_output(result);
   result->flags = 0;
   
   if(use_remote_source) {
@@ -32,6 +44,13 @@ void xs_init(CompileResult* result, bool use_remote_source, bool include_dts) {
 }
 
 void compile_xstate(CompileResult* result, char* source, char* filename) {
+  // Output from an earlier compile into the same result is replaced.
+  clear_output(result);
+
+  if(source == NULL || filename == NULL) {
+    return;
+  }
+
   // Everything this compile allocates, apart from the strings it returns
   // in result, comes from this arena and is freed with it at the end.
   Arena arena;
@@ -40,8 +59,6 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   ParseResult parse_result = parse(&arena, source, filename);
 
   if(parse_result.success == false) {
-    result->success = false;
-    result->js = NULL;
     arena_destroy(&arena);
     return;
   }
@@ -201,11 +218,9 @@ char* xs_get_dts(CompileResult* result) {
 }
 
 void destroy_xstate_result(CompileResult* result) {
-  if(result->js != NULL) {
-    free(result->js);
+  if(result == NULL) {
+    return;
   }
-  if(result->dts != NULL) {
-    free(result->dts);
-  }
+  clear_output(result);
   free(result);
 }
