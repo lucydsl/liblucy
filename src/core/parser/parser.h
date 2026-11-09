@@ -9,4 +9,3 @@ typedef struct ParseResult {
 } ParseResult;
 
 ParseResult* parse(char*, char*);
-void parser_init();

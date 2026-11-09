@@ -8,8 +8,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <getopt.h>
-#include "../core/identifier.h"
-#include "../core/parser/parser.h"
 #include "../core/xstate/compiler.h"
 #include "../core/error.h"
 #include "../core/str_builder.h"
@@ -298,9 +296,6 @@ static struct option long_options[] = {
 };
 
 int main(int argc, char *argv[]) {
-  identifier_init();
-  parser_init();
-
   int use_remote_imports = 0;
   int include_dts = 0;
 

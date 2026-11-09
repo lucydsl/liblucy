@@ -1,10 +1,8 @@
 #include <stdlib.h>
 #include "../error.h"
 #include "../keyword.h"
-#include "../local.h"
 #include "../program.h"
 #include "../state.h"
-#include "../timeframe.h"
 #include "core.h"
 #include "machine.h"
 #include "parser.h"
@@ -71,10 +69,4 @@ ParseResult* parse(char* source, char* filename) {
   result->program = program;
 
   return result;
-}
-
-void parser_init() {
-  keyword_init();
-  local_init();
-  timeframe_init();
 }
