@@ -68,7 +68,7 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
                   char* action_name = arena_alloc(printer->arena, size_add(symbol_len, sizeof("spawn")));
                   memcpy(action_name, "spawn", 5);
                   memcpy(action_name + 5, symbol_name, symbol_len);
-                  action_name[5] = toupper((unsigned char)action_name[5]);
+                  action_name[5] = (char)toupper((unsigned char)action_name[5]);
                   js_builder_add_string(jsb, action_name);
                   printer_add_action_ref(printer, action_name, (Expression*)assign_expression);
 

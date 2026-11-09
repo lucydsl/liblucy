@@ -1,7 +1,7 @@
 EMCC=emcc
 
-# Every build, native and wasm, is C17 with these warnings. CI builds with
-# WERROR=1, which makes them errors.
+# Every build, native and wasm, is C17 with these warnings, and builds
+# without any. WERROR=1 makes them errors, as CI does.
 CSTD=-std=c17
 WARNINGS=-Wall -Wextra -Wpedantic \
 	-Wstrict-prototypes -Wmissing-prototypes -Wold-style-definition \
@@ -52,8 +52,7 @@ dist/liblucy-release-browser.mjs: $(SRC_FILES) | dist
 bin/lucyc: $(SRC_FILES)
 	@mkdir -p bin
 	$(CC) $(LUCY_CFLAGS) $(CFLAGS) ${BIN_C_FILES} $(CORE_C_FILES) -o $@ \
-		-DVERSION=\"$(VERSION)\" \
-		-lm
+		-DVERSION=\"$(VERSION)\"
 
 # Native builds with AddressSanitizer and UndefinedBehaviorSanitizer, for
 # test-sanitize. ASan also turns on leak detection.
@@ -64,19 +63,18 @@ SANITIZE_ENV=ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1
 bin/lucyc-sanitize: $(SRC_FILES)
 	@mkdir -p bin
 	$(CC) $(LUCY_CFLAGS) $(SANITIZE_FLAGS) ${BIN_C_FILES} $(CORE_C_FILES) -o $@ \
-		-DVERSION=\"$(VERSION)\" \
-		-lm
+		-DVERSION=\"$(VERSION)\"
 
 # Under ASan the arena gives every allocation a block of its own, so that
 # overflows between objects are caught. The -arena build keeps the real
 # block allocator, so that it runs under the sanitizers too.
 bin/compile-all-sanitize: test/sanitize/compile_all.c $(SRC_FILES)
 	@mkdir -p bin
-	$(CC) $(LUCY_CFLAGS) $(SANITIZE_FLAGS) test/sanitize/compile_all.c $(CORE_C_FILES) -o $@ -lm
+	$(CC) $(LUCY_CFLAGS) $(SANITIZE_FLAGS) test/sanitize/compile_all.c $(CORE_C_FILES) -o $@
 
 bin/compile-all-sanitize-arena: test/sanitize/compile_all.c $(SRC_FILES)
 	@mkdir -p bin
-	$(CC) $(LUCY_CFLAGS) $(SANITIZE_FLAGS) -DARENA_DEBUG=0 test/sanitize/compile_all.c $(CORE_C_FILES) -o $@ -lm
+	$(CC) $(LUCY_CFLAGS) $(SANITIZE_FLAGS) -DARENA_DEBUG=0 test/sanitize/compile_all.c $(CORE_C_FILES) -o $@
 
 clean:
 	@rm -rf dist bin
