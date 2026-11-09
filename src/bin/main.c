@@ -1,3 +1,7 @@
+// lucyc uses POSIX (stat, mkdir, opendir, PATH_MAX), which strict C17
+// leaves undeclared without this.
+#define _POSIX_C_SOURCE 200809L
+
 #include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
