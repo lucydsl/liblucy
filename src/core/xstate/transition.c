@@ -108,10 +108,10 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
             printer_add_action_ref(printer, expr->name, action_expression->ref);
 
             if(printer->ts_printer != NULL) {
-              if(printer->in_entry && printer->entry_state_start != 0) {
+              if(printer->entry_state != NULL) {
+                SourceSpan name = printer->entry_state->name;
                 char* cur_state_name = arena_strndup(printer->arena,
-                  printer->source + printer->entry_state_start,
-                  printer->entry_state_end - printer->entry_state_start);
+                  printer->source + name.start, name.end - name.start);
                 ts_printer_add_entry_action(printer->ts_printer, cur_state_name, expr->name);
               } else {
                 ts_printer_add_action(printer->ts_printer, expr->name, printer->current_event);

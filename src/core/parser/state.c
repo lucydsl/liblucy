@@ -22,15 +22,14 @@ ParseStatus parser_consume_state(Parser* parser) {
   switch(token) {
     case TOKEN_IDENTIFIER: {
       // Set the name of the state
-      state_node->name_start = parser->word_start;
-      state_node->name_end = parser->word_end;
+      state_node->name = (SourceSpan){ .start = parser->word_start, .end = parser->word_end };
 
       switch(parser->modifier) {
         case MODIFIER_INITIAL: {
           parser->modifier = MODIFIER_NONE;
           MachineNode* machine_node = (MachineNode*)parent_node;
-          machine_node->initial_start = state_node->name_start;
-          machine_node->initial_end = state_node->name_end;
+          machine_node->has_initial = true;
+          machine_node->initial = state_node->name;
           break;
         }
         case MODIFIER_FINAL: {

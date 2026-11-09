@@ -30,9 +30,7 @@ XStateOutput xstate_print(Arena* arena, Program* program, char* source,
     .service_refs = NULL,
     .ts_printer = NULL,
     .current_event = NULL,
-    .entry_state_start = 0,
-    .entry_state_end = 0,
-    .in_entry = false
+    .entry_state = NULL
   };
   str_set_init(&printer.event_names, arena);
   str_set_init(&printer.guard_names, arena);
