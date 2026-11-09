@@ -43,7 +43,7 @@ typedef struct Node {
   unsigned short type;
   size_t start;
   size_t end;
-  unsigned short line;
+  size_t line;
   struct Node* parent;
   struct Node* child;
   struct Node* next;
@@ -62,8 +62,10 @@ typedef struct MachineNode {
 
 typedef struct StateNode {
   Node node;
-  int name_start;
-  int name_end;
+  // Where the name is in the source. These were ints, which offsets past
+  // 2 GB don't fit, and the printer copies the name out with them.
+  size_t name_start;
+  size_t name_end;
 
   bool final;
   struct LocalNode* entry;

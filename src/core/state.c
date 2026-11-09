@@ -72,21 +72,26 @@ char state_next(State* state) {
   return state_char(state);
 }
 
-void state_find_position(State* state, pos_t* pos, int inc) {
+// The line and column of the point inc characters back from the current
+// index. inc is a token length, so it is a size_t: as an int, as it was, a
+// token over INT_MAX characters went negative and state_rewind went back to
+// the start of the source.
+void state_find_position(State* state, pos_t* pos, size_t inc) {
   size_t index = state->index;
-  int col = 0;
-  int line = state->line;
-  int i = inc;
+  long col = 0;
+  long line = (long)state->line;
+  // How far back from the current index this has looked.
+  size_t back = 0;
   char c;
   while(index > 0) {
     c = state_char_at(state, index);
 
-    if(i <= 0) {
+    if(back >= inc) {
       col++;
     }
 
     if(c == '\n') {
-      if(i <= 0) {
+      if(back >= inc) {
         // Reached the beginning of the line.
         break;
       } else {
@@ -94,7 +99,7 @@ void state_find_position(State* state, pos_t* pos, int inc) {
       }
     }
 
-    i--;
+    back++;
     index--;
   }
 
@@ -102,12 +107,12 @@ void state_find_position(State* state, pos_t* pos, int inc) {
   pos->column = col;
 }
 
-void state_rewind(State* state, int inc) {
+void state_rewind(State* state, size_t inc) {
   pos_t pos;
   state_find_position(state, &pos, inc);
-  state->index = (size_t)inc < state->index ? state->index - inc : 0;
-  state->line = pos.line;
-  state->column = pos.column;
+  state->index = inc < state->index ? state->index - inc : 0;
+  state->line = (size_t)pos.line;
+  state->column = (size_t)pos.column;
 }
 
 void state_node_set(State* state, Node* node) {
@@ -139,9 +144,10 @@ void state_node_up(State* state) {
   }
 }
 
-void state_node_start_pos(State* state, Node* node, unsigned short rewind_amount) {
-  size_t start = state->index - rewind_amount;
-  node->start = start;
+void state_node_start_pos(State* state, Node* node, size_t rewind_amount) {
+  // A keyword at the very start of the source is shorter than the amount
+  // some callers rewind by, which wrapped start around to SIZE_MAX.
+  node->start = rewind_amount < state->index ? state->index - rewind_amount : 0;
   node->line = state->line;
 }
 

@@ -7,7 +7,7 @@
 #include "ts_printer.h"
 
 static void add_str_union(str_builder_t* sb, char* value) {
-  int len = str_builder_len(sb);
+  long len = (long)str_builder_len(sb);
   char c = str_builder_char_at(sb, len - 1);
   if(c == '\'') {
     str_builder_add_str(sb, " | ", 3);

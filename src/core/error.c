@@ -36,9 +36,9 @@ static int num_places(long n) {
 }
 
 static void error_file_info(State* state, pos_t* pos) {
-  int line = pos->line + 1;
-  int col = pos->column;
-  fprintf(stderr, BOLDWHITE "%s" RESET ":%i:%i\n", state->filename, line, col);
+  long line = pos->line + 1;
+  long col = pos->column;
+  fprintf(stderr, BOLDWHITE "%s" RESET ":%li:%li\n", state->filename, line, col);
 }
 
 void error_message(const char* msg) {
@@ -122,8 +122,8 @@ static void error_annotate(State* state, pos_t* pos) {
 
 void error_msg_with_code_block(State* state, Node* node, const char* msg) {
   pos_t pos = {
-    .line = state->line + 1,
-    .column = state->column
+    .line = (long)state->line + 1,
+    .column = (long)state->column
   };
 
   error_file_info(state, &pos);
@@ -139,7 +139,7 @@ void error_msg_with_code_block_pos(State* state, pos_t* pos, const char* msg) {
   fprintf(stderr, "\n");
 }
 
-void error_msg_with_code_block_dec(State* state, int dec, const char* msg) {
+void error_msg_with_code_block_dec(State* state, size_t dec, const char* msg) {
   pos_t pos;
   state_find_position(state, &pos, dec);
   error_msg_with_code_block_pos(state, &pos, msg);

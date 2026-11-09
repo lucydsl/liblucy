@@ -43,17 +43,19 @@ typedef struct State {
   size_t machine_depth;
 } State;
 
+// A position for an error message. Signed, because the lexer's line count
+// can briefly go below zero while it rewinds.
 typedef struct pos_t {
-  int line;
-  int column;
+  long line;
+  long column;
 } pos_t;
 
 int state_inbounds(State*);
 char state_char(State*);
 char state_peek(State*);
 char state_next(State*);
-void state_rewind(State*, int);
-void state_find_position(State*, pos_t*, int);
+void state_rewind(State*, size_t);
+void state_find_position(State*, pos_t*, size_t);
 
 void state_init(State*, Arena*, Program*, char* source, char* filename);
 void state_advance_line(State*);
@@ -63,7 +65,7 @@ char* state_take_word(State*);
 void state_reset_word(State*);
 void state_node_set(State*, Node*);
 void state_node_up(State*);
-void state_node_start_pos(State*, Node*, unsigned short);
+void state_node_start_pos(State*, Node*, size_t);
 
 void state_add_guard(State*, char*);
 void state_add_action(State*, char*);
