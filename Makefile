@@ -16,6 +16,7 @@ dist:
 EMCC_FLAGS=$(WASM_C_FILES) $(CORE_C_FILES) \
 	-sEXPORT_ES6 \
 	-sMODULARIZE \
+	-sALLOW_MEMORY_GROWTH \
 	-sEXPORTED_FUNCTIONS=_main,_compile_xstate,_xs_get_js,_xs_get_dts,_xs_init,_xs_create,_destroy_xstate_result,_malloc,_free \
 	-sEXPORTED_RUNTIME_METHODS=stringToUTF8,UTF8ToString,lengthBytesUTF8,HEAPU8
 
