@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <limits.h>
 #include "timeframe.h"
-#include "str_builder.h"
+#include "../support/str_builder.h"
 
 #define TF_MS 0
 #define TF_S 1

@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "node.h"
-#include "state.h"
+#include "../ast/node.h"
+#include "lexer.h"
 
 void state_init(State* state, Arena* arena, Program* program, char* source, char* filename) {
   // Zero everything first: the parser reads modifier and the word

@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include "arena.h"
+#include "../support/arena.h"
 
 #define NODE_MACHINE_TYPE 0
 #define NODE_STATE_TYPE 1

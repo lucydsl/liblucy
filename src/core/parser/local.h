@@ -1,5 +1,5 @@
 #pragma once
 
-#include "../state.h"
+#include "lexer.h"
 
 int parser_consume_local(State*, unsigned short);

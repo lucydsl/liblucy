@@ -1,8 +1,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../js_builder.h"
-#include "../node.h"
+#include "js_builder.h"
+#include "../ast/node.h"
 #include "core.h"
 #include "machine.h"
 

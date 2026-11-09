@@ -13,9 +13,9 @@
 #include <unistd.h>
 #include <getopt.h>
 #include "../core/xstate/compiler.h"
-#include "../core/error.h"
-#include "../core/mem.h"
-#include "../core/str_builder.h"
+#include "../core/parser/error.h"
+#include "../core/support/mem.h"
+#include "../core/support/str_builder.h"
 
 #define RESET   "\033[0m"
 #define BOLDWHITE   "\033[1m\033[37m"      /* Bold White */

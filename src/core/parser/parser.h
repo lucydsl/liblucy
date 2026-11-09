@@ -1,8 +1,8 @@
 #pragma once
 
 #include <stdbool.h>
-#include "../arena.h"
-#include "../program.h"
+#include "../support/arena.h"
+#include "../ast/program.h"
 
 typedef struct ParseResult {
   bool success;

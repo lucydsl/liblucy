@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../arena.h"
-#include "../js_builder.h"
-#include "../node.h"
-#include "../program.h"
-#include "../str_set.h"
+#include "../support/arena.h"
+#include "js_builder.h"
+#include "../ast/node.h"
+#include "../ast/program.h"
+#include "../support/str_set.h"
 #include "ts_printer.h"
 
 // API flags

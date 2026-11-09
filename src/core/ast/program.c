@@ -1,4 +1,4 @@
-#include "arena.h"
+#include "../support/arena.h"
 #include "program.h"
 #include "node.h"
 

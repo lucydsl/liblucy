@@ -1,6 +1,6 @@
-#include "../error.h"
-#include "../node.h"
-#include "../state.h"
+#include "error.h"
+#include "../ast/node.h"
+#include "lexer.h"
 #include "core.h"
 #include "token.h"
 

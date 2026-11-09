@@ -2,8 +2,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include "js_builder.h"
-#include "mem.h"
-#include "str_builder.h"
+#include "../support/mem.h"
+#include "../support/str_builder.h"
 
 JSBuilder* js_builder_create() {
   JSBuilder* jsb = xmalloc(sizeof(*jsb));
