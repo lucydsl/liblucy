@@ -56,9 +56,11 @@ static void usage(const char* program_name) {
   fprintf(stderr, "%s--out-dir <dir>       Specify a directory to output to.\n", U_INDENT);
   fprintf(stderr, "%s--remote-imports      Specify remote import URLs.\n", U_INDENT);
   fprintf(stderr, "%s--experimental-dts    Include TypeScript defintion (.d.ts) files.\n"
-                  "%s                       (when using --out-file or --out-dir).\n", U_INDENT, U_INDENT);
+                  "%s                       (when using --out-file or --out-dir).\n",
+    U_INDENT, U_INDENT);
   fprintf(stderr, "%s--print KIND          Specify which unit to print to the console:\n"
-                  "%s                       'js', 'dts'\n", U_INDENT, U_INDENT);
+                  "%s                       'js', 'dts'\n",
+    U_INDENT, U_INDENT);
   fprintf(stderr, "%s-h, --help            Prints help information.\n", U_INDENT);
   fprintf(stderr, "%s-v, --version         Prints the version.\n\n", U_INDENT);
 
@@ -218,7 +220,7 @@ static bool ends_with(const char* str, const char* suffix) {
   size_t str_len = strlen(str);
   size_t suffix_len = strlen(suffix);
   return suffix_len <= str_len &&
-    strcmp(str + str_len - suffix_len, suffix) == 0;
+         strcmp(str + str_len - suffix_len, suffix) == 0;
 }
 
 // filename with the rootdir prefix, and the slashes after it, removed. The
@@ -303,15 +305,15 @@ enum {
 };
 
 static const struct option long_options[] = {
-  {"remote-imports", no_argument, NULL, OPTION_REMOTE_IMPORTS},
-  {"experimental-dts", no_argument, NULL, OPTION_EXPERIMENTAL_DTS},
-  {"out-file", required_argument, NULL, OPTION_OUT_FILE},
-  {"out-dir", required_argument, NULL, OPTION_OUT_DIR},
-  {"print", required_argument, NULL, OPTION_PRINT},
-  {"help", no_argument, NULL, 'h'},
-  {"version", no_argument, NULL, 'v'},
+  { "remote-imports", no_argument, NULL, OPTION_REMOTE_IMPORTS },
+  { "experimental-dts", no_argument, NULL, OPTION_EXPERIMENTAL_DTS },
+  { "out-file", required_argument, NULL, OPTION_OUT_FILE },
+  { "out-dir", required_argument, NULL, OPTION_OUT_DIR },
+  { "print", required_argument, NULL, OPTION_PRINT },
+  { "help", no_argument, NULL, 'h' },
+  { "version", no_argument, NULL, 'v' },
   // getopt_long needs the terminating entry.
-  {NULL, 0, NULL, 0},
+  { NULL, 0, NULL, 0 },
 };
 
 int main(int argc, char* argv[]) {
@@ -392,7 +394,7 @@ int main(int argc, char* argv[]) {
   if(S_ISREG(path_stat.st_mode)) {
     // --out-file doesn't have to exist yet, but it mustn't be a directory.
     if(options.out_file != NULL && stat(options.out_file, &path_stat) == 0 &&
-      S_ISDIR(path_stat.st_mode)) {
+       S_ISDIR(path_stat.st_mode)) {
       fprintf(stderr, "Argument passed to --out-file is a directory. Did you mean to use --out-dir?\n");
       return 1;
     }

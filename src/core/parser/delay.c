@@ -63,13 +63,11 @@ ParseStatus parser_consume_inline_delay(Parser* parser, TransitionNode* transiti
   DelayExpression* expression = expression_create_delay(parser->arena);
 
   if(parse_merge(&status, parser_consume_call(parser, "delay", expression, &consume_inline_delay_args)) == PARSE_FATAL) {
-
     return PARSE_FATAL;
-
   }
 
   node_transition_set_delay(parser->arena, transition_node, expression);
-  if(expression-> ref != NULL && expression->ref->type == EXPRESSION_SYMBOL) {
+  if(expression->ref != NULL && expression->ref->type == EXPRESSION_SYMBOL) {
     MachineNode* machine_node = node_find_machine((Node*)state_node);
     machine_node->flags |= MACHINE_USES_DELAY;
   }

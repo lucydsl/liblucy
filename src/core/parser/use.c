@@ -9,15 +9,14 @@ static ParseStatus consume_use_specifiers(ImportNode* import_node, Parser* parse
   // The specifier read but not yet added. Only add one once: `{ a,, b }`
   // used to append a twice, which made the list loop, and `{ }` appended
   // an uninitialised pointer.
-  ImportSpecifierNode *specifier = NULL;
+  ImportSpecifierNode* specifier = NULL;
   while(true) {
     token = parser_next_token(parser);
-    
+
     switch(token) {
       case TOKEN_IDENTIFIER: {
         const char* identifier = parser_take_word(parser);
         if(strcmp(identifier, "as") == 0) {
-
           parser_error(parser, "Import aliases are not currently supported.");
           return PARSE_FATAL;
         }
@@ -48,14 +47,14 @@ static ParseStatus consume_use_specifiers(ImportNode* import_node, Parser* parse
     }
   }
 
-  end: {
-    return status;
-  }
+end: {
+  return status;
+}
 }
 
 ParseStatus parser_consume_use(Parser* parser) {
   ParseStatus status = PARSE_OK;
-  Node *current_node = parser->node;
+  Node* current_node = parser->node;
 
   if(current_node != NULL) {
     parser_error(parser, "Import statement must be at the top of the file.");
@@ -65,8 +64,8 @@ ParseStatus parser_consume_use(Parser* parser) {
     return PARSE_ERROR;
   }
 
-  ImportNode *import_node = node_create_import(parser->arena);
-  Node *node = (Node*)import_node;
+  ImportNode* import_node = node_create_import(parser->arena);
+  Node* node = (Node*)import_node;
   parser_enter_node(parser, node);
 
   TokenType token;
@@ -121,8 +120,8 @@ ParseStatus parser_consume_use(Parser* parser) {
     }
   }
 
-  end: {
-    parser_leave_node(parser);
-    return status;
-  }
+end: {
+  parser_leave_node(parser);
+  return status;
+}
 }

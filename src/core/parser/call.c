@@ -50,24 +50,24 @@ ParseStatus parser_consume_call(Parser* parser, const char* fn_name, void* expr,
     index++;
   }
 
-  end_args: {
-    if(token != TOKEN_END_CALL) {
-      // Only show this error message if we are currently within a call.
-      if(in_call) {
-        const char* key = identifier == NULL ? "" : identifier;
-        parser_error_backf(parser, parser->token_len, "Inline assigns must be called like a function. Expected assign(%s)", key);
-      }
-
-      // Rewind back out, so the next thing consumes this token.
-      parser_rewind(parser, parser->token_len);
-
-      status = PARSE_ERROR;
+end_args: {
+  if(token != TOKEN_END_CALL) {
+    // Only show this error message if we are currently within a call.
+    if(in_call) {
+      const char* key = identifier == NULL ? "" : identifier;
+      parser_error_backf(parser, parser->token_len, "Inline assigns must be called like a function. Expected assign(%s)", key);
     }
-  }
 
-  end: {
-    return status;
+    // Rewind back out, so the next thing consumes this token.
+    parser_rewind(parser, parser->token_len);
+
+    status = PARSE_ERROR;
   }
+}
+
+end: {
+  return status;
+}
 }
 
 ParseStatus parser_expect_call_argument(Parser* parser, const char* fn_name, const void* arg, ParseStatus status) {

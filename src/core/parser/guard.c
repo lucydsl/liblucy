@@ -23,11 +23,9 @@ static ParseStatus consume_inline_guard_args(Parser* parser, void* expr, TokenTy
 ParseStatus parser_consume_inline_guard(Parser* parser, TransitionNode* transition_node) {
   ParseStatus status = PARSE_OK;
   GuardExpression* guard_expression = expression_create_guard(parser->arena);
-  
+
   if(parse_merge(&status, parser_consume_call(parser, "guard", guard_expression, &consume_inline_guard_args)) == PARSE_FATAL) {
-  
     return PARSE_FATAL;
-  
   }
   if(parse_merge(&status, parser_expect_call_argument(parser, "guard", guard_expression->ref, status)) == PARSE_FATAL) {
     return PARSE_FATAL;
@@ -74,7 +72,7 @@ ParseStatus parser_consume_guard(Parser* parser) {
   token = parser_next_token(parser);
   switch(token) {
     case TOKEN_IDENTIFIER: {
-      IdentifierExpression *expression = expression_create_identifier(parser->arena);
+      IdentifierExpression* expression = expression_create_identifier(parser->arena);
       expression->name = parser_take_word(parser);
       assignment->value = (Expression*)expression;
       break;

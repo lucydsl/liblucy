@@ -5,13 +5,13 @@
  * from js_builder and ts_printer, which have headers of their own).
  */
 
-#include "../diagnostic.h"
-#include "../support/arena.h"
-#include "js_builder.h"
 #include "../ast/node.h"
 #include "../ast/program.h"
+#include "../diagnostic.h"
+#include "../support/arena.h"
 #include "../support/str_builder.h"
 #include "../support/str_set.h"
+#include "js_builder.h"
 #include "ts_printer.h"
 
 // MachineNode.printer_flags: what the printer has printed for a machine.

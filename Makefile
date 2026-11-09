@@ -80,6 +80,11 @@ clean:
 	@rm -rf dist bin
 .PHONY: clean
 
+# Format the C sources as .clang-format says. Needs clang-format 18 or later.
+format:
+	clang-format -i $(shell find src test -name '*.[ch]')
+.PHONY: format
+
 test-native:
 	@scripts/test_snapshots
 	@scripts/test_unit

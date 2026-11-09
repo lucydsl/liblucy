@@ -1,10 +1,9 @@
 #include "node.h"
 
-
 #include "../support/arena.h"
 
 Node* node_create(Arena* arena, NodeType type, size_t size) {
-  Node *node = arena_alloc(arena, size);
+  Node* node = arena_alloc(arena, size);
   node->type = type;
   return node;
 }
@@ -104,8 +103,8 @@ TransitionDelay* node_transition_set_delay(Arena* arena, TransitionNode* transit
 
 bool node_is_nested_machine(Node* node) {
   return node->type == NODE_MACHINE &&
-    node->parent != NULL &&
-    node->parent->type == NODE_STATE;
+         node->parent != NULL &&
+         node->parent->type == NODE_STATE;
 }
 
 void node_append_child(Node* parent, Node* child) {

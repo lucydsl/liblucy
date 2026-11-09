@@ -48,7 +48,7 @@ ParseStatus parser_consume_inline_assign_args(Parser* parser, void* expr, TokenT
       }
     }
   }
-  
+
   return status;
 }
 
@@ -57,9 +57,7 @@ ParseStatus parser_consume_inline_assign(Parser* parser, Node* node) {
   AssignExpression* assign_expression = expression_create_assign(parser->arena);
 
   if(parse_merge(&status, parser_consume_call(parser, "assign", assign_expression, &parser_consume_inline_assign_args)) == PARSE_FATAL) {
-
     return PARSE_FATAL;
-
   }
 
   switch(node->type) {

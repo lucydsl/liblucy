@@ -112,9 +112,9 @@ static ParseStatus consume_program(Parser* parser) {
     }
   }
 
-  end: {
-    return status;
-  }
+end: {
+  return status;
+}
 }
 
 ParseResult parse(Arena* arena, const char* source, const char* filename, DiagnosticList* diagnostics) {

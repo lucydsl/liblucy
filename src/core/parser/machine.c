@@ -71,14 +71,14 @@ static ParseStatus consume_machine_inner(Parser* parser, bool is_implicit, Token
       }
     }
 
-    next: {
-      token = parser_next_token(parser);
-    }
+  next: {
+    token = parser_next_token(parser);
+  }
   }
 
-  end: {
-    return status;
-  }
+end: {
+  return status;
+}
 }
 
 // Machines nest inside states, and the parser recurses through
@@ -113,15 +113,13 @@ static ParseStatus consume_named_machine(Parser* parser) {
   }
 
   if(parse_merge(&status, consume_machine_inner(parser, false, 0)) == PARSE_FATAL) {
-
     return PARSE_FATAL;
-
   }
 
-  end: {
-    parser_leave_node(parser);
-    return status;
-  }
+end: {
+  parser_leave_node(parser);
+  return status;
+}
 }
 
 /* Public API */

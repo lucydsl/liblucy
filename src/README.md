@@ -31,6 +31,10 @@ set in the Makefile, with GCC and with Emscripten's Clang; CI builds with
 `WERROR=1`, which makes them errors. The core uses only ISO C, so the same
 sources build natively and with Emscripten. `lucyc` also uses POSIX.
 
+The layout of the code (two-space indents, `if(` with no space,
+`char* name` with the `*` on the type, braces on the same line) is in
+`.clang-format`; `make format` applies it.
+
 ### Naming
 
 - **Types** are `PascalCase`: `Parser`, `StrBuilder`, `MachineNode`.

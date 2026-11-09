@@ -9,12 +9,12 @@
 #include "../support/str_builder.h"
 
 void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
- TransitionAction* action, const char* actions_property) {
+  TransitionAction* action, const char* actions_property) {
   TransitionAction* inner = action;
   bool use_multiline = false;
   while(inner && !use_multiline) {
-    if(action->expression && (action->expression->type == EXPRESSION_ASSIGN || 
-      action->expression->type == EXPRESSION_SEND)) {
+    if(action->expression && (action->expression->type == EXPRESSION_ASSIGN ||
+                               action->expression->type == EXPRESSION_SEND)) {
       use_multiline = true;
       break;
     }
@@ -289,7 +289,7 @@ void printer_compile_inner_transition(Printer* printer, JSBuilder* jsb, Transiti
             // Expression!
             compile_guard_expression(printer, jsb, guard->expression);
           }
-          
+
           guard = guard->next;
 
           if(guard == NULL) {
@@ -324,8 +324,8 @@ void printer_compile_inner_transition(Printer* printer, JSBuilder* jsb, Transiti
 
 void printer_compile_event_transition(Printer* printer, JSBuilder* jsb, TransitionNode* transition_node) {
   const char* event_name = transition_node->event->type == EXPRESSION_ON ?
-    ((OnExpression*)transition_node->event)->name :
-    ((IdentifierExpression*)transition_node->event)->name;
+                             ((OnExpression*)transition_node->event)->name :
+                             ((IdentifierExpression*)transition_node->event)->name;
 
   // If this transition was already compiled from a previous link.
   if(str_set_contains(&printer->event_names, event_name)) {

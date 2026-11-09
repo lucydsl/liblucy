@@ -21,7 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
- 
+
 // Simple hash table implemented in C.
 //
 // Changed for liblucy: the table, its entries and its copies of the keys
@@ -33,6 +33,7 @@ SOFTWARE.
 
 #include <stdbool.h>
 #include <stddef.h>
+
 #include "arena.h"
 
 // Hash table structure: create with str_map_create.
@@ -52,12 +53,12 @@ const char* str_map_set(StrMap* table, const char* key, void* value);
 
 // Hash table iterator: create with str_map_iterator, iterate with str_map_next.
 typedef struct {
-    const char* key;  // current key
-    void* value;      // current value
+  const char* key; // current key
+  void* value;     // current value
 
-    // Don't use these fields directly.
-    StrMap* table;       // reference to hash table being iterated
-    size_t index;    // current index into the table's entries
+  // Don't use these fields directly.
+  StrMap* table; // reference to hash table being iterated
+  size_t index;  // current index into the table's entries
 } StrMapIterator;
 
 // Return new hash table iterator (for use with str_map_next).

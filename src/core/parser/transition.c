@@ -53,7 +53,7 @@ static void link_event_transition(Node* parent_node, TransitionNode* transition_
     do {
       const char* name = get_event_name(child_transition_node);
       if(!linked_already && name != NULL && event_name != NULL &&
-        strcmp(name, event_name) == 0) {
+         strcmp(name, event_name) == 0) {
         TransitionNode* linked = child_transition_node;
         while(linked->link != NULL) {
           linked = linked->link;
@@ -123,9 +123,9 @@ static ParseStatus consume_member_expression(Parser* parser, TransitionNode* tra
     transition_node->dest = (Expression*)top_member_expression;
   }
 
-  exit: {
-    return status;
-  }
+exit: {
+  return status;
+}
 }
 
 /* Public API */
@@ -318,13 +318,13 @@ ParseStatus parser_consume_transition(Parser* parser) {
   // action. Without any (an event name alone on a line, or `delay(1s)`)
   // the printer had no destination to print and crashed.
   if(status == PARSE_OK && transition_node->dest == NULL &&
-    transition_node->guard == NULL && transition_node->action == NULL) {
+     transition_node->guard == NULL && transition_node->action == NULL) {
     parser_error_back(parser, parser->token_len, "Expected a destination state for this event.");
     status = PARSE_ERROR;
   }
 
-  end: {
-    parser_leave_node(parser);
-    return status;
-  }
+end: {
+  parser_leave_node(parser);
+  return status;
+}
 }
