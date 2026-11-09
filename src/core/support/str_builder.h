@@ -48,6 +48,21 @@ void str_builder_copy_str(StrBuilder *sb, const char *str, size_t start, size_t 
  */
 void str_builder_add_char(StrBuilder *sb, char c);
 
+#if defined(__GNUC__) || defined(__clang__)
+# define STR_BUILDER_PRINTF(format_index, args_index) \
+    __attribute__((format(printf, format_index, args_index)))
+#else
+# define STR_BUILDER_PRINTF(format_index, args_index)
+#endif
+
+/*! Add text formatted as by printf to the builder.
+ *
+ * param[in,out] sb     Builder.
+ * param[in]     format printf format string, followed by its arguments.
+ */
+void str_builder_add_format(StrBuilder *sb, const char *format, ...)
+    STR_BUILDER_PRINTF(2, 3);
+
 /*! Add an integer as to the builder.
  *
  * param[in,out] sb  Builder.

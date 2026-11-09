@@ -57,7 +57,7 @@ ParseStatus parser_consume_guard(Parser* parser) {
   token = parser_next_token(parser);
 
   if(token != TOKEN_IDENTIFIER) {
-    parser_error_unexpected_identifier(parser, node);
+    parser_error_unexpected_identifier(parser);
     return PARSE_FATAL;
   }
 
@@ -66,7 +66,7 @@ ParseStatus parser_consume_guard(Parser* parser) {
   token = parser_next_token(parser);
 
   if(token != TOKEN_ASSIGNMENT) {
-    parser_error(parser, node, "Expected an identifier");
+    parser_error(parser, "Expected an identifier");
     return PARSE_FATAL;
   }
 

@@ -119,6 +119,16 @@ static int write_file(char* outfile, const char* output) {
   return 0;
 }
 
+// Print a compile's errors and warnings, in the order it reported them.
+static void print_diagnostics(const LucyResult* result) {
+  size_t count = lucy_result_diagnostic_count(result);
+  for(size_t i = 0; i < count; i++) {
+    const LucyDiagnostic* diagnostic = lucy_result_diagnostic(result, i);
+    FILE* stream = lucy_diagnostic_stream(diagnostic) == LUCY_STREAM_STDOUT ? stdout : stderr;
+    fputs(lucy_diagnostic_text(diagnostic), stream);
+  }
+}
+
 // The contents of filename, NUL-terminated, or NULL if it can't be read.
 // The caller must free() it.
 static char* read_file(const char* filename) {
@@ -156,6 +166,7 @@ static int compile_file(char* filename, int use_remote_imports, int include_dts,
   LucyResult* result = lucy_result_create();
   lucy_result_set_options(result, use_remote_imports, include_dts);
   lucy_compile_xstate(result, buffer, filename);
+  print_diagnostics(result);
   // The result has its own copies of everything it needs.
   free(buffer);
 

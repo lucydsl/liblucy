@@ -12,7 +12,7 @@ ParseStatus parser_consume_state(Parser* parser) {
 
   Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_MACHINE) {
-    parser_error(parser, state_node_node, "Unexpected parent node for state.");
+    parser_error(parser, "Unexpected parent node for state.");
     return PARSE_FATAL;
   }
 
@@ -55,7 +55,7 @@ ParseStatus parser_consume_state(Parser* parser) {
   }
 
   if(token != TOKEN_BEGIN_BLOCK) {
-    parser_error_unexpected_identifier(parser, state_node_node);
+    parser_error_unexpected_identifier(parser);
     return PARSE_FATAL;
   }
 
@@ -113,9 +113,7 @@ ParseStatus parser_consume_state(Parser* parser) {
             break;
           }
           default: {
-            char buffer[256];
-            snprintf(buffer, sizeof(buffer), "Unknown local variable (%s)", local);
-            parser_error_back(parser, parser->token_len, buffer);
+            parser_error_backf(parser, parser->token_len, "Unknown local variable (%s)", local);
             status = PARSE_ERROR;
             break;
           }
@@ -125,7 +123,7 @@ ParseStatus parser_consume_state(Parser* parser) {
       default: {
         // Known bug: this reports the error but returns the status so far,
         // which may be PARSE_OK, so the compile can still succeed.
-        parser_error_unexpected_identifier(parser, state_node_node);
+        parser_error_unexpected_identifier(parser);
         goto end;
       }
     }

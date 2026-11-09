@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "diagnostic.h"
 #include "parser/parser.h"
 #include "support/arena.h"
 #include "support/mem.h"
@@ -16,6 +17,7 @@ struct LucyResult {
   bool success;
   char* js;
   char* dts;
+  DiagnosticList diagnostics;
 };
 
 // Free the output of the last compile, so the result can be used again.
@@ -25,11 +27,14 @@ static void clear_output(LucyResult* result) {
   result->success = false;
   result->js = NULL;
   result->dts = NULL;
+  diagnostic_list_clear(&result->diagnostics);
 }
 
 LucyResult* lucy_result_create(void) {
   // Zeroed: no output, and both options off.
-  return xcalloc(1, sizeof(LucyResult));
+  LucyResult* result = xcalloc(1, sizeof(LucyResult));
+  diagnostic_list_init(&result->diagnostics);
+  return result;
 }
 
 void lucy_result_destroy(LucyResult* result) {
@@ -59,10 +64,11 @@ void lucy_compile_xstate(LucyResult* result, const char* source, const char* fil
   Arena arena;
   arena_init(&arena);
 
-  ParseResult parsed = parse(&arena, (char*)source, (char*)filename);
+  ParseResult parsed = parse(&arena, (char*)source, (char*)filename,
+    &result->diagnostics);
   if(parsed.success) {
     XStateOutput output = xstate_print(&arena, parsed.program, (char*)source,
-      result->use_remote_imports, result->include_dts);
+      result->use_remote_imports, result->include_dts, &result->diagnostics);
     result->success = true;
     result->js = output.js;
     result->dts = output.dts;
@@ -81,4 +87,39 @@ const char* lucy_result_js(const LucyResult* result) {
 
 const char* lucy_result_dts(const LucyResult* result) {
   return result->dts;
+}
+
+size_t lucy_result_diagnostic_count(const LucyResult* result) {
+  return result->diagnostics.count;
+}
+
+const LucyDiagnostic* lucy_result_diagnostic(const LucyResult* result, size_t index) {
+  if(index >= result->diagnostics.count) {
+    return NULL;
+  }
+  return &result->diagnostics.items[index];
+}
+
+LucySeverity lucy_diagnostic_severity(const LucyDiagnostic* diagnostic) {
+  return diagnostic->severity;
+}
+
+LucyStream lucy_diagnostic_stream(const LucyDiagnostic* diagnostic) {
+  return diagnostic->stream;
+}
+
+const char* lucy_diagnostic_message(const LucyDiagnostic* diagnostic) {
+  return diagnostic->message;
+}
+
+long lucy_diagnostic_line(const LucyDiagnostic* diagnostic) {
+  return diagnostic->line;
+}
+
+long lucy_diagnostic_column(const LucyDiagnostic* diagnostic) {
+  return diagnostic->column;
+}
+
+const char* lucy_diagnostic_text(const LucyDiagnostic* diagnostic) {
+  return diagnostic->text;
 }

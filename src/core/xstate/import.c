@@ -1,6 +1,5 @@
 #include "printer.h"
 
-#include <stdio.h>
 
 void printer_enter_import(Printer* printer, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, "import ");
@@ -10,7 +9,7 @@ void printer_enter_import(Printer* printer, JSBuilder* jsb, Node* node) {
   bool multiple = false;
 
   if(child == NULL) {
-    printf("TODO add support for imports with no specifiers\n");
+    printer_warn(printer, LUCY_STREAM_STDOUT, "TODO add support for imports with no specifiers\n");
     return;
   }
 

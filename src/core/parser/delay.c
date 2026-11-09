@@ -14,7 +14,7 @@ static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenTy
       Timeframe tf = timeframe_parse(arg, strlen(arg));
 
       if(tf.error != NULL) {
-        parser_error(parser, NULL, tf.error);
+        parser_error(parser, tf.error);
         return PARSE_FATAL;
       }
 
@@ -25,7 +25,7 @@ static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenTy
       Timeframe tf = timeframe_parse(arg, parser->word_len);
 
       if(tf.error != NULL) {
-        parser_error(parser, NULL, tf.error);
+        parser_error(parser, tf.error);
         return PARSE_FATAL;
       }
 
@@ -45,7 +45,7 @@ static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenTy
       break;
     }
     default: {
-      parser_error(parser, NULL, "Expected either an integer time (in milliseconds) or a timeframe such as 200ms.");
+      parser_error(parser, "Expected either an integer time (in milliseconds) or a timeframe such as 200ms.");
       return PARSE_FATAL;
     }
   }

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void parser_init(Parser* parser, Arena* arena, Program* program, char* source, char* filename) {
+void parser_init(Parser* parser, Arena* arena, Program* program, char* source, char* filename, DiagnosticList* diagnostics) {
   // Zero everything first: the parser reads modifier and the word
   // fields before it ever sets them.
   memset(parser, 0, sizeof(*parser));
@@ -13,6 +13,7 @@ void parser_init(Parser* parser, Arena* arena, Program* program, char* source, c
   parser->program = program;
   parser->source = source;
   parser->filename = filename;
+  parser->diagnostics = diagnostics;
   parser->source_len = strlen(source);
 
   str_set_init(&parser->guard_names, arena);

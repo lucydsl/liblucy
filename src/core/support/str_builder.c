@@ -1,6 +1,7 @@
 #include "str_builder.h"
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -109,6 +110,27 @@ void str_builder_add_char(StrBuilder *sb, char c)
     sb->str[sb->len] = c;
     sb->len++;
     sb->str[sb->len] = '\0';
+}
+
+void str_builder_add_format(StrBuilder *sb, const char *format, ...)
+{
+    va_list args;
+    va_list args_copy;
+    int len;
+
+    if (sb == NULL || format == NULL)
+        return;
+
+    va_start(args, format);
+    va_copy(args_copy, args);
+    len = vsnprintf(NULL, 0, format, args_copy);
+    va_end(args_copy);
+    if (len > 0) {
+        str_builder_ensure_space(sb, (size_t)len);
+        vsnprintf(sb->str + sb->len, (size_t)len + 1, format, args);
+        sb->len += (size_t)len;
+    }
+    va_end(args);
 }
 
 void str_builder_add_int(StrBuilder *sb, int val)

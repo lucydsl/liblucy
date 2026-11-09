@@ -81,7 +81,9 @@ for(const [depth, inner, ok] of [[64, '', true], [64, '  bogus\n', false], [65, 
   }
 }
 
-// Failed compiles used to leak their result.
+// Failed compiles used to leak their result. The error they throw carries
+// the diagnostics, whose text is what lucyc prints before its own
+// "Compilation failed!".
 for(let i = 0; i < 50; i++) {
   for(const name of errorTests) {
     const filename = `${dir}/${name}/input.lucy`;
@@ -91,6 +93,12 @@ for(let i = 0; i < 50; i++) {
     } catch(err) {
       if(err.message !== 'Compiler error') {
         fail(`${filename}: ${err}`);
+        continue;
+      }
+      const expected = readFileSync(`${dir}/${name}/expected.error`, 'utf-8');
+      const text = err.diagnostics.map(d => d.text).join('') + 'Compilation failed!\n';
+      if(text !== expected || !err.diagnostics.every(d => d.severity === 'error' && d.line > 0)) {
+        fail(`${filename}: diagnostics don't match expected.error`);
       }
     }
   }

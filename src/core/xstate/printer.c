@@ -1,6 +1,8 @@
 #include "printer.h"
 
+#include <stdarg.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,6 +12,27 @@ typedef void (*set_ref)(Printer*, Ref*);
 // are arena memory, so there is nothing to free. The service list is not
 // reset here, as it never has been; see the services leaking into a later
 // machine's options in the report on this change.
+void printer_warn(Printer* printer, LucyStream stream, const char* text) {
+  diagnostic_list_add_warning(printer->diagnostics, stream, text);
+}
+
+void printer_warnf(Printer* printer, LucyStream stream, const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  va_list args_copy;
+  va_copy(args_copy, args);
+  int len = vsnprintf(NULL, 0, format, args_copy);
+  va_end(args_copy);
+  // len is negative only for an encoding error; print nothing then.
+  size_t size = len > 0 ? (size_t)len + 1 : 1;
+  char* text = arena_alloc(printer->arena, size);
+  if(len > 0) {
+    vsnprintf(text, size, format, args);
+  }
+  va_end(args);
+  printer_warn(printer, stream, text);
+}
+
 void printer_clear_refs(Printer* printer) {
   printer->guard_refs = NULL;
   printer->action_refs = NULL;

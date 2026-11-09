@@ -127,7 +127,7 @@ static ParseStatus consume_member_expression(Parser* parser, TransitionNode* tra
   TokenType token = parser_next_token(parser);
 
   if(token != TOKEN_IDENTIFIER) {
-    parser_error_unexpected_identifier(parser, (Node*)transition_node);
+    parser_error_unexpected_identifier(parser);
     status = PARSE_ERROR;
     goto exit;
   } else {
@@ -149,7 +149,7 @@ ParseStatus parser_consume_transition(Parser* parser) {
 
   Node* current_node = parser->node;
   if(current_node == NULL) {
-    parser_error(parser, (Node*)transition_node, "Unexpected parent node to a transition.");
+    parser_error(parser, "Unexpected parent node to a transition.");
     return PARSE_FATAL;
   }
   NodeType current_node_type = current_node->type;
@@ -218,7 +218,7 @@ ParseStatus parser_consume_transition(Parser* parser) {
       break;
     }
     default: {
-      parser_error(parser, transition_node_node, "Unexpected parent node to a transition.");
+      parser_error(parser, "Unexpected parent node to a transition.");
       return PARSE_FATAL;
     }
   }
@@ -239,7 +239,7 @@ ParseStatus parser_consume_transition(Parser* parser) {
         }
 
         if(token != TOKEN_END_BLOCK) {
-          parser_error(parser, transition_node_node, "Block transition expects destination state.");
+          parser_error(parser, "Block transition expects destination state.");
           status = PARSE_FATAL;
           goto end;
         }
@@ -323,7 +323,7 @@ ParseStatus parser_consume_transition(Parser* parser) {
         break;
       }
       default: {
-        parser_error_unexpected_identifier(parser, transition_node_node);
+        parser_error_unexpected_identifier(parser);
         status = PARSE_FATAL;
         goto end;
       }

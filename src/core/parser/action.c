@@ -77,7 +77,7 @@ ParseStatus parser_consume_action(Parser* parser) {
   token = parser_next_token(parser);
 
   if(token != TOKEN_IDENTIFIER) {
-    parser_error_unexpected_identifier(parser, node);
+    parser_error_unexpected_identifier(parser);
     return PARSE_FATAL;
   }
 
@@ -86,7 +86,7 @@ ParseStatus parser_consume_action(Parser* parser) {
 
   token = parser_next_token(parser);
   if(token != TOKEN_ASSIGNMENT) {
-    parser_error(parser, node, "Expected an assignment");
+    parser_error(parser, "Expected an assignment");
     return PARSE_FATAL;
   }
 

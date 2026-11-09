@@ -3,10 +3,13 @@
 ## Layout
 
 - `bin/main.c`: `lucyc`, the command-line compiler.
-- `wasm/main.c`: the wasm module's own entry points.
+- `wasm/main.c`: the wasm module's own entry points: `main`, and the
+  function that prints a compile's diagnostics for `liblucy.mjs`.
 - `core/`: the compiler itself, built into both.
   - `lucy.h`: the library's API, which `lucyc` and the wasm module call.
     `lucy.c` implements it: it parses the source and prints the result.
+  - `diagnostic.h`: the list of errors and warnings a compile reports, and
+    how an error's text (with the source around it) is laid out.
   - `support/`: general-purpose code that knows nothing about Lucy: the
     arena allocator, checked `malloc` (`mem.h`), a string builder, and a
     string set, map and list.
@@ -80,3 +83,17 @@ Each compile allocates its syntax tree and working data from one arena
 freed on its own. Memory that outlives a compile (the output strings) comes
 from `malloc` through `support/mem.h`, whose functions abort on failure
 rather than return NULL. Each header says who owns what it returns.
+
+### Errors and diagnostics
+
+- The library never prints. The parser and the printer add errors and
+  warnings to the result's diagnostics (`diagnostic.h`), and `lucyc` and
+  `wasm/main.c` print them. The one exception is `mem_fail` in
+  `support/mem.h`, which prints a line before it aborts.
+- Parse functions return a `ParseStatus`: `PARSE_OK`, `PARSE_ERROR` (an
+  error was reported, but parsing can go on and find more) or `PARSE_FATAL`
+  (stop now). Combine the status of a nested parse with `parse_merge`, and
+  return at once when it is fatal; see `parser/internal.h`.
+- A behaviour that is wrong but kept, because fixing it would change what
+  the compiler outputs, is marked with a `// Known bug:` comment.
+

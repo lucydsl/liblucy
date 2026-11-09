@@ -13,9 +13,7 @@ ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
 
   Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_STATE) {
-    char buffer[256];
-    snprintf(buffer, sizeof(buffer), "Unexpected parent of %s", local_name(key));
-    parser_error_back(parser, parser->token_len, buffer);
+    parser_error_backf(parser, parser->token_len, "Unexpected parent of %s", local_name(key));
     status = PARSE_ERROR;
   }
 
@@ -78,9 +76,7 @@ ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
       }
       case KEYWORD_GUARD: {
         status = PARSE_ERROR;
-        char buffer[256];
-        snprintf(buffer, sizeof(buffer), "Guards are not allowed in %s", local_name(key));
-        parser_error_back(parser, parser->token_len, buffer);
+        parser_error_backf(parser, parser->token_len, "Guards are not allowed in %s", local_name(key));
         break;
       }
       // Not a keyword
@@ -91,9 +87,7 @@ ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
           node_local_add_action(local_node, action);
         } else {
           status = PARSE_ERROR;
-          char buffer[256];
-          snprintf(buffer, sizeof(buffer), "Unknown action [%s]. Did you mean to declare this action at the top of the machine?", identifier);
-          parser_error_back(parser, parser->token_len, buffer);
+          parser_error_backf(parser, parser->token_len, "Unknown action [%s]. Did you mean to declare this action at the top of the machine?", identifier);
         }
         break;
       }

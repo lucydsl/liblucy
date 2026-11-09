@@ -5,10 +5,12 @@
  * from js_builder and ts_printer, which have headers of their own).
  */
 
+#include "../diagnostic.h"
 #include "../support/arena.h"
 #include "js_builder.h"
 #include "../ast/node.h"
 #include "../ast/program.h"
+#include "../support/str_builder.h"
 #include "../support/str_set.h"
 #include "ts_printer.h"
 
@@ -34,6 +36,8 @@ typedef struct Ref {
  */
 typedef struct Printer {
   Arena* arena;
+  // Where warnings go. The compile's result owns it.
+  DiagnosticList* diagnostics;
   char* source;
   Program* program;
   Ref* guard_refs;
@@ -54,6 +58,13 @@ typedef struct Printer {
 } Printer;
 
 void printer_clear_refs(Printer*);
+/*
+ * Warn that something can't be printed, with text as lucyc prints it, to
+ * stream. warnf formats the text as printf does.
+ */
+void printer_warn(Printer*, LucyStream stream, const char* text);
+void printer_warnf(Printer*, LucyStream stream, const char* format, ...)
+  STR_BUILDER_PRINTF(3, 4);
 void printer_start_assign_call(JSBuilder*, AssignExpression*);
 void printer_end_assign_call(JSBuilder*);
 void printer_add_spawn_call(Printer*, JSBuilder*, SpawnExpression*);
