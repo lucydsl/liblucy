@@ -11,8 +11,8 @@ typedef enum NodeType {
   NODE_STATE,       // StateNode
   NODE_TRANSITION,  // TransitionNode
   NODE_IMPORT,      // ImportNode
-  NODE_IMPORT_SPECIFIER, // ImportSpecifier
-  NODE_ASSIGNMENT,  // Assignment
+  NODE_IMPORT_SPECIFIER, // ImportSpecifierNode
+  NODE_ASSIGNMENT,  // AssignmentNode
   NODE_INVOKE,      // InvokeNode
   NODE_LOCAL,       // LocalNode
 } NodeType;
@@ -24,7 +24,7 @@ typedef enum TransitionType {
   TRANSITION_DELAY,      // delay(...) => target
 } TransitionType;
 
-// Assignment.binding_type: `action name = ...` or `guard name = ...`.
+// AssignmentNode.binding_type: `action name = ...` or `guard name = ...`.
 typedef enum AssignmentKind {
   ASSIGNMENT_ACTION,
   ASSIGNMENT_GUARD,
@@ -72,7 +72,7 @@ typedef struct Node {
 typedef struct MachineNode {
   Node node;
 
-  unsigned impl_flags;
+  unsigned printer_flags;
   unsigned flags;
   size_t name_start;
   size_t name_end;
@@ -133,12 +133,12 @@ typedef struct LocalNode {
   TransitionAction* action;
 } LocalNode;
 
-typedef struct ImportSpecifier {
+typedef struct ImportSpecifierNode {
   Node node;
 
   char* imported;
   char* local;
-} ImportSpecifier;
+} ImportSpecifierNode;
 
 typedef struct ImportNode {
   Node node;
@@ -215,12 +215,12 @@ typedef struct MemberExpression {
   Expression* property;
 } MemberExpression;
 
-typedef struct Assignment {
+typedef struct AssignmentNode {
   Node node;
   AssignmentKind binding_type;
   char* binding_name;
   Expression* value;
-} Assignment;
+} AssignmentNode;
 
 /*
  * Every node and expression is allocated from the compile's arena (see
@@ -229,38 +229,38 @@ typedef struct Assignment {
  * and flags start out 0. Strings stored in them (names, keys, paths) are
  * arena strings too, or point into the source.
  */
-Node* node_create_type(Arena*, NodeType, size_t);
+Node* node_create(Arena*, NodeType, size_t);
 TransitionNode* node_create_transition(Arena*);
 MachineNode* node_create_machine(Arena*);
 StateNode* node_create_state(Arena*);
-ImportNode* node_create_import_statement(Arena*);
-ImportSpecifier* node_create_import_specifier(Arena*, char*);
-Assignment* node_create_assignment(Arena*, AssignmentKind);
+ImportNode* node_create_import(Arena*);
+ImportSpecifierNode* node_create_import_specifier(Arena*, char*);
+AssignmentNode* node_create_assignment(Arena*, AssignmentKind);
 InvokeNode* node_create_invoke(Arena*);
-AssignExpression* node_create_assignexpression(Arena*);
-IdentifierExpression* node_create_identifierexpression(Arena*);
-SymbolExpression* node_create_symbolexpression(Arena*);
-GuardExpression* node_create_guardexpression(Arena*);
-ActionExpression* node_create_actionexpression(Arena*);
-DelayExpression* node_create_delayexpression(Arena*);
-OnExpression* node_create_onexpression(Arena*);
-SpawnExpression* node_create_spawnexpression(Arena*);
-SendExpression* node_create_sendexpression(Arena*);
-InvokeExpression* node_create_invokeexpression(Arena*);
-MemberExpression* node_create_memberexpression(Arena*);
+AssignExpression* expression_create_assign(Arena*);
+IdentifierExpression* expression_create_identifier(Arena*);
+SymbolExpression* expression_create_symbol(Arena*);
+GuardExpression* expression_create_guard(Arena*);
+ActionExpression* expression_create_action(Arena*);
+DelayExpression* expression_create_delay(Arena*);
+OnExpression* expression_create_on(Arena*);
+SpawnExpression* expression_create_spawn(Arena*);
+SendExpression* expression_create_send(Arena*);
+InvokeExpression* expression_create_invoke(Arena*);
+MemberExpression* expression_create_member(Arena*);
 LocalNode* node_create_local(Arena*);
 
-TransitionAction* create_transition_action(Arena*);
+TransitionAction* node_create_transition_action(Arena*);
 
-bool node_machine_is_nested(Node*);
+bool node_is_nested_machine(Node*);
 
-void node_append(Node*, Node*);
-void node_after_last(Node*, Node*);
+void node_append_child(Node*, Node*);
+void node_append_sibling(Node*, Node*);
 
 TransitionGuard* node_transition_add_guard(Arena*, TransitionNode*, char*);
 TransitionAction* node_transition_add_action(Arena*, TransitionNode*, char*);
-TransitionDelay* node_transition_add_delay(Arena*, TransitionNode*, char*, DelayExpression*);
+TransitionDelay* node_transition_set_delay(Arena*, TransitionNode*, char*, DelayExpression*);
 void node_local_add_action(LocalNode*, TransitionAction*);
 
-Node* find_closest_node_of_type(Node*, NodeType);
-MachineNode* find_closest_machine_node(Node*);
+Node* node_find_ancestor(Node*, NodeType);
+MachineNode* node_find_machine(Node*);

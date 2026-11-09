@@ -9,11 +9,13 @@
  * js_builder_release to keep the text.
  */
 typedef struct JSBuilder {
-  char* indent_str;
-  size_t indent_len;
+  // One level of indentation, and its length.
+  char* indent_unit;
+  size_t indent_unit_len;
 
-  str_builder_t* sb;
-  str_builder_t* ib;
+  // The text so far, and the indentation for the current level.
+  StrBuilder* text;
+  StrBuilder* indent;
 } JSBuilder;
 
 JSBuilder* js_builder_create(void);

@@ -97,38 +97,38 @@ static void link_delay_transition(StateNode* state_node, TransitionNode* transit
   }
 }
 
-static int consume_on_args(State* state, void* expr, TokenType _token, char* arg, int _argi) {
+static int consume_on_args(Parser* parser, void* expr, TokenType _token, char* arg, int _argi) {
   OnExpression* on_expression = (OnExpression*)expr;
   on_expression->name = arg;
   return 0;
 }
 
-static int consume_on(State* state, TransitionNode* transition_node) {
+static int consume_on(Parser* parser, TransitionNode* transition_node) {
   int err = 0;
 
-  OnExpression* expression = node_create_onexpression(state->arena);
-  _check(consume_call_expression(state, "on", expression, &consume_on_args));
+  OnExpression* expression = expression_create_on(parser->arena);
+  _check(parser_consume_call(parser, "on", expression, &consume_on_args));
   transition_node->event = (Expression*)expression;
-  _check(expect_call_argument(state, "on", expression->name, err));
+  _check(parser_expect_call_argument(parser, "on", expression->name, err));
 
   return err;
 }
 
-static int consume_member_expression(State* state, TransitionNode* transition_node) {
+static int consume_member_expression(Parser* parser, TransitionNode* transition_node) {
   int err = 0;
 
-  MemberExpression* top_member_expression = node_create_memberexpression(state->arena);
-  top_member_expression->owner = state_take_word(state);
-  state_next(state);
-  TokenType token = consume_token(state);
+  MemberExpression* top_member_expression = expression_create_member(parser->arena);
+  top_member_expression->owner = parser_take_word(parser);
+  parser_next(parser);
+  TokenType token = parser_next_token(parser);
 
   if(token != TOKEN_IDENTIFIER) {
-    error_unexpected_identifier(state, (Node*)transition_node);
+    parser_error_unexpected_identifier(parser, (Node*)transition_node);
     err = 1;
     goto exit;
   } else {
-    IdentifierExpression* prop = node_create_identifierexpression(state->arena);
-    prop->name = state_take_word(state);
+    IdentifierExpression* prop = expression_create_identifier(parser->arena);
+    prop->name = parser_take_word(parser);
     top_member_expression->property = (Expression*)prop;
     transition_node->dest = (Expression*)top_member_expression;
   }
@@ -139,23 +139,23 @@ static int consume_member_expression(State* state, TransitionNode* transition_no
 }
 
 /* Public API */
-int parser_consume_transition(State* state) {
+int parser_consume_transition(Parser* parser) {
   int err = 0;
-  TransitionNode* transition_node = node_create_transition(state->arena);
+  TransitionNode* transition_node = node_create_transition(parser->arena);
 
-  Node* current_node = state->node;
+  Node* current_node = parser->node;
   if(current_node == NULL) {
-    error_msg_with_code_block(state, (Node*)transition_node, "Unexpected parent node to a transition.");
+    parser_error(parser, (Node*)transition_node, "Unexpected parent node to a transition.");
     return 2;
   }
   NodeType current_node_type = current_node->type;
 
-  char* event = state_take_word(state);
+  char* event = parser_take_word(parser);
 
   // Always transition
   if(event == NULL) {
     if(current_node->type != NODE_STATE) {
-      error_msg_with_code_block_dec(state, state->token_len, "An immediate transitions must be a child of state");
+      parser_error_back(parser, parser->token_len, "An immediate transitions must be a child of state");
       err = 1;
     } else {
       transition_node->type = TRANSITION_IMMEDIATE;
@@ -163,29 +163,29 @@ int parser_consume_transition(State* state) {
     }
 
     // Currently in a call, so rewind to back out.
-    state_rewind(state, 2);
+    parser_rewind(parser, 2);
   } else {
-    Keyword key = keyword_get(event);
+    Keyword key = keyword_lookup(event);
 
     switch(key) {
       case KEYWORD_DELAY: {
         if(current_node->type != NODE_STATE) {
-          error_msg_with_code_block_dec(state, state->token_len, "delay must be a child of a state");
+          parser_error_back(parser, parser->token_len, "delay must be a child of a state");
           err = 1;
         } else {
-          _check(parser_consume_inline_delay(state, transition_node, (StateNode*)current_node));
+          _check(parser_consume_inline_delay(parser, transition_node, (StateNode*)current_node));
           link_delay_transition((StateNode*)current_node, transition_node);
         }
 
         break;
       }
       case KEYWORD_ON: {
-        _check(consume_on(state, transition_node));
+        _check(consume_on(parser, transition_node));
         link_event_transition(current_node, transition_node);
         break;
       }
       default: {
-        IdentifierExpression* identifier_expression = node_create_identifierexpression(state->arena);
+        IdentifierExpression* identifier_expression = expression_create_identifier(parser->arena);
         identifier_expression->name = event;
         transition_node->event = (Expression*)identifier_expression;
         link_event_transition(current_node, transition_node);
@@ -196,42 +196,42 @@ int parser_consume_transition(State* state) {
 
   Node* transition_node_node = (Node*)transition_node;
   size_t rewind_to_start = event == NULL ? 2 : strlen(event);
-  state_node_start_pos(state, transition_node_node, rewind_to_start);
+  parser_node_start_pos(parser, transition_node_node, rewind_to_start);
 
   switch(current_node_type) {
     case NODE_STATE: {
-      node_append(current_node, transition_node_node);
-      state->parent_node = current_node;
+      node_append_child(current_node, transition_node_node);
+      parser->parent_node = current_node;
       break;
     }
     case NODE_INVOKE: {
-      node_append(current_node, transition_node_node);
-      state->parent_node = current_node;
+      node_append_child(current_node, transition_node_node);
+      parser->parent_node = current_node;
       break;
     }
     default: {
-      error_msg_with_code_block(state, transition_node_node, "Unexpected parent node to a transition.");
+      parser_error(parser, transition_node_node, "Unexpected parent node to a transition.");
       return 2;
     }
   }
 
-  state->node = transition_node_node;
+  parser->node = transition_node_node;
 
   bool block_transition = false;
   char* identifier = NULL;
   while(true) {
-    TokenType token = consume_token(state);
+    TokenType token = parser_next_token(parser);
 
     if(token == TOKEN_EOL) {
       if(block_transition) {
-        token = consume_token(state);
+        token = parser_next_token(parser);
 
         while(token == TOKEN_EOL) {
-          token = consume_token(state);
+          token = parser_next_token(parser);
         }
 
         if(token != TOKEN_END_BLOCK) {
-          error_msg_with_code_block(state, transition_node_node, "Block transition expects destination state.");
+          parser_error(parser, transition_node_node, "Block transition expects destination state.");
           err = 2;
           goto end;
         }
@@ -243,55 +243,55 @@ int parser_consume_transition(State* state) {
     }
 
     if(token != TOKEN_CALL) {
-      error_msg_with_code_block_dec(state, state->token_len, "Expected a destination state for this event.");
+      parser_error_back(parser, parser->token_len, "Expected a destination state for this event.");
       err = 2;
       goto end;
     }
 
-    token = consume_token(state);
+    token = parser_next_token(parser);
 
     while(block_transition && token == TOKEN_EOL) {
-      token = consume_token(state);
+      token = parser_next_token(parser);
     }
 
     if(token == TOKEN_BEGIN_BLOCK && !block_transition) {
       block_transition = true;
-      token = consume_token(state);
+      token = parser_next_token(parser);
 
       while(token == TOKEN_EOL) {
-        token = consume_token(state);
+        token = parser_next_token(parser);
       }
     }
 
     switch(token) {
       case TOKEN_IDENTIFIER: {
-        identifier = state_take_word(state);
-        Keyword key = keyword_get(identifier);
+        identifier = parser_take_word(parser);
+        Keyword key = keyword_lookup(identifier);
         switch(key) {
           // Inline guard
           case KEYWORD_GUARD: {
-            _check(parser_consume_inline_guard(state, transition_node));
+            _check(parser_consume_inline_guard(parser, transition_node));
             break;
           }
           case KEYWORD_ASSIGN: {
-            _check(parser_consume_inline_assign(state, transition_node_node));
+            _check(parser_consume_inline_assign(parser, transition_node_node));
             break;
           }
           case KEYWORD_ACTION: {
-            _check(parser_consume_inline_action(state, transition_node_node));
+            _check(parser_consume_inline_action(parser, transition_node_node));
             break;
           }
           case KEYWORD_SEND: {
-            _check(parser_consume_inline_send(state, transition_node_node));
+            _check(parser_consume_inline_send(parser, transition_node_node));
             break;
           }
           default: {
-            if(state_has_guard(state, identifier)) {
-              node_transition_add_guard(state->arena, transition_node, identifier);
-            } else if(state_has_action(state, identifier)) {
-              node_transition_add_action(state->arena, transition_node, identifier);
+            if(parser_has_guard_name(parser, identifier)) {
+              node_transition_add_guard(parser->arena, transition_node, identifier);
+            } else if(parser_has_action_name(parser, identifier)) {
+              node_transition_add_action(parser->arena, transition_node, identifier);
             } else {
-              IdentifierExpression* identifier_expression = node_create_identifierexpression(state->arena);
+              IdentifierExpression* identifier_expression = expression_create_identifier(parser->arena);
               identifier_expression->name = identifier;
               transition_node->dest = (Expression*)identifier_expression;
             }
@@ -301,11 +301,11 @@ int parser_consume_transition(State* state) {
         break;
       }
       case TOKEN_MEMBER_EXPRESSION: {
-        _check(consume_member_expression(state, transition_node));
+        _check(consume_member_expression(parser, transition_node));
         break;
       }
       default: {
-        error_unexpected_identifier(state, transition_node_node);
+        parser_error_unexpected_identifier(parser, transition_node_node);
         err = 2;
         goto end;
       }
@@ -317,12 +317,12 @@ int parser_consume_transition(State* state) {
   // the printer had no destination to print and crashed.
   if(err == 0 && transition_node->dest == NULL &&
     transition_node->guard == NULL && transition_node->action == NULL) {
-    error_msg_with_code_block_dec(state, state->token_len, "Expected a destination state for this event.");
+    parser_error_back(parser, parser->token_len, "Expected a destination state for this event.");
     err = 1;
   }
 
   end: {
-    state_node_up(state);
+    parser_leave_node(parser);
     return err;
   }
 }

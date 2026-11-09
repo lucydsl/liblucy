@@ -2,39 +2,37 @@
 
 #include "internal.h"
 
-static int consume_program(State* state) {
+static int consume_program(Parser* parser) {
   int err = 0;
-  Program* program = state->program;
+  Program* program = parser->program;
 
   TokenType token;
 
   while(true) {
-    token = consume_token(state);
+    token = parser_next_token(parser);
 
     switch(token) {
       case TOKEN_EOL: continue;
       case TOKEN_EOF: goto end;
       case TOKEN_IDENTIFIER: {
-        char* identifier = state->word;
-
-        if(!is_keyword(identifier)) {
-          error_msg_with_code_block(state, state->node, "Unknown top-level identifier.");
+        Keyword key = keyword_lookup(parser->word);
+        if(key == KEYWORD_NONE) {
+          parser_error(parser, parser->node, "Unknown top-level identifier.");
           return 2;
         }
 
-        Keyword key = keyword_get(identifier);
         switch(key) {
           case KEYWORD_USE: {
-            _check(parser_consume_use(state));
+            _check(parser_consume_use(parser));
             break;
           }
           case KEYWORD_MACHINE: {
-            _check(parser_consume_machine(state));
+            _check(parser_consume_machine(parser));
             break;
           }
           default: {
             // Top-level machine
-            _check(parser_consume_implicit_machine(state, token));
+            _check(parser_consume_implicit_machine(parser, token));
             break;
           }
         }
@@ -53,11 +51,11 @@ static int consume_program(State* state) {
 }
 
 ParseResult parse(Arena* arena, char* source, char* filename) {
-  Program* program = new_program(arena);
-  State state;
-  state_init(&state, arena, program, source, filename);
+  Program* program = program_create(arena);
+  Parser parser;
+  parser_init(&parser, arena, program, source, filename);
 
-  int err = consume_program(&state);
+  int err = consume_program(&parser);
 
   ParseResult result = {
     .success = err == 0,

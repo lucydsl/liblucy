@@ -168,7 +168,7 @@ static int compile_file(char* filename, int use_remote_imports, int include_dts,
         // out.js -> out.d.ts. This took outlen - 3 unsigned, so a name
         // shorter than ".js" wrapped around and overran the buffer.
         size_t base_len = outlen >= 3 ? outlen - 3 : outlen;
-        str_builder_t* sb = str_builder_create();
+        StrBuilder* sb = str_builder_create();
         str_builder_copy_str(sb, out_file, 0, base_len);
         str_builder_add_str(sb, ".d.ts", 0);
         char* dtsname = str_builder_release(sb, NULL);
@@ -219,7 +219,7 @@ static char* relative_name(const char* rootdir, const char* filename, size_t fnl
     i++;
   }
 
-  str_builder_t *sb = str_builder_create();
+  StrBuilder *sb = str_builder_create();
   str_builder_copy_str(sb, filename, i, fnlen);
   return str_builder_release(sb, NULL);
 }
@@ -241,7 +241,7 @@ static int compile_dir(char* rootdir, char* dirname, size_t dirlen,
       continue;
     }
 
-    str_builder_t *sb = str_builder_create();
+    StrBuilder *sb = str_builder_create();
     str_builder_add_str(sb, dirname, dirlen);
     str_builder_add_char(sb, '/');
     str_builder_add_str(sb, in_file->d_name, strlen(in_file->d_name));
@@ -253,7 +253,7 @@ static int compile_dir(char* rootdir, char* dirname, size_t dirlen,
       char* bname = relative_name(rootdir, fp, fplen);
       size_t bnamelen = strlen(bname);
 
-      str_builder_t *sbb = str_builder_create();
+      StrBuilder *sbb = str_builder_create();
       str_builder_add_str(sbb, out_dir, outdirlen);
       str_builder_add_char(sbb, '/');
       str_builder_copy_str(sbb, bname, 0, bnamelen - 5); // without .lucy

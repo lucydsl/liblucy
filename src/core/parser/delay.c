@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int consume_inline_delay_args(State* state, void* expr, TokenType token, char* arg, int _argi) {
+static int consume_inline_delay_args(Parser* parser, void* expr, TokenType token, char* arg, int _argi) {
   DelayExpression* delay_expression = (DelayExpression*)expr;
 
   int time = 0;
@@ -14,7 +14,7 @@ static int consume_inline_delay_args(State* state, void* expr, TokenType token, 
       Timeframe tf = timeframe_parse(arg, strlen(arg));
 
       if(tf.error != NULL) {
-        error_msg_with_code_block(state, NULL, tf.error);
+        parser_error(parser, NULL, tf.error);
         return 2;
       }
 
@@ -22,10 +22,10 @@ static int consume_inline_delay_args(State* state, void* expr, TokenType token, 
       break;
     }
     case TOKEN_TIMEFRAME: {
-      Timeframe tf = timeframe_parse(arg, state->word_len);
+      Timeframe tf = timeframe_parse(arg, parser->word_len);
 
       if(tf.error != NULL) {
-        error_msg_with_code_block(state, NULL, tf.error);
+        parser_error(parser, NULL, tf.error);
         return 2;
       }
 
@@ -33,19 +33,19 @@ static int consume_inline_delay_args(State* state, void* expr, TokenType token, 
       break;
     }
     case TOKEN_IDENTIFIER: {
-      IdentifierExpression* identifier_expression = node_create_identifierexpression(state->arena);
+      IdentifierExpression* identifier_expression = expression_create_identifier(parser->arena);
       identifier_expression->name = arg;
       ref = (Expression*)identifier_expression;
       break;
     }
     case TOKEN_SYMBOL: {
-      SymbolExpression* symbol_expression = node_create_symbolexpression(state->arena);
+      SymbolExpression* symbol_expression = expression_create_symbol(parser->arena);
       symbol_expression->name = arg;
       ref = (Expression*)symbol_expression;
       break;
     }
     default: {
-      error_msg_with_code_block(state, NULL, "Expected either an integer time (in milliseconds) or a timeframe such as 200ms.");
+      parser_error(parser, NULL, "Expected either an integer time (in milliseconds) or a timeframe such as 200ms.");
       return 2;
     }
   }
@@ -56,17 +56,17 @@ static int consume_inline_delay_args(State* state, void* expr, TokenType token, 
   return 0;
 }
 
-int parser_consume_inline_delay(State* state, TransitionNode* transition_node, StateNode* state_node) {
+int parser_consume_inline_delay(Parser* parser, TransitionNode* transition_node, StateNode* state_node) {
   int err = 0;
 
   transition_node->type = TRANSITION_DELAY;
-  DelayExpression* expression = node_create_delayexpression(state->arena);
+  DelayExpression* expression = expression_create_delay(parser->arena);
 
-  _check(consume_call_expression(state, "delay", expression, &consume_inline_delay_args));
+  _check(parser_consume_call(parser, "delay", expression, &consume_inline_delay_args));
 
-  node_transition_add_delay(state->arena, transition_node, NULL, expression);
+  node_transition_set_delay(parser->arena, transition_node, NULL, expression);
   if(expression-> ref != NULL && expression->ref->type == EXPRESSION_SYMBOL) {
-    MachineNode* machine_node = find_closest_machine_node((Node*)state_node);
+    MachineNode* machine_node = node_find_machine((Node*)state_node);
     machine_node->flags |= MACHINE_USES_DELAY;
   }
 

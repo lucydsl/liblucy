@@ -1,15 +1,15 @@
 #include "printer.h"
 
-static void compile_local_node(PrintState* state, JSBuilder* jsb, LocalNode* local_node) {
+static void compile_local_node(Printer* printer, JSBuilder* jsb, LocalNode* local_node) {
   switch(local_node->key) {
     case LOCAL_ENTRY: {
-      state->in_entry = true;
-      xs_compile_transition_action(state, jsb, local_node->action, "entry");
-      state->in_entry = false;
+      printer->in_entry = true;
+      printer_compile_transition_action(printer, jsb, local_node->action, "entry");
+      printer->in_entry = false;
       break;
     }
     case LOCAL_EXIT: {
-      xs_compile_transition_action(state, jsb, local_node->action, "exit");
+      printer_compile_transition_action(printer, jsb, local_node->action, "exit");
       break;
     }
     default: {
@@ -18,16 +18,16 @@ static void compile_local_node(PrintState* state, JSBuilder* jsb, LocalNode* loc
   }
 }
 
-void xs_enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
+void printer_enter_state(Printer* printer, JSBuilder* jsb, Node* node) {
   StateNode* state_node = (StateNode*)node;
   MachineNode* machine_node = (MachineNode*)node->parent;
-  if(!(machine_node->impl_flags & XS_HAS_STATE_PROP)) {
-    machine_node->impl_flags |= XS_HAS_STATE_PROP;
+  if(!(machine_node->printer_flags & MACHINE_PRINTED_STATES)) {
+    machine_node->printer_flags |= MACHINE_PRINTED_STATES;
     js_builder_start_prop(jsb, "states");
     js_builder_start_object(jsb);
   }
 
-  js_builder_start_prop_no_copy(jsb, state->source, state_node->name_start, state_node->name_end);
+  js_builder_start_prop_no_copy(jsb, printer->source, state_node->name_start, state_node->name_end);
   js_builder_start_object(jsb);
 
   if(state_node->final) {
@@ -36,21 +36,21 @@ void xs_enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
   }
 
   if(state_node->entry != NULL) {
-    state->cur_state_start = state_node->name_start;
-    state->cur_state_end = state_node->name_end;
-    compile_local_node(state, jsb, state_node->entry);
-    state->cur_state_start = 0;
-    state->cur_state_end = 0;
+    printer->entry_state_start = state_node->name_start;
+    printer->entry_state_end = state_node->name_end;
+    compile_local_node(printer, jsb, state_node->entry);
+    printer->entry_state_start = 0;
+    printer->entry_state_end = 0;
   }
   if(state_node->exit != NULL) {
-    compile_local_node(state, jsb, state_node->exit);
+    compile_local_node(printer, jsb, state_node->exit);
   }
   if(state_node->event_transition != NULL) {
     js_builder_start_prop(jsb, "on");
     js_builder_start_object(jsb);
     TransitionNode* transition_node = state_node->event_transition;
     while(transition_node != NULL) {
-      xs_compile_event_transition(state, jsb, transition_node);
+      printer_compile_event_transition(printer, jsb, transition_node);
       transition_node = transition_node->next;
     }
     js_builder_end_object(jsb);
@@ -66,7 +66,7 @@ void xs_enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
       if(comma) {
         js_builder_add_str(jsb, ", ");
       }
-      xs_compile_inner_transition(state, jsb, transition_node);
+      printer_compile_inner_transition(printer, jsb, transition_node);
       transition_node = transition_node->next;
       comma = true;
     } while(transition_node != NULL);
@@ -78,18 +78,18 @@ void xs_enter_state(PrintState* state, JSBuilder* jsb, Node* node) {
     TransitionNode* transition_node = state_node->delay_transition;
     do {
       Node* transition_node_node = (Node*)transition_node;
-      xs_compile_transition_key(state, jsb, transition_node_node, NULL);
-      xs_compile_inner_transition(state, jsb, transition_node);
+      printer_compile_transition_key(printer, jsb, transition_node_node, NULL);
+      printer_compile_inner_transition(printer, jsb, transition_node);
       transition_node = transition_node->next;
     } while(transition_node != NULL);
     js_builder_end_object(jsb);
   }
   if(state_node->invoke != NULL) {
-    xs_compile_invoke(state, jsb, state_node->invoke);
+    printer_compile_invoke(printer, jsb, state_node->invoke);
   }
 }
 
-void xs_exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
+void printer_exit_state(Printer* printer, JSBuilder* jsb, Node* node) {
   StateNode* state_node = (StateNode*)node;
 
   // Close out this state node.
@@ -99,5 +99,5 @@ void xs_exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
   if(!node->next || node->next->type != NODE_STATE) {
     js_builder_end_object(jsb);
   }
-  str_set_clear(&state->events);
+  str_set_clear(&printer->event_names);
 }

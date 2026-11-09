@@ -1,18 +1,18 @@
 #include "internal.h"
 
-static int consume_invoke_args(State* state, void* expr, TokenType token, char* arg, int _argi) {
+static int consume_invoke_args(Parser* parser, void* expr, TokenType token, char* arg, int _argi) {
   InvokeExpression* invoke_expression = (InvokeExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
-    IdentifierExpression* identifier_expression = node_create_identifierexpression(state->arena);
+    IdentifierExpression* identifier_expression = expression_create_identifier(parser->arena);
     identifier_expression->name = arg;
     invoke_expression->ref = (Expression*)identifier_expression;
   } else if(token == TOKEN_SYMBOL) {
-    SymbolExpression* symbol_expression = node_create_symbolexpression(state->arena);
+    SymbolExpression* symbol_expression = expression_create_symbol(parser->arena);
     symbol_expression->name = arg;
     invoke_expression->ref = (Expression*)symbol_expression;
   } else {
-    error_msg_with_code_block_dec(state, state->token_len, "Unexpected argument to invoke()");
+    parser_error_back(parser, parser->token_len, "Unexpected argument to invoke()");
     return 1;
   }
 
@@ -24,41 +24,41 @@ static inline void link_invoke(Node* state_node_node, InvokeNode* invoke_node) {
   state_node->invoke = invoke_node;
 }
 
-int parser_consume_invoke(State* state) {
+int parser_consume_invoke(Parser* parser) {
   int err = 0;
 
-  InvokeNode* invoke_node = node_create_invoke(state->arena);
+  InvokeNode* invoke_node = node_create_invoke(parser->arena);
   Node* node = (Node*)invoke_node;
-  state_node_start_pos(state, node, 6); // "invoke"
+  parser_node_start_pos(parser, node, 6); // "invoke"
 
-  Node* parent_node = state->node;
+  Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_STATE) {
-    error_msg_with_code_block(state, node, "Unexpected parent for invoke.");
+    parser_error(parser, node, "Unexpected parent for invoke.");
     return 2;
   }
 
-  state_node_set(state, node);
+  parser_enter_node(parser, node);
   link_invoke(parent_node, invoke_node);
 
-  invoke_node->expr = node_create_invokeexpression(state->arena);
-  _check(consume_call_expression(state, "invoke", invoke_node->expr, &consume_invoke_args));
+  invoke_node->expr = expression_create_invoke(parser->arena);
+  _check(parser_consume_call(parser, "invoke", invoke_node->expr, &consume_invoke_args));
   // Without an argument keep going, so the block after it is still parsed.
-  _check(expect_call_argument(state, "invoke", invoke_node->expr->ref, err));
-  MachineNode* machine_node = find_closest_machine_node(parent_node);
+  _check(parser_expect_call_argument(parser, "invoke", invoke_node->expr->ref, err));
+  MachineNode* machine_node = node_find_machine(parent_node);
   if(invoke_node->expr->ref != NULL &&
     invoke_node->expr->ref->type == EXPRESSION_SYMBOL && machine_node != NULL) {
     machine_node->flags |= MACHINE_USES_SERVICE;
   }
 
-  TokenType token = consume_token(state);
+  TokenType token = parser_next_token(parser);
 
   if(token != TOKEN_BEGIN_BLOCK) {
-    error_unexpected_identifier(state, node);
+    parser_error_unexpected_identifier(parser, node);
     return 2;
   }
 
   while(true) {
-    token = consume_token(state);
+    token = parser_next_token(parser);
 
     switch(token) {
       case TOKEN_EOL: continue;
@@ -66,11 +66,11 @@ int parser_consume_invoke(State* state) {
         goto end;
       }
       case TOKEN_IDENTIFIER: {
-        _check(parser_consume_transition(state));
+        _check(parser_consume_transition(parser));
         break;
       }
       default: {
-        error_unexpected_identifier(state, node);
+        parser_error_unexpected_identifier(parser, node);
         err = 2;
         goto end;
       }
@@ -78,7 +78,7 @@ int parser_consume_invoke(State* state) {
   }
 
   end: {
-    state_node_up(state);
+    parser_leave_node(parser);
     return err;
   }
 }

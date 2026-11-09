@@ -3,7 +3,7 @@
 #include "../support/arena.h"
 #include "node.h"
 
-Program* new_program(Arena* arena) {
+Program* program_create(Arena* arena) {
   return ARENA_NEW(arena, Program);
 }
 

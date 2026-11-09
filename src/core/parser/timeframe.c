@@ -33,13 +33,13 @@ static int timeframe_get(const char* key) {
   return -1;
 }
 
-bool is_integer(char c) {
+bool timeframe_is_digit(char c) {
   return c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' ||
     c == '6' || c == '7' || c == '8' || c == '9';
 }
 
-bool is_timeframe_char(char c) {
-  return is_integer(c) || c == 'm' || c == 's';
+bool timeframe_is_char(char c) {
+  return timeframe_is_digit(c) || c == 'm' || c == 's';
 }
 
 bool timeframe_is_suffix(const char* key) {
@@ -64,7 +64,7 @@ static long long parse_digits(const char* digits) {
 
 static Timeframe timeframe_error(const char* message) {
   Timeframe tf = {
-    .is_integer = false,
+    .timeframe_is_digit = false,
     .time = 0,
     .error = (char*)message
   };
@@ -72,8 +72,8 @@ static Timeframe timeframe_error(const char* message) {
 }
 
 Timeframe timeframe_parse(char* word, size_t word_len) {
-  str_builder_t* int_sb = str_builder_create();
-  str_builder_t* tf_sb = str_builder_create();
+  StrBuilder* int_sb = str_builder_create();
+  StrBuilder* tf_sb = str_builder_create();
   size_t int_len = 0;
   size_t tf_len = 0;
   bool is_int = true;
@@ -82,7 +82,7 @@ Timeframe timeframe_parse(char* word, size_t word_len) {
   char c;
   while(i < word_len) {
     c = word[i];
-    if(is_integer(c)) {
+    if(timeframe_is_digit(c)) {
       str_builder_add_char(int_sb, c);
       int_len++;
     } else {
@@ -138,7 +138,7 @@ Timeframe timeframe_parse(char* word, size_t word_len) {
   }
 
   Timeframe tf = {
-    .is_integer = is_int,
+    .timeframe_is_digit = is_int,
     .time = (int)value,
     .error = NULL
   };

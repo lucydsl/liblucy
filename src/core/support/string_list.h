@@ -10,31 +10,31 @@
  * the arena does.
  */
 
-typedef struct string_list_node_t {
+typedef struct StringListNode {
   char* value;
-  struct string_list_node_t* next;
-} string_list_node_t;
+  struct StringListNode* next;
+} StringListNode;
 
-typedef struct string_list_t {
+typedef struct StringList {
   Arena* arena;
-  string_list_node_t* head;
-  string_list_node_t* tail;
+  StringListNode* head;
+  StringListNode* tail;
   size_t length;
-} string_list_t;
+} StringList;
 
-typedef struct string_list_iterator_t {
-  string_list_node_t* node;
+typedef struct StringListIterator {
+  StringListNode* node;
   size_t index;
 
-  string_list_t* _list;
-} string_list_iterator_t;
+  StringList* list;
+} StringListIterator;
 
-void string_list_init(string_list_t*, Arena*);
+void string_list_init(StringList*, Arena*);
 /* Append a copy of value. */
-void string_list_append(string_list_t*, const char*);
-string_list_iterator_t string_list_iterator(string_list_t*);
-bool string_list_next(string_list_iterator_t*);
+void string_list_append(StringList*, const char*);
+StringListIterator string_list_iterator(StringList*);
+bool string_list_next(StringListIterator*);
 
-static inline bool string_list_empty(string_list_t* list) {
+static inline bool string_list_empty(StringList* list) {
   return list->head == NULL;
 }

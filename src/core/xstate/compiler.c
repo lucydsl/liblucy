@@ -72,29 +72,29 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   JSBuilder *jsb;
   jsb = js_builder_create();
 
-  PrintState state = {
+  Printer printer = {
     .flags = result->flags,
     .arena = &arena,
     .source = source,
     .program = program,
-    .guard = NULL,
-    .action = NULL,
-    .delay = NULL,
-    .service = NULL,
-    .tsprinter = NULL,
-    .cur_event_name = NULL,
-    .cur_state_start = 0,
-    .cur_state_end = 0,
+    .guard_refs = NULL,
+    .action_refs = NULL,
+    .delay_refs = NULL,
+    .service_refs = NULL,
+    .ts_printer = NULL,
+    .current_event = NULL,
+    .entry_state_start = 0,
+    .entry_state_end = 0,
     .in_entry = false
   };
-  str_set_init(&state.events, &arena);
-  str_set_init(&state.guard_names, &arena);
-  str_set_init(&state.action_names, &arena);
-  str_set_init(&state.delay_names, &arena);
-  str_set_init(&state.service_names, &arena);
+  str_set_init(&printer.event_names, &arena);
+  str_set_init(&printer.guard_names, &arena);
+  str_set_init(&printer.action_names, &arena);
+  str_set_init(&printer.delay_names, &arena);
+  str_set_init(&printer.service_names, &arena);
 
-  if(state.flags & XS_FLAG_DTS) {
-    state.tsprinter = ts_printer_create(&arena, source);
+  if(printer.flags & XS_FLAG_DTS) {
+    printer.ts_printer = ts_printer_create(&arena, source);
   }
 
   Node* node;
@@ -118,7 +118,7 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     js_builder_add_str(jsb, xstate_specifier);
     js_builder_add_str(jsb, "';\n");
     if(result->flags & XS_FLAG_DTS) {
-      state.tsprinter->xstate_specifier = xstate_specifier;
+      printer.ts_printer->xstate_specifier = xstate_specifier;
     }
   }
 
@@ -131,11 +131,11 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     if(exit) {
       switch(type) {
         case NODE_STATE: {
-          xs_exit_state(&state, jsb, node);
+          printer_exit_state(&printer, jsb, node);
           break;
         }
         case NODE_MACHINE: {
-          xs_exit_machine(&state, jsb, node);
+          printer_exit_machine(&printer, jsb, node);
           break;
         }
         default: {
@@ -145,18 +145,18 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     } else {
       switch(type) {
         case NODE_IMPORT: {
-          xs_enter_import(&state, jsb, node);
+          printer_enter_import(&printer, jsb, node);
           break;
         }
         case NODE_STATE: {
-          xs_enter_state(&state, jsb, node);
+          printer_enter_state(&printer, jsb, node);
           break;
         }
         case NODE_TRANSITION: {
           break;
         }
         case NODE_ASSIGNMENT: {
-          xs_enter_assignment(&state, jsb, node);
+          printer_enter_assignment(&printer, jsb, node);
           break;
         }
         case NODE_INVOKE: {
@@ -168,7 +168,7 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
           break;
         }
         case NODE_MACHINE: {
-          xs_enter_machine(&state, jsb, node);
+          printer_enter_machine(&printer, jsb, node);
           break;
         }
         default: {
@@ -201,9 +201,9 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   result->js = js_builder_release(jsb);
 
   if(result->flags & XS_FLAG_DTS) {
-    char* dts = ts_printer_dump(state.tsprinter);
+    char* dts = ts_printer_dump(printer.ts_printer);
     result->dts = dts;
-    ts_printer_destroy(state.tsprinter);
+    ts_printer_destroy(printer.ts_printer);
   }
 
   // Teardown

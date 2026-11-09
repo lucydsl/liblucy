@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-void xs_enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
+void printer_enter_import(Printer* printer, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, "import ");
 
   ImportNode *import_node = (ImportNode*)node;
@@ -17,7 +17,7 @@ void xs_enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, "{ ");
 
   while(child != NULL) {
-    ImportSpecifier *specifier = (ImportSpecifier*)child;
+    ImportSpecifierNode *specifier = (ImportSpecifierNode*)child;
 
     if(multiple) {
       js_builder_add_str(jsb, ", ");

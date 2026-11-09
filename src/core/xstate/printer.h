@@ -12,12 +12,12 @@
 #include "../support/str_set.h"
 #include "ts_printer.h"
 
-// CompileResult.flags and PrintState.flags: the compile's options.
+// CompileResult.flags and Printer.flags: the compile's options.
 #define XS_FLAG_USE_REMOTE (1u << 0)
 #define XS_FLAG_DTS (1u << 1)
 
-// MachineNode.impl_flags: what the printer has printed for a machine.
-#define XS_HAS_STATE_PROP (1u << 0)
+// MachineNode.printer_flags: what the printer has printed for a machine.
+#define MACHINE_PRINTED_STATES (1u << 0)
 
 /*
  * A named guard, action, delay or service that a machine's options
@@ -33,66 +33,67 @@ typedef struct Ref {
 /*
  * The printer's state for one compile. compile_xstate owns it, on its
  * stack. Everything it points to is in arena (the AST included), except
- * tsprinter, which compile_xstate destroys.
+ * ts_printer, which compile_xstate destroys.
  */
-typedef struct PrintState {
+typedef struct Printer {
   unsigned flags;
   Arena* arena;
   char* source;
   Program* program;
-  Ref* guard;
-  str_set_t guard_names;
-  Ref* action;
-  str_set_t action_names;
-  Ref* delay;
-  str_set_t delay_names;
-  Ref* service;
-  str_set_t service_names;
-  str_set_t events;
-  ts_printer_t* tsprinter;
-  char* cur_event_name;
-  size_t cur_state_start;
-  size_t cur_state_end;
+  Ref* guard_refs;
+  StrSet guard_names;
+  Ref* action_refs;
+  StrSet action_names;
+  Ref* delay_refs;
+  StrSet delay_names;
+  Ref* service_refs;
+  StrSet service_names;
+  // The events printed for the state being printed.
+  StrSet event_names;
+  TSPrinter* ts_printer;
+  char* current_event;
+  size_t entry_state_start;
+  size_t entry_state_end;
   bool in_entry;
-} PrintState;
+} Printer;
 
-void xs_clear_state_refs(PrintState*);
-void xs_start_assign_call(JSBuilder*, AssignExpression*);
-void xs_end_assign_call(JSBuilder*);
-void xs_add_spawn_call(PrintState*, JSBuilder*, SpawnExpression*);
-void xs_add_send_call(JSBuilder*, SendExpression*);
-bool xs_find_and_add_top_level_machine_name(PrintState*, JSBuilder*, char*);
-void xs_add_action_ref(PrintState*, char*, Expression*);
-void xs_add_guard_ref(PrintState*, char*, Expression*);
-void xs_add_delay_ref(PrintState*, char*, Expression*);
-void xs_add_service_ref(PrintState*, char*, Expression*);
+void printer_clear_refs(Printer*);
+void printer_start_assign_call(JSBuilder*, AssignExpression*);
+void printer_end_assign_call(JSBuilder*);
+void printer_add_spawn_call(Printer*, JSBuilder*, SpawnExpression*);
+void printer_add_send_call(JSBuilder*, SendExpression*);
+bool printer_add_top_level_machine_name(Printer*, JSBuilder*, char*);
+void printer_add_action_ref(Printer*, char*, Expression*);
+void printer_add_guard_ref(Printer*, char*, Expression*);
+void printer_add_delay_ref(Printer*, char*, Expression*);
+void printer_add_service_ref(Printer*, char*, Expression*);
 
 /* machine.c */
 
-void xs_add_machine_binding_name(PrintState*, JSBuilder*, MachineNode*);
-void xs_enter_machine(PrintState*, JSBuilder*, Node*);
-void xs_exit_machine(PrintState*, JSBuilder*, Node*);
+void printer_add_machine_binding_name(Printer*, JSBuilder*, MachineNode*);
+void printer_enter_machine(Printer*, JSBuilder*, Node*);
+void printer_exit_machine(Printer*, JSBuilder*, Node*);
 
-/* state.c */
+/* printer.c */
 
-void xs_enter_state(PrintState*, JSBuilder*, Node*);
-void xs_exit_state(PrintState*, JSBuilder*, Node*);
+void printer_enter_state(Printer*, JSBuilder*, Node*);
+void printer_exit_state(Printer*, JSBuilder*, Node*);
 
 /* assignment.c */
 
-void xs_enter_assignment(PrintState*, JSBuilder*, Node*);
+void printer_enter_assignment(Printer*, JSBuilder*, Node*);
 
 /* import.c */
 
-void xs_enter_import(PrintState*, JSBuilder*, Node*);
+void printer_enter_import(Printer*, JSBuilder*, Node*);
 
 /* invoke.c */
 
-void xs_compile_invoke(PrintState*, JSBuilder*, InvokeNode*);
+void printer_compile_invoke(Printer*, JSBuilder*, InvokeNode*);
 
 /* transition.c */
 
-void xs_compile_event_transition(PrintState*, JSBuilder*, TransitionNode*);
-void xs_compile_transition_action(PrintState*, JSBuilder*, TransitionAction*, const char*);
-void xs_compile_transition_key(PrintState*, JSBuilder*, Node*, char*);
-void xs_compile_inner_transition(PrintState*, JSBuilder*, TransitionNode*);
+void printer_compile_event_transition(Printer*, JSBuilder*, TransitionNode*);
+void printer_compile_transition_action(Printer*, JSBuilder*, TransitionAction*, const char*);
+void printer_compile_transition_key(Printer*, JSBuilder*, Node*, char*);
+void printer_compile_inner_transition(Printer*, JSBuilder*, TransitionNode*);

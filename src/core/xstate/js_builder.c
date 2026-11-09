@@ -9,10 +9,10 @@
 
 JSBuilder* js_builder_create(void) {
   JSBuilder* jsb = xmalloc(sizeof(*jsb));
-  jsb->indent_str = "  ";
-  jsb->indent_len = strlen(jsb->indent_str);
-  jsb->sb = str_builder_create();
-  jsb->ib = str_builder_create();
+  jsb->indent_unit = "  ";
+  jsb->indent_unit_len = strlen(jsb->indent_unit);
+  jsb->text = str_builder_create();
+  jsb->indent = str_builder_create();
 
   return jsb;
 }
@@ -21,14 +21,14 @@ void js_builder_destroy(JSBuilder* jsb) {
   if(jsb == NULL) {
     return;
   }
-  str_builder_destroy(jsb->sb);
-  str_builder_destroy(jsb->ib);
+  str_builder_destroy(jsb->text);
+  str_builder_destroy(jsb->indent);
   free(jsb);
 }
 
 static bool current_is_newline(JSBuilder* jsb) {
-  long len = str_builder_len(jsb->sb);
-  char c = str_builder_char_at(jsb->sb, len - 1);
+  long len = str_builder_len(jsb->text);
+  char c = str_builder_char_at(jsb->text, len - 1);
   if(c == '\n') {
     return true;
   }
@@ -36,15 +36,15 @@ static bool current_is_newline(JSBuilder* jsb) {
 }
 
 void js_builder_add_char(JSBuilder* jsb, char c) {
-  str_builder_add_char(jsb->sb, c);
+  str_builder_add_char(jsb->text, c);
 }
 
 void js_builder_add_str(JSBuilder* jsb, const char* str) {
-  str_builder_add_str(jsb->sb, str, 0);
+  str_builder_add_str(jsb->text, str, 0);
 }
 
 void js_builder_copy_str(JSBuilder* jsb, const char* str, size_t start, size_t end) {
-  str_builder_copy_str(jsb->sb, str, start, end);
+  str_builder_copy_str(jsb->text, str, start, end);
 }
 
 void js_builder_safe_key(JSBuilder* jsb, char* str) {
@@ -65,17 +65,17 @@ void js_builder_copy_string(JSBuilder* jsb, const char* input, size_t start, siz
 }
 
 void js_builder_add_indent(JSBuilder* jsb) {
-  str_builder_add_str(jsb->sb, str_builder_peek(jsb->ib), 0);
+  str_builder_add_str(jsb->text, str_builder_peek(jsb->indent), 0);
 }
 
 void js_builder_increase_indent(JSBuilder* jsb) {
-  str_builder_add_str(jsb->ib, jsb->indent_str, 0);
+  str_builder_add_str(jsb->indent, jsb->indent_unit, 0);
 }
 
 void js_builder_decrease_indent(JSBuilder* jsb) {
-  size_t len = str_builder_len(jsb->ib);
-  size_t new_size = len > jsb->indent_len ? len - jsb->indent_len : 0;
-  str_builder_truncate(jsb->ib, new_size);
+  size_t len = str_builder_len(jsb->indent);
+  size_t new_size = len > jsb->indent_unit_len ? len - jsb->indent_unit_len : 0;
+  str_builder_truncate(jsb->indent, new_size);
 }
 
 void js_builder_start_object(JSBuilder* jsb) {
@@ -91,8 +91,8 @@ void js_builder_end_object(JSBuilder* jsb) {
 }
 
 void js_builder_start_prop(JSBuilder* jsb, char* key) {
-  long len = str_builder_len(jsb->sb);
-  char c = str_builder_char_at(jsb->sb, len - 2);
+  long len = str_builder_len(jsb->text);
+  char c = str_builder_char_at(jsb->text, len - 2);
 
   if(c != '{') {
     js_builder_add_str(jsb, ",\n");
@@ -105,8 +105,8 @@ void js_builder_start_prop(JSBuilder* jsb, char* key) {
 }
 
 void js_builder_start_prop_no_copy(JSBuilder* jsb, const char* key, size_t start, size_t end) {
-  long len = str_builder_len(jsb->sb);
-  char c = str_builder_char_at(jsb->sb, len - 2);
+  long len = str_builder_len(jsb->text);
+  char c = str_builder_char_at(jsb->text, len - 2);
 
   if(c != '{') {
     js_builder_add_str(jsb, ",\n");
@@ -119,8 +119,8 @@ void js_builder_start_prop_no_copy(JSBuilder* jsb, const char* key, size_t start
 }
 
 void js_builder_shorthand_prop(JSBuilder* jsb, char* key) {
-  long len = str_builder_len(jsb->sb);
-  char c = str_builder_char_at(jsb->sb, len - 2);
+  long len = str_builder_len(jsb->text);
+  char c = str_builder_char_at(jsb->text, len - 2);
 
   if(c != '{') {
     js_builder_add_str(jsb, ",\n");
@@ -132,8 +132,8 @@ void js_builder_shorthand_prop(JSBuilder* jsb, char* key) {
 }
 
 void js_builder_start_call(JSBuilder* jsb, char* name) {
-  long len = str_builder_len(jsb->sb);
-  char c = str_builder_char_at(jsb->sb, len - 1);
+  long len = str_builder_len(jsb->text);
+  char c = str_builder_char_at(jsb->text, len - 1);
   if(c == '\n') {
     js_builder_add_indent(jsb);
   }
@@ -176,8 +176,8 @@ void js_builder_add_const(JSBuilder* jsb, char* identifier) {
 }
 
 void js_builder_add_arg(JSBuilder* jsb, char* identifier) {
-  long len = str_builder_len(jsb->sb);
-  char c = str_builder_char_at(jsb->sb, len - 1);
+  long len = str_builder_len(jsb->text);
+  char c = str_builder_char_at(jsb->text, len - 1);
 
   // Add a comma if we need to
   if(c != ' ' && c != '(') {
@@ -188,12 +188,12 @@ void js_builder_add_arg(JSBuilder* jsb, char* identifier) {
 }
 
 const char* js_builder_peek(JSBuilder* jsb) {
-  return str_builder_peek(jsb->sb);
+  return str_builder_peek(jsb->text);
 }
 
 char* js_builder_release(JSBuilder* jsb) {
-  char* out = str_builder_release(jsb->sb, NULL);
-  str_builder_destroy(jsb->ib);
+  char* out = str_builder_release(jsb->text, NULL);
+  str_builder_destroy(jsb->indent);
   free(jsb);
   return out;
 }

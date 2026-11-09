@@ -2,7 +2,7 @@
 
 #include <stdbool.h>
 
-void xs_compile_invoke(PrintState* state, JSBuilder* jsb, InvokeNode* invoke_node) {
+void printer_compile_invoke(Printer* printer, JSBuilder* jsb, InvokeNode* invoke_node) {
   js_builder_start_prop(jsb, "invoke");
   js_builder_start_object(jsb);
 
@@ -14,7 +14,7 @@ void xs_compile_invoke(PrintState* state, JSBuilder* jsb, InvokeNode* invoke_nod
       IdentifierExpression* identifier_expression = (IdentifierExpression*)invoke_expression->ref;
 
       // Looking for a machine matching this name.
-      if(!xs_find_and_add_top_level_machine_name(state, jsb, identifier_expression->name)) {
+      if(!printer_add_top_level_machine_name(printer, jsb, identifier_expression->name)) {
         // No in-scope machine found, so just add the identifier directly.
         js_builder_add_str(jsb, identifier_expression->name);
       }
@@ -23,10 +23,10 @@ void xs_compile_invoke(PrintState* state, JSBuilder* jsb, InvokeNode* invoke_nod
     case EXPRESSION_SYMBOL: {
       SymbolExpression* symbol_expression = (SymbolExpression*)invoke_expression->ref;
       js_builder_add_string(jsb, symbol_expression->name);
-      xs_add_service_ref(state, symbol_expression->name, (Expression*)invoke_expression);
+      printer_add_service_ref(printer, symbol_expression->name, (Expression*)invoke_expression);
 
-      if(state->flags & XS_FLAG_DTS) {
-        ts_printer_add_invoke(state->tsprinter, symbol_expression->name);
+      if(printer->flags & XS_FLAG_DTS) {
+        ts_printer_add_invoke(printer->ts_printer, symbol_expression->name);
       }
       break;
     }
@@ -38,7 +38,7 @@ void xs_compile_invoke(PrintState* state, JSBuilder* jsb, InvokeNode* invoke_nod
   if(invoke_node->event_transition != NULL) {
     TransitionNode* transition_node = invoke_node->event_transition;
     do {
-      xs_compile_event_transition(state, jsb, transition_node);
+      printer_compile_event_transition(printer, jsb, transition_node);
       transition_node = transition_node->next;
     } while(transition_node != NULL);
   }

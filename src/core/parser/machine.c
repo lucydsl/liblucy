@@ -1,8 +1,8 @@
 #include "internal.h"
 
-static int consume_machine_inner(State* state, bool is_implicit, TokenType initial_token) {
+static int consume_machine_inner(Parser* parser, bool is_implicit, TokenType initial_token) {
   int err = 0;
-  TokenType token = is_implicit ? initial_token : consume_token(state);
+  TokenType token = is_implicit ? initial_token : parser_next_token(parser);
 
   while(true) {
     switch(token) {
@@ -12,43 +12,41 @@ static int consume_machine_inner(State* state, bool is_implicit, TokenType initi
         if(!is_implicit) {
           goto end;
         }
-        error_unexpected_identifier(state, state->node);
+        parser_error_unexpected_identifier(parser, parser->node);
         err = 1;
         break;
       }
       case TOKEN_IDENTIFIER: {
-        char* identifier = state->word;
-
-        if(!is_keyword(identifier)) {
-          error_msg_with_code_block(state, state->node, "Unknown top-level identifier.");
+        Keyword key = keyword_lookup(parser->word);
+        if(key == KEYWORD_NONE) {
+          parser_error(parser, parser->node, "Unknown top-level identifier.");
           err = 2;
           goto end;
         }
 
-        Keyword key = keyword_get(identifier);
         switch(key) {
           case KEYWORD_INITIAL: {
-            state->modifier = MODIFIER_INITIAL;
+            parser->modifier = MODIFIER_INITIAL;
             break;
           }
           case KEYWORD_FINAL: {
-            state->modifier = MODIFIER_FINAL;
+            parser->modifier = MODIFIER_FINAL;
             break;
           }
           case KEYWORD_STATE: {
-            _check(parser_consume_state(state));
+            _check(parser_consume_state(parser));
             break;
           }
           case KEYWORD_USE: {
-            _check(parser_consume_use(state));
+            _check(parser_consume_use(parser));
             break;
           }
           case KEYWORD_ACTION: {
-            _check(parser_consume_action(state));
+            _check(parser_consume_action(parser));
             break;
           }
           case KEYWORD_GUARD: {
-            _check(parser_consume_guard(state));
+            _check(parser_consume_guard(parser));
             break;
           }
           default: {
@@ -59,14 +57,14 @@ static int consume_machine_inner(State* state, bool is_implicit, TokenType initi
         break;
       }
       default: {
-        error_unexpected_identifier(state, state->node);
+        parser_error_unexpected_identifier(parser, parser->node);
         err = 2;
         goto end;
       }
     }
 
     next: {
-      token = consume_token(state);
+      token = parser_next_token(parser);
     }
   }
 
@@ -82,65 +80,65 @@ static int consume_machine_inner(State* state, bool is_implicit, TokenType initi
 // machines anywhere near this deep.
 #define MAX_MACHINE_DEPTH 64
 
-static int consume_named_machine(State* state) {
+static int consume_named_machine(Parser* parser) {
   int err = 0;
 
-  MachineNode* machine_node = node_create_machine(state->arena);
+  MachineNode* machine_node = node_create_machine(parser->arena);
   Node* node = (Node*)machine_node;
-  state_node_set(state, node);
+  parser_enter_node(parser, node);
 
-  TokenType token = consume_token(state);
+  TokenType token = parser_next_token(parser);
   if(token != TOKEN_IDENTIFIER) {
-    error_msg_with_code_block(state, node, "Machine must have a name.");
+    parser_error(parser, node, "Machine must have a name.");
     err = 1;
     goto end;
   }
-  machine_node->name_start = state->word_start;
-  machine_node->name_end = state->word_end;
+  machine_node->name_start = parser->word_start;
+  machine_node->name_end = parser->word_end;
 
-  token = consume_token(state);
+  token = parser_next_token(parser);
 
   if(token != TOKEN_BEGIN_BLOCK) {
-    error_unexpected_identifier(state, node);
+    parser_error_unexpected_identifier(parser, node);
     err = 1;
     goto end;
   }
 
-  _check(consume_machine_inner(state, false, 0));
+  _check(consume_machine_inner(parser, false, 0));
 
   end: {
-    state_node_up(state);
+    parser_leave_node(parser);
     return err;
   }
 }
 
 /* Public API */
-int parser_consume_machine(State* state) {
-  if(state->machine_depth >= MAX_MACHINE_DEPTH) {
-    error_msg_with_code_block_dec(state, state->token_len, "Machines are nested too deeply.");
+int parser_consume_machine(Parser* parser) {
+  if(parser->machine_depth >= MAX_MACHINE_DEPTH) {
+    parser_error_back(parser, parser->token_len, "Machines are nested too deeply.");
     return 2;
   }
 
-  state->machine_depth++;
-  int err = consume_named_machine(state);
-  state->machine_depth--;
+  parser->machine_depth++;
+  int err = consume_named_machine(parser);
+  parser->machine_depth--;
   return err;
 }
 
 // Only at the top level, so it can't be too deep.
-int parser_consume_implicit_machine(State* state, TokenType current_token) {
+int parser_consume_implicit_machine(Parser* parser, TokenType current_token) {
   int err = 0;
 
-  MachineNode* machine_node = node_create_machine(state->arena);
+  MachineNode* machine_node = node_create_machine(parser->arena);
   Node* node = (Node*)machine_node;
 
-  state_node_set(state, node);
+  parser_enter_node(parser, node);
 
-  state->machine_depth++;
-  int inner_err = consume_machine_inner(state, true, current_token);
-  state->machine_depth--;
+  parser->machine_depth++;
+  int inner_err = consume_machine_inner(parser, true, current_token);
+  parser->machine_depth--;
   _check(inner_err);
 
-  state_node_up(state);
+  parser_leave_node(parser);
   return err;
 }

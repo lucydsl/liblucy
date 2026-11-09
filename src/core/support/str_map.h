@@ -25,7 +25,7 @@ SOFTWARE.
 // Simple hash table implemented in C.
 //
 // Changed for liblucy: the table, its entries and its copies of the keys
-// are allocated from an arena (see arena.h), so there is no ht_destroy;
+// are allocated from an arena (see arena.h), so there is no str_map_destroy;
 // the table goes when the arena does. Values are the caller's to manage.
 // Hashing, probing and growth are unchanged, so iteration order is too.
 
@@ -35,38 +35,38 @@ SOFTWARE.
 #include <stddef.h>
 #include "arena.h"
 
-// Hash table structure: create with ht_create.
-typedef struct ht ht;
+// Hash table structure: create with str_map_create.
+typedef struct StrMap StrMap;
 
 // Create a hash table in arena. Never returns NULL.
-ht* ht_create(Arena* arena);
+StrMap* str_map_create(Arena* arena);
 
 // Get item with given key (NUL-terminated) from hash table. Return
-// value (which was set with ht_set), or NULL if key not found.
-void* ht_get(ht* table, const char* key);
+// value (which was set with str_map_set), or NULL if key not found.
+void* str_map_get(StrMap* table, const char* key);
 
 // Set item with given key (NUL-terminated) to value (which must not
 // be NULL). If not already present in table, key is copied into the
 // arena. Return address of copied key.
-const char* ht_set(ht* table, const char* key, void* value);
+const char* str_map_set(StrMap* table, const char* key, void* value);
 
 // Return number of items in hash table.
-size_t ht_length(ht* table);
+size_t str_map_length(StrMap* table);
 
-// Hash table iterator: create with ht_iterator, iterate with ht_next.
+// Hash table iterator: create with str_map_iterator, iterate with str_map_next.
 typedef struct {
     const char* key;  // current key
     void* value;      // current value
 
     // Don't use these fields directly.
-    ht* _table;       // reference to hash table being iterated
-    size_t _index;    // current index into ht._entries
-} hti;
+    StrMap* table;       // reference to hash table being iterated
+    size_t index;    // current index into the table's entries
+} StrMapIterator;
 
-// Return new hash table iterator (for use with ht_next).
-hti ht_iterator(ht* table);
+// Return new hash table iterator (for use with str_map_next).
+StrMapIterator str_map_iterator(StrMap* table);
 
 // Move iterator to next item in hash table, update iterator's key
 // and value to current item, and return true. If there are no more
-// items, return false. Don't call ht_set during iteration.
-bool ht_next(hti* it);
+// items, return false. Don't call str_map_set during iteration.
+bool str_map_next(StrMapIterator* it);
