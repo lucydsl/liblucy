@@ -20,7 +20,7 @@ typedef struct CompileResult {
   bool success;
   char* js;
   char* dts;
-  int flags;
+  unsigned flags;
 } CompileResult;
 
 CompileResult* xs_create(void);

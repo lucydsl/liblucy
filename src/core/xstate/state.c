@@ -12,6 +12,9 @@ static void compile_local_node(PrintState* state, JSBuilder* jsb, LocalNode* loc
       xs_compile_transition_action(state, jsb, local_node->action, "exit");
       break;
     }
+    default: {
+      break;
+    }
   }
 }
 
@@ -93,7 +96,7 @@ void xs_exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_end_object(jsb);
 
   // End of all state nodes
-  if(!node->next || node->next->type != NODE_STATE_TYPE) {
+  if(!node->next || node->next->type != NODE_STATE) {
     js_builder_end_object(jsb);
   }
   str_set_clear(&state->events);

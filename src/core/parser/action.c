@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-static int consume_inline_action_args(State* state, void* expr, int token, char* arg, int _argi) {
+static int consume_inline_action_args(State* state, void* expr, TokenType token, char* arg, int _argi) {
   ActionExpression* action_expression = (ActionExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
@@ -34,17 +34,20 @@ int parser_consume_inline_action(State* state, Node* node) {
   }
 
   switch(node->type) {
-    case NODE_TRANSITION_TYPE: {
+    case NODE_TRANSITION: {
       TransitionNode* transition_node = (TransitionNode*)node;
       TransitionAction* action = node_transition_add_action(state->arena, transition_node, NULL);
       action->expression = (Expression*)action_expression;
       break;
     }
-    case NODE_LOCAL_TYPE: {
+    case NODE_LOCAL: {
       LocalNode* local_node = (LocalNode*)node;
       TransitionAction* action = create_transition_action(state->arena);
       action->expression = (Expression*)action_expression;
       node_local_add_action(local_node, action);
+      break;
+    }
+    default: {
       break;
     }
   }
@@ -64,7 +67,7 @@ int parser_consume_action(State* state) {
   Node *node = (Node*)assignment;
   state_node_set(state, node);
 
-  int token;
+  TokenType token;
   token = consume_token(state);
 
   if(token != TOKEN_IDENTIFIER) {
@@ -85,16 +88,16 @@ int parser_consume_action(State* state) {
   switch(token) {
     case TOKEN_IDENTIFIER: {
       char* identifier = state_take_word(state);
-      unsigned short key = keyword_get(identifier);
+      Keyword key = keyword_get(identifier);
       switch(key) {
-        case KW_ASSIGN: {
+        case KEYWORD_ASSIGN: {
           AssignExpression *expression = node_create_assignexpression(state->arena);
           consume_call_expression(state, "assign", expression, &parser_consume_inline_assign_args);
           assignment->value = (Expression*)expression;
           program_add_flag(state->program, PROGRAM_USES_ASSIGN);
           break;
         }
-        case KW_SEND: {
+        case KEYWORD_SEND: {
           SendExpression* expression = node_create_sendexpression(state->arena);
           consume_call_expression(state, "send", expression, &parser_consume_inline_send_args);
           assignment->value = (Expression*)expression;

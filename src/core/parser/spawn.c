@@ -1,6 +1,6 @@
 #include "internal.h"
 
-static int consume_inline_spawn_args(State* state, void* expr, int token, char* arg, int _argi) {
+static int consume_inline_spawn_args(State* state, void* expr, TokenType token, char* arg, int _argi) {
   SpawnExpression* spawn_expression = (SpawnExpression*)expr;
   switch(token) {
     case TOKEN_IDENTIFIER: {
@@ -13,6 +13,9 @@ static int consume_inline_spawn_args(State* state, void* expr, int token, char* 
       SymbolExpression* symbol_expression = node_create_symbolexpression(state->arena);
       symbol_expression->name = arg;
       spawn_expression->target = (Expression*)symbol_expression;
+      break;
+    }
+    default: {
       break;
     }
   }

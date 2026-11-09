@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int parser_consume_local(State* state, unsigned short key) {
+int parser_consume_local(State* state, LocalKind key) {
   int err = 0;
 
   LocalNode* local_node = node_create_local(state->arena);
@@ -12,7 +12,7 @@ int parser_consume_local(State* state, unsigned short key) {
   state_node_start_pos(state, node, state->token_len);
 
   Node* parent_node = state->node;
-  if(parent_node == NULL || parent_node->type != NODE_STATE_TYPE) {
+  if(parent_node == NULL || parent_node->type != NODE_STATE) {
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "Unexpected parent of %s", local_get_name(key));
     error_msg_with_code_block_dec(state, state->token_len, buffer);
@@ -23,7 +23,7 @@ int parser_consume_local(State* state, unsigned short key) {
 
   // Only a state has entry and exit slots; writing them into another
   // kind of node would write past its end.
-  if(parent_node != NULL && parent_node->type == NODE_STATE_TYPE) {
+  if(parent_node != NULL && parent_node->type == NODE_STATE) {
     StateNode* parent_state_node = (StateNode*)parent_node;
     if(key == LOCAL_ENTRY) {
       parent_state_node->entry = local_node;
@@ -32,7 +32,7 @@ int parser_consume_local(State* state, unsigned short key) {
     }
   }
 
-  int token;
+  TokenType token;
   while(true) {
     token = consume_token(state);
 
@@ -55,22 +55,22 @@ int parser_consume_local(State* state, unsigned short key) {
 
     char* identifier = state_take_word(state);
     // Not "key": that would hide the @entry/@exit key, which the guard
-    // error below needs (it printed local_get_name(KW_GUARD), a NULL).
-    unsigned short keyword = keyword_get(identifier);
+    // error below needs (it printed local_get_name(KEYWORD_GUARD), a NULL).
+    Keyword keyword = keyword_get(identifier);
     switch(keyword) {
-      case KW_ACTION: {
+      case KEYWORD_ACTION: {
         _check(parser_consume_inline_action(state, node));
         break;
       }
-      case KW_ASSIGN: {
+      case KEYWORD_ASSIGN: {
         _check(parser_consume_inline_assign(state, node));
         break;
       }
-      case KW_SEND: {
+      case KEYWORD_SEND: {
         _check(parser_consume_inline_send(state, node));
         break;
       }
-      case KW_GUARD: {
+      case KEYWORD_GUARD: {
         err = 1;
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "Guards are not allowed in %s", local_get_name(key));
@@ -78,7 +78,7 @@ int parser_consume_local(State* state, unsigned short key) {
         break;
       }
       // Not a keyword
-      case KW_NOT_A_KEYWORD: {
+      case KEYWORD_NONE: {
         if(state_has_action(state, identifier)) {
           TransitionAction* action = create_transition_action(state->arena);
           action->name = identifier;

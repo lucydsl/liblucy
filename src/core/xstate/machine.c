@@ -161,6 +161,9 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
                 js_builder_add_str(jsb, symbol_expression->name);
                 break;
               }
+              default: {
+                break;
+              }
             }
 
             xs_end_assign_call(jsb);
@@ -239,7 +242,13 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
                 js_builder_add_str(jsb, symbol_expression->name);
                 break;
               }
+              default: {
+                break;
+              }
             }
+            break;
+          }
+          default: {
             break;
           }
         }

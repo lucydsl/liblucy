@@ -5,46 +5,62 @@
 #include <stdlib.h>
 #include "../support/arena.h"
 
-#define NODE_MACHINE_TYPE 0
-#define NODE_STATE_TYPE 1
-#define NODE_TRANSITION_TYPE 2
-#define NODE_IMPORT_TYPE 3
-#define NODE_IMPORT_SPECIFIER_TYPE 4
-#define NODE_ASSIGNMENT_TYPE 5
-#define NODE_INVOKE_TYPE 6
-#define NODE_LOCAL_TYPE 7
+// Node.type: which struct a node is.
+typedef enum NodeType {
+  NODE_MACHINE,     // MachineNode
+  NODE_STATE,       // StateNode
+  NODE_TRANSITION,  // TransitionNode
+  NODE_IMPORT,      // ImportNode
+  NODE_IMPORT_SPECIFIER, // ImportSpecifier
+  NODE_ASSIGNMENT,  // Assignment
+  NODE_INVOKE,      // InvokeNode
+  NODE_LOCAL,       // LocalNode
+} NodeType;
 
-#define TRANSITION_EVENT_TYPE 0
-#define TRANSITION_IMMEDIATE_TYPE 1
-#define TRANSITION_DELAY_TYPE 2
+// TransitionNode.type.
+typedef enum TransitionType {
+  TRANSITION_EVENT,      // event => target
+  TRANSITION_IMMEDIATE,  // => target, taken as soon as the state is entered
+  TRANSITION_DELAY,      // delay(...) => target
+} TransitionType;
 
-#define ASSIGNMENT_ACTION 0
-#define ASSIGNMENT_GUARD 1
+// Assignment.binding_type: `action name = ...` or `guard name = ...`.
+typedef enum AssignmentKind {
+  ASSIGNMENT_ACTION,
+  ASSIGNMENT_GUARD,
+} AssignmentKind;
 
-#define EXPRESSION_ASSIGN 0
-#define EXPRESSION_IDENTIFIER 1
-#define EXPRESSION_GUARD 2
-#define EXPRESSION_ACTION 3
-#define EXPRESSION_DELAY 4
-#define EXPRESSION_ON 5
-#define EXPRESSION_SPAWN 6
-#define EXPRESSION_SEND 7
-#define EXPRESSION_SYMBOL 8
-#define EXPRESSION_INVOKE 9
-#define EXPRESSION_MEMBER 10
+// Expression.type: which struct an expression is.
+typedef enum ExpressionType {
+  EXPRESSION_ASSIGN,     // AssignExpression
+  EXPRESSION_IDENTIFIER, // IdentifierExpression
+  EXPRESSION_GUARD,      // GuardExpression
+  EXPRESSION_ACTION,     // ActionExpression
+  EXPRESSION_DELAY,      // DelayExpression
+  EXPRESSION_ON,         // OnExpression
+  EXPRESSION_SPAWN,      // SpawnExpression
+  EXPRESSION_SEND,       // SendExpression
+  EXPRESSION_SYMBOL,     // SymbolExpression
+  EXPRESSION_INVOKE,     // InvokeExpression
+  EXPRESSION_MEMBER,     // MemberExpression
+} ExpressionType;
 
 // LocalNode.key: which of a state's actions a local sets.
-#define LOCAL_ENTRY 1
-#define LOCAL_EXIT 2
+typedef enum LocalKind {
+  LOCAL_NONE,
+  LOCAL_ENTRY,  // @entry
+  LOCAL_EXIT,   // @exit
+} LocalKind;
 
-#define MACHINE_USES_GUARD 1 << 0
-#define MACHINE_USES_ACTION 1 << 1
-#define MACHINE_USES_ASSIGN 1 << 2
-#define MACHINE_USES_DELAY 1 << 3
-#define MACHINE_USES_SERVICE 1 << 4
+// MachineNode.flags: what the machine's options have to provide.
+#define MACHINE_USES_GUARD (1u << 0)
+#define MACHINE_USES_ACTION (1u << 1)
+#define MACHINE_USES_ASSIGN (1u << 2)
+#define MACHINE_USES_DELAY (1u << 3)
+#define MACHINE_USES_SERVICE (1u << 4)
 
 typedef struct Node {
-  unsigned short type;
+  NodeType type;
   size_t start;
   size_t end;
   size_t line;
@@ -56,8 +72,8 @@ typedef struct Node {
 typedef struct MachineNode {
   Node node;
 
-  int impl_flags;
-  int flags;
+  unsigned impl_flags;
+  unsigned flags;
   size_t name_start;
   size_t name_end;
   size_t initial_start;
@@ -100,7 +116,7 @@ typedef struct TransitionDelay {
 typedef struct TransitionNode {
   Node node;
 
-  unsigned short type;
+  TransitionType type;
   struct Expression* event;
   TransitionDelay* delay;
 
@@ -113,7 +129,7 @@ typedef struct TransitionNode {
 
 typedef struct LocalNode {
   Node node;
-  unsigned short key;
+  LocalKind key;
   TransitionAction* action;
 } LocalNode;
 
@@ -137,7 +153,7 @@ typedef struct InvokeNode {
 } InvokeNode;
 
 typedef struct Expression {
-  unsigned short type;
+  ExpressionType type;
 } Expression;
 
 typedef struct IdentifierExpression {
@@ -201,7 +217,7 @@ typedef struct MemberExpression {
 
 typedef struct Assignment {
   Node node;
-  unsigned short binding_type;
+  AssignmentKind binding_type;
   char* binding_name;
   Expression* value;
 } Assignment;
@@ -213,13 +229,13 @@ typedef struct Assignment {
  * and flags start out 0. Strings stored in them (names, keys, paths) are
  * arena strings too, or point into the source.
  */
-Node* node_create_type(Arena*, unsigned short, size_t);
+Node* node_create_type(Arena*, NodeType, size_t);
 TransitionNode* node_create_transition(Arena*);
 MachineNode* node_create_machine(Arena*);
 StateNode* node_create_state(Arena*);
 ImportNode* node_create_import_statement(Arena*);
 ImportSpecifier* node_create_import_specifier(Arena*, char*);
-Assignment* node_create_assignment(Arena*, unsigned short);
+Assignment* node_create_assignment(Arena*, AssignmentKind);
 InvokeNode* node_create_invoke(Arena*);
 AssignExpression* node_create_assignexpression(Arena*);
 IdentifierExpression* node_create_identifierexpression(Arena*);
@@ -246,5 +262,5 @@ TransitionAction* node_transition_add_action(Arena*, TransitionNode*, char*);
 TransitionDelay* node_transition_add_delay(Arena*, TransitionNode*, char*, DelayExpression*);
 void node_local_add_action(LocalNode*, TransitionAction*);
 
-Node* find_closest_node_of_type(Node*, int);
+Node* find_closest_node_of_type(Node*, NodeType);
 MachineNode* find_closest_machine_node(Node*);

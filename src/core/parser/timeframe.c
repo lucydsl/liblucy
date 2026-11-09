@@ -8,13 +8,15 @@
 
 #include "../support/str_builder.h"
 
-#define TF_MS 0
-#define TF_S 1
-#define TF_M 2
+typedef enum TimeUnit {
+  TF_MS,
+  TF_S,
+  TF_M,
+} TimeUnit;
 
 static const struct {
   const char* name;
-  unsigned short key;
+  TimeUnit key;
 } suffixes[] = {
   { "ms", TF_MS },
   { "s", TF_S },

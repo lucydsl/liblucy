@@ -126,15 +126,15 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   // the way back up. The nodes belong to the arena, so nothing is freed.
   bool exit = false;
   while(node != NULL) {
-    unsigned short type = node->type;
+    NodeType type = node->type;
 
     if(exit) {
       switch(type) {
-        case NODE_STATE_TYPE: {
+        case NODE_STATE: {
           xs_exit_state(&state, jsb, node);
           break;
         }
-        case NODE_MACHINE_TYPE: {
+        case NODE_MACHINE: {
           xs_exit_machine(&state, jsb, node);
           break;
         }
@@ -144,31 +144,34 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
       }
     } else {
       switch(type) {
-        case NODE_IMPORT_TYPE: {
+        case NODE_IMPORT: {
           xs_enter_import(&state, jsb, node);
           break;
         }
-        case NODE_STATE_TYPE: {
+        case NODE_STATE: {
           xs_enter_state(&state, jsb, node);
           break;
         }
-        case NODE_TRANSITION_TYPE: {
+        case NODE_TRANSITION: {
           break;
         }
-        case NODE_ASSIGNMENT_TYPE: {
+        case NODE_ASSIGNMENT: {
           xs_enter_assignment(&state, jsb, node);
           break;
         }
-        case NODE_INVOKE_TYPE: {
+        case NODE_INVOKE: {
           break;
         }
-        case NODE_LOCAL_TYPE: {
+        case NODE_LOCAL: {
           // Do not walk down local nodes.
           exit = true;
           break;
         }
-        case NODE_MACHINE_TYPE: {
+        case NODE_MACHINE: {
           xs_enter_machine(&state, jsb, node);
+          break;
+        }
+        default: {
           break;
         }
       }

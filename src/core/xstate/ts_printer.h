@@ -6,13 +6,15 @@
 #include "../support/str_set.h"
 #include "../support/string_list.h"
 
-#define XS_TS_PROGRAM_USES_GUARD 1 << 0
-#define XS_TS_PROGRAM_USES_ACTION 1 << 1
-#define XS_TS_PROGRAM_USES_INVOKE 1 << 2
-#define XS_TS_PROGRAM_USES_DELAY 1 << 3
-#define XS_TS_PROGRAM_USES_ASSIGN 1 << 4
+// ts_printer_t.flags: which XState types the .d.ts imports.
+#define XS_TS_PROGRAM_USES_GUARD (1u << 0)
+#define XS_TS_PROGRAM_USES_ACTION (1u << 1)
+#define XS_TS_PROGRAM_USES_INVOKE (1u << 2)
+#define XS_TS_PROGRAM_USES_DELAY (1u << 3)
+#define XS_TS_PROGRAM_USES_ASSIGN (1u << 4)
 
-#define XS_TS_MACHINE_DEFAULT 1 << 0
+// ts_printer_t.machine_flags.
+#define XS_TS_MACHINE_DEFAULT (1u << 0)
 
 // The events a guard or action runs for, in order and without repeats.
 typedef struct xs_executor_t {
@@ -36,10 +38,10 @@ typedef struct xs_assign_executor_t {
  */
 typedef struct ts_printer_t {
   Arena* arena;
-  int flags;
+  unsigned flags;
   char* source;
 
-  int machine_flags;
+  unsigned machine_flags;
   size_t machine_name_start;
   size_t machine_name_end;
   char* xstate_specifier;

@@ -85,7 +85,7 @@ bool xs_find_and_add_top_level_machine_name(PrintState* state, JSBuilder* jsb, c
   size_t matching_len = strlen(matching_name);
   Node* cur = state->program->body;
   while(cur != NULL) {
-    if(cur->type == NODE_MACHINE_TYPE) {
+    if(cur->type == NODE_MACHINE) {
       MachineNode* cur_machine = (MachineNode*)cur;
       if(cur_machine->name_start != 0) {
         size_t len = cur_machine->name_end - cur_machine->name_start;

@@ -1,6 +1,6 @@
 #include "internal.h"
 
-static int consume_invoke_args(State* state, void* expr, int token, char* arg, int _argi) {
+static int consume_invoke_args(State* state, void* expr, TokenType token, char* arg, int _argi) {
   InvokeExpression* invoke_expression = (InvokeExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
@@ -32,7 +32,7 @@ int parser_consume_invoke(State* state) {
   state_node_start_pos(state, node, 6); // "invoke"
 
   Node* parent_node = state->node;
-  if(parent_node == NULL || parent_node->type != NODE_STATE_TYPE) {
+  if(parent_node == NULL || parent_node->type != NODE_STATE) {
     error_msg_with_code_block(state, node, "Unexpected parent for invoke.");
     return 2;
   }
@@ -50,7 +50,7 @@ int parser_consume_invoke(State* state) {
     machine_node->flags |= MACHINE_USES_SERVICE;
   }
 
-  int token = consume_token(state);
+  TokenType token = consume_token(state);
 
   if(token != TOKEN_BEGIN_BLOCK) {
     error_unexpected_identifier(state, node);

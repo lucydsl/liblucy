@@ -11,14 +11,14 @@ int parser_consume_state(State* state) {
   state_node_start_pos(state, state_node_node, 5);
 
   Node* parent_node = state->node;
-  if(parent_node == NULL || parent_node->type != NODE_MACHINE_TYPE) {
+  if(parent_node == NULL || parent_node->type != NODE_MACHINE) {
     error_msg_with_code_block(state, state_node_node, "Unexpected parent node for state.");
     return 2;
   }
 
   state_node_set(state, state_node_node);
 
-  int token = consume_token(state);
+  TokenType token = consume_token(state);
 
   switch(token) {
     case TOKEN_IDENTIFIER: {
@@ -27,16 +27,19 @@ int parser_consume_state(State* state) {
       state_node->name_end = state->word_end;
 
       switch(state->modifier) {
-        case MODIFIER_TYPE_INITIAL: {
+        case MODIFIER_INITIAL: {
           state->modifier = MODIFIER_NONE;
           MachineNode* machine_node = (MachineNode*)parent_node;
           machine_node->initial_start = state_node->name_start;
           machine_node->initial_end = state_node->name_end;
           break;
         }
-        case MODIFIER_TYPE_FINAL: {
+        case MODIFIER_FINAL: {
           state->modifier = MODIFIER_NONE;
           state_node->final = true;
+          break;
+        }
+        default: {
           break;
         }
       }
@@ -71,14 +74,14 @@ int parser_consume_state(State* state) {
         break;
       }
       case TOKEN_IDENTIFIER: {
-        unsigned short key = keyword_get(state->word);
+        Keyword key = keyword_get(state->word);
 
         switch(key) {
-          case KW_INVOKE: {
+          case KEYWORD_INVOKE: {
             _check(parser_consume_invoke(state));
             break;
           }
-          case KW_MACHINE: {
+          case KEYWORD_MACHINE: {
             _check(parser_consume_machine(state));
             break;
           }
@@ -92,7 +95,7 @@ int parser_consume_state(State* state) {
       }
       case TOKEN_LOCAL: {
         char* local = state_take_word(state);
-        unsigned short key = local_get(local);
+        LocalKind key = local_get(local);
         switch(key) {
           case LOCAL_ENTRY:
           case LOCAL_EXIT: {

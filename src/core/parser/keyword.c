@@ -5,42 +5,42 @@
 
 static const struct {
   const char* name;
-  unsigned short key;
+  Keyword key;
 } keywords[] = {
-  { "use", KW_USE },
-  { "state", KW_STATE },
-  { "initial", KW_INITIAL },
-  { "final", KW_FINAL },
-  { "action", KW_ACTION },
-  { "guard", KW_GUARD },
-  { "assign", KW_ASSIGN },
-  { "invoke", KW_INVOKE },
-  { "machine", KW_MACHINE },
-  { "delay", KW_DELAY },
-  { "on", KW_ON },
-  { "spawn", KW_SPAWN },
-  { "send", KW_SEND },
+  { "use", KEYWORD_USE },
+  { "state", KEYWORD_STATE },
+  { "initial", KEYWORD_INITIAL },
+  { "final", KEYWORD_FINAL },
+  { "action", KEYWORD_ACTION },
+  { "guard", KEYWORD_GUARD },
+  { "assign", KEYWORD_ASSIGN },
+  { "invoke", KEYWORD_INVOKE },
+  { "machine", KEYWORD_MACHINE },
+  { "delay", KEYWORD_DELAY },
+  { "on", KEYWORD_ON },
+  { "spawn", KEYWORD_SPAWN },
+  { "send", KEYWORD_SEND },
 };
 
 bool is_keyword(const char* key) {
-  return keyword_get(key) != KW_NOT_A_KEYWORD;
+  return keyword_get(key) != KEYWORD_NONE;
 }
 
-unsigned short keyword_get(const char* key) {
+Keyword keyword_get(const char* key) {
   if(key == NULL) {
-    return KW_NOT_A_KEYWORD;
+    return KEYWORD_NONE;
   }
   for(size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++) {
     if(strcmp(keywords[i].name, key) == 0) {
       return keywords[i].key;
     }
   }
-  return KW_NOT_A_KEYWORD;
+  return KEYWORD_NONE;
 }
 
-unsigned short local_get(const char* key) {
+LocalKind local_get(const char* key) {
   if(key == NULL) {
-    return 0;
+    return LOCAL_NONE;
   }
   if(strcmp(key, "@entry") == 0) {
     return LOCAL_ENTRY;
@@ -48,10 +48,10 @@ unsigned short local_get(const char* key) {
   if(strcmp(key, "@exit") == 0) {
     return LOCAL_EXIT;
   }
-  return 0;
+  return LOCAL_NONE;
 }
 
-const char* local_get_name(unsigned short key) {
+const char* local_get_name(LocalKind key) {
   if(key == LOCAL_ENTRY) {
     return "@entry";
   } else if(key == LOCAL_EXIT) {

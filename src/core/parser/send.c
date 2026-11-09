@@ -1,6 +1,6 @@
 #include "internal.h"
 
-int parser_consume_inline_send_args(State* state, void* expr, int _token, char* arg, int argi) {
+int parser_consume_inline_send_args(State* state, void* expr, TokenType _token, char* arg, int argi) {
   SendExpression* send_expression = (SendExpression*)expr;
 
   if(argi == 0) {
@@ -19,17 +19,20 @@ int parser_consume_inline_send(State* state, Node* node) {
   _check(consume_call_expression(state, "send", send_expression, &parser_consume_inline_send_args));
 
   switch(node->type) {
-    case NODE_TRANSITION_TYPE: {
+    case NODE_TRANSITION: {
       TransitionNode* transition_node = (TransitionNode*)node;
       TransitionAction* action = node_transition_add_action(state->arena, transition_node, NULL);
       action->expression = (Expression*)send_expression;
       break;
     }
-    case NODE_LOCAL_TYPE: {
+    case NODE_LOCAL: {
       LocalNode* local_node = (LocalNode*)node;
       TransitionAction* action = create_transition_action(state->arena);
       action->expression = (Expression*)send_expression;
       node_local_add_action(local_node, action);
+      break;
+    }
+    default: {
       break;
     }
   }
