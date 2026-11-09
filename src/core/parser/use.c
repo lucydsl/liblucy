@@ -18,7 +18,7 @@ static ParseStatus consume_use_specifiers(ImportNode* import_node, Parser* parse
         char* identifier = parser_take_word(parser);
         if(strcmp(identifier, "as") == 0) {
 
-          parser_error(parser, (Node*)import_node, "Import aliases are not currently supported.");
+          parser_error(parser, "Import aliases are not currently supported.");
           return PARSE_FATAL;
         }
 
@@ -42,7 +42,7 @@ static ParseStatus consume_use_specifiers(ImportNode* import_node, Parser* parse
         break;
       }
       default: {
-        parser_error_unexpected_identifier(parser, (Node*)import_node);
+        parser_error_unexpected_identifier(parser);
         goto end;
       }
     }
@@ -58,7 +58,7 @@ ParseStatus parser_consume_use(Parser* parser) {
   Node *current_node = parser->node;
 
   if(current_node != NULL) {
-    parser_error(parser, current_node, "Import statement must be at the top of the file.");
+    parser_error(parser, "Import statement must be at the top of the file.");
     // Return rather than go to end: no node has been pushed yet, so
     // parser_leave_node would pop the enclosing machine, and the next state
     // would find no parent.
@@ -76,7 +76,7 @@ ParseStatus parser_consume_use(Parser* parser) {
 
   // use './util'
   if(token != TOKEN_STRING) {
-    parser_error(parser, current_node, "Expected a string.");
+    parser_error(parser, "Expected a string.");
     status = PARSE_ERROR;
     goto end;
   }
@@ -107,17 +107,17 @@ ParseStatus parser_consume_use(Parser* parser) {
         break;
       }
       case TOKEN_IDENTIFIER: {
-        parser_error_unexpected_identifier(parser, node);
+        parser_error_unexpected_identifier(parser);
         status = PARSE_ERROR;
         goto end;
       }
       case TOKEN_UNKNOWN: {
-        parser_error_unexpected_identifier(parser, node);
+        parser_error_unexpected_identifier(parser);
         status = PARSE_FATAL;
         goto end;
       }
       default: {
-        parser_error_unexpected_identifier(parser, node);
+        parser_error_unexpected_identifier(parser);
         status = PARSE_FATAL;
         goto end;
       }

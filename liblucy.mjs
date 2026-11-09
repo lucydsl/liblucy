@@ -20,6 +20,15 @@ export default async function(createModule) {
   const _resultSuccess = Module._lucy_result_success;
   const _resultJS = Module._lucy_result_js;
   const _resultDTS = Module._lucy_result_dts;
+  const _diagnosticCount = Module._lucy_result_diagnostic_count;
+  const _diagnostic = Module._lucy_result_diagnostic;
+  const _diagnosticSeverity = Module._lucy_diagnostic_severity;
+  const _diagnosticMessage = Module._lucy_diagnostic_message;
+  const _diagnosticLine = Module._lucy_diagnostic_line;
+  const _diagnosticColumn = Module._lucy_diagnostic_column;
+  const _diagnosticText = Module._lucy_diagnostic_text;
+  // From src/wasm/main.c.
+  const _printDiagnostics = Module._wasm_print_diagnostics;
 
   // A NUL-terminated UTF-8 copy of str on the wasm heap, which the caller
   // must _free. These used to go on the stack, which is 64 KB, at four
@@ -38,6 +47,23 @@ export default async function(createModule) {
     return ptr;
   }
 
+  // The result's errors and warnings, as plain objects.
+  function readDiagnostics(resPtr) {
+    const diagnostics = [];
+    const count = _diagnosticCount(resPtr);
+    for(let i = 0; i < count; i++) {
+      const ptr = _diagnostic(resPtr, i);
+      diagnostics.push({
+        severity: _diagnosticSeverity(ptr) === 0 ? 'error' : 'warning',
+        message: UTF8ToString(_diagnosticMessage(ptr)),
+        line: _diagnosticLine(ptr),
+        column: _diagnosticColumn(ptr),
+        text: UTF8ToString(_diagnosticText(ptr))
+      });
+    }
+    return diagnostics;
+  }
+
   /**
    * Compile Lucy source to a module of XState machines.
    * @param source {String} the input Lucy source.
@@ -45,6 +71,8 @@ export default async function(createModule) {
    * @param options {{ useRemote?: boolean, dts?: boolean }}
    * @returns {{ js: string, dts?: string }} The compiled JavaScript module,
    *   and its TypeScript declarations if options.dts is set.
+   * @throws {Error} 'Compiler error' if the source doesn't compile, with the
+   *   errors and warnings in its diagnostics property.
    */
   function compileXstate(source, filename, options = {
     useRemote: false
@@ -72,13 +100,21 @@ export default async function(createModule) {
     _free(fnPtr);
     _free(srcPtr);
 
+    // The compiler doesn't print. This prints its errors and warnings to
+    // stdout and stderr, which reach Module.print and Module.printErr just
+    // as they did when the compiler printed them itself.
+    _printDiagnostics(resPtr);
+
     let out = null;
+    let diagnostics = null;
     if(_resultSuccess(resPtr)) {
       out = {};
       out.js = UTF8ToString(_resultJS(resPtr));
       if(dts) {
         out.dts = UTF8ToString(_resultDTS(resPtr));
       }
+    } else {
+      diagnostics = readDiagnostics(resPtr);
     }
 
     // Destroy the result whether or not the compile succeeded. A failed
@@ -86,7 +122,9 @@ export default async function(createModule) {
     _resultDestroy(resPtr);
 
     if(out === null) {
-      throw new Error('Compiler error');
+      const err = new Error('Compiler error');
+      err.diagnostics = diagnostics;
+      throw err;
     }
     return out;
   }

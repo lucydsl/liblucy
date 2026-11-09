@@ -11,6 +11,8 @@
 #include "../ast/node.h"
 #include "../ast/program.h"
 #include "../support/arena.h"
+#include "../diagnostic.h"
+#include "../support/str_builder.h"
 #include "../support/str_set.h"
 
 /*
@@ -82,6 +84,9 @@ typedef struct Parser {
   Node* parent_node;
   // How many machines enclose the parser now. See MAX_MACHINE_DEPTH.
   size_t machine_depth;
+
+  // Where errors go. The compile's result owns it.
+  DiagnosticList* diagnostics;
 } Parser;
 
 // A position for an error message. Signed, because the lexer's line count
@@ -120,7 +125,7 @@ char parser_next(Parser*);
 void parser_rewind(Parser*, size_t);
 void parser_find_position(Parser*, Position*, size_t);
 
-void parser_init(Parser*, Arena*, Program*, char* source, char* filename);
+void parser_init(Parser*, Arena*, Program*, char* source, char* filename, DiagnosticList*);
 void parser_advance_line(Parser*);
 void parser_advance_column(Parser*);
 void parser_set_word(Parser*, char*, size_t, size_t);
@@ -161,13 +166,20 @@ ParseStatus parser_consume_call(Parser*, const char* fn_name, void* expr, CallAr
  */
 ParseStatus parser_expect_call_argument(Parser*, const char* fn_name, const void* arg, ParseStatus status);
 
-/* error.c: error messages pointing into the source. */
+/*
+ * error.c: report an error in the source, adding it to the parse's
+ * diagnostics. The parse functions then return PARSE_ERROR or PARSE_FATAL.
+ */
 
-void error_message(const char*);
-void parser_error(Parser*, Node*, const char*);
-void parser_error_at(Parser*, Position*, const char*);
-void parser_error_back(Parser*, size_t, const char*);
-void parser_error_unexpected_identifier(Parser*, Node*);
+/* At the current position. */
+void parser_error(Parser*, const char* message);
+/* At the position back characters before the current one. */
+void parser_error_back(Parser*, size_t back, const char* message);
+/* The same, with a message formatted as by printf and cut to 255 bytes. */
+void parser_error_backf(Parser*, size_t back, const char* format, ...)
+  STR_BUILDER_PRINTF(3, 4);
+/* "Unexpected identifier", at the current position. */
+void parser_error_unexpected_identifier(Parser*);
 
 /* keyword.c: keywords and @entry/@exit. */
 

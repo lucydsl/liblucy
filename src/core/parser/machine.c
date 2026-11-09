@@ -12,14 +12,14 @@ static ParseStatus consume_machine_inner(Parser* parser, bool is_implicit, Token
         if(!is_implicit) {
           goto end;
         }
-        parser_error_unexpected_identifier(parser, parser->node);
+        parser_error_unexpected_identifier(parser);
         status = PARSE_ERROR;
         break;
       }
       case TOKEN_IDENTIFIER: {
         Keyword key = keyword_lookup(parser->word);
         if(key == KEYWORD_NONE) {
-          parser_error(parser, parser->node, "Unknown top-level identifier.");
+          parser_error(parser, "Unknown top-level identifier.");
           status = PARSE_FATAL;
           goto end;
         }
@@ -65,7 +65,7 @@ static ParseStatus consume_machine_inner(Parser* parser, bool is_implicit, Token
         break;
       }
       default: {
-        parser_error_unexpected_identifier(parser, parser->node);
+        parser_error_unexpected_identifier(parser);
         status = PARSE_FATAL;
         goto end;
       }
@@ -97,7 +97,7 @@ static ParseStatus consume_named_machine(Parser* parser) {
 
   TokenType token = parser_next_token(parser);
   if(token != TOKEN_IDENTIFIER) {
-    parser_error(parser, node, "Machine must have a name.");
+    parser_error(parser, "Machine must have a name.");
     status = PARSE_ERROR;
     goto end;
   }
@@ -107,7 +107,7 @@ static ParseStatus consume_named_machine(Parser* parser) {
   token = parser_next_token(parser);
 
   if(token != TOKEN_BEGIN_BLOCK) {
-    parser_error_unexpected_identifier(parser, node);
+    parser_error_unexpected_identifier(parser);
     status = PARSE_ERROR;
     goto end;
   }

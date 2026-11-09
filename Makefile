@@ -29,7 +29,12 @@ EMCC_FLAGS=$(LUCY_CFLAGS) $(WASM_C_FILES) $(CORE_C_FILES) \
 	-sEXPORT_ES6 \
 	-sMODULARIZE \
 	-sALLOW_MEMORY_GROWTH \
-	-sEXPORTED_FUNCTIONS=_main,_lucy_result_create,_lucy_result_destroy,_lucy_result_set_options,_lucy_compile_xstate,_lucy_result_success,_lucy_result_js,_lucy_result_dts,_malloc,_free \
+	-sEXPORTED_FUNCTIONS=_main,_malloc,_free,_wasm_print_diagnostics,$\
+_lucy_result_create,_lucy_result_destroy,_lucy_result_set_options,$\
+_lucy_compile_xstate,_lucy_result_success,_lucy_result_js,_lucy_result_dts,$\
+_lucy_result_diagnostic_count,_lucy_result_diagnostic,$\
+_lucy_diagnostic_severity,_lucy_diagnostic_message,$\
+_lucy_diagnostic_line,_lucy_diagnostic_column,_lucy_diagnostic_text \
 	-sEXPORTED_RUNTIME_METHODS=stringToUTF8,UTF8ToString,lengthBytesUTF8
 
 dist/liblucy-debug-node.mjs: $(SRC_FILES) | dist

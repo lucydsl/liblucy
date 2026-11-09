@@ -10,16 +10,12 @@ ParseStatus parser_consume_call(Parser* parser, const char* fn_name, void* expr,
   bool in_call = false;
   if(token != TOKEN_BEGIN_CALL) {
     if(token == TOKEN_IDENTIFIER) {
-      char buffer[256];
-      snprintf(buffer, sizeof(buffer), "%s must be called like a function. Expected %s(%s)", fn_name, fn_name, parser->word);
-      parser_error_back(parser, parser->word_len, buffer);
+      parser_error_backf(parser, parser->word_len, "%s must be called like a function. Expected %s(%s)", fn_name, fn_name, parser->word);
     } else if(token == TOKEN_CALL) {
-      char buffer[256];
-      snprintf(buffer, sizeof(buffer), "%s must be called like a function.", fn_name);
-      parser_error_back(parser, parser->token_len, buffer);
+      parser_error_backf(parser, parser->token_len, "%s must be called like a function.", fn_name);
     } else {
       // What should this be?
-      parser_error(parser, NULL, "Expected a (");
+      parser_error(parser, "Expected a (");
     }
     status = PARSE_ERROR;
   } else {
@@ -59,10 +55,8 @@ ParseStatus parser_consume_call(Parser* parser, const char* fn_name, void* expr,
     if(token != TOKEN_END_CALL) {
       // Only show this error message if we are currently within a call.
       if(in_call) {
-        char buffer[256];
-        char* key = identifier == NULL ? "" : identifier;
-        snprintf(buffer, sizeof(buffer), "Inline assigns must be called like a function. Expected assign(%s)", key);
-        parser_error_back(parser, parser->token_len, buffer);
+        const char* key = identifier == NULL ? "" : identifier;
+        parser_error_backf(parser, parser->token_len, "Inline assigns must be called like a function. Expected assign(%s)", key);
       }
 
       // Rewind back out, so the next thing consumes this token.
@@ -82,9 +76,7 @@ ParseStatus parser_expect_call_argument(Parser* parser, const char* fn_name, con
     return status;
   }
   if(status == PARSE_OK) {
-    char buffer[256];
-    snprintf(buffer, sizeof(buffer), "%s() needs an argument.", fn_name);
-    parser_error_back(parser, parser->token_len, buffer);
+    parser_error_backf(parser, parser->token_len, "%s() needs an argument.", fn_name);
     return PARSE_ERROR;
   }
   return status;

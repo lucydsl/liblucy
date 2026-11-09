@@ -33,7 +33,7 @@ ParseStatus parser_consume_invoke(Parser* parser) {
 
   Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_STATE) {
-    parser_error(parser, node, "Unexpected parent for invoke.");
+    parser_error(parser, "Unexpected parent for invoke.");
     return PARSE_FATAL;
   }
 
@@ -57,7 +57,7 @@ ParseStatus parser_consume_invoke(Parser* parser) {
   TokenType token = parser_next_token(parser);
 
   if(token != TOKEN_BEGIN_BLOCK) {
-    parser_error_unexpected_identifier(parser, node);
+    parser_error_unexpected_identifier(parser);
     return PARSE_FATAL;
   }
 
@@ -76,7 +76,7 @@ ParseStatus parser_consume_invoke(Parser* parser) {
         break;
       }
       default: {
-        parser_error_unexpected_identifier(parser, node);
+        parser_error_unexpected_identifier(parser);
         status = PARSE_FATAL;
         goto end;
       }

@@ -52,7 +52,7 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
                 break;
               }
               case EXPRESSION_IDENTIFIER: {
-                fprintf(stderr, "Not supported at this time\n"); // TODO
+                printer_warn(printer, LUCY_STREAM_STDERR, "Not supported at this time\n");
                 break;
               }
               case EXPRESSION_SPAWN: {
@@ -162,7 +162,7 @@ void printer_compile_transition_key(Printer* printer, JSBuilder* jsb, Node* node
     } else if(strcmp(event_name, "error") == 0) {
       js_builder_start_prop(jsb, "onError");
     } else {
-      printf("Regular events in invoke are not supported. Saw event [%s]\n", event_name);
+      printer_warnf(printer, LUCY_STREAM_STDOUT, "Regular events in invoke are not supported. Saw event [%s]\n", event_name);
     }
   } else {
     switch(type) {

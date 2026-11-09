@@ -2,7 +2,6 @@
 
 #include <ctype.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <string.h>
 
 static void add_machine_fn_args(Printer* printer, JSBuilder* jsb, MachineNode* machine_node) {
@@ -111,7 +110,7 @@ void printer_exit_machine(Printer* printer, JSBuilder* jsb, Node* node) {
             break;
           }
           default: {
-            printf("Unexpected type of expression\n");
+            printer_warn(printer, LUCY_STREAM_STDOUT, "Unexpected type of expression\n");
             goto end_guardloop;
           }
         }
@@ -186,7 +185,7 @@ void printer_exit_machine(Printer* printer, JSBuilder* jsb, Node* node) {
             break;
           }
           default: {
-            printf("This type of expression is not currently supported.\n");
+            printer_warn(printer, LUCY_STREAM_STDOUT, "This type of expression is not currently supported.\n");
             break;
           }
         }
@@ -232,7 +231,7 @@ void printer_exit_machine(Printer* printer, JSBuilder* jsb, Node* node) {
             InvokeExpression* invoke_expression = (InvokeExpression*)ref->value;
             switch(invoke_expression->ref->type) {
               case EXPRESSION_IDENTIFIER: {
-                fprintf(stderr, "Currently not supported: TODO");
+                printer_warn(printer, LUCY_STREAM_STDERR, "Currently not supported: TODO");
                 break;
               }
               case EXPRESSION_SYMBOL: {

@@ -8,7 +8,7 @@
 #include "ts_printer.h"
 
 XStateOutput xstate_print(Arena* arena, Program* program, char* source,
-  bool use_remote_imports, bool include_dts) {
+  bool use_remote_imports, bool include_dts, DiagnosticList* diagnostics) {
   char* xstate_specifier;
   if(use_remote_imports) {
     xstate_specifier = "https://cdn.skypack.dev/xstate";
@@ -21,6 +21,7 @@ XStateOutput xstate_print(Arena* arena, Program* program, char* source,
 
   Printer printer = {
     .arena = arena,
+    .diagnostics = diagnostics,
     .source = source,
     .program = program,
     .guard_refs = NULL,

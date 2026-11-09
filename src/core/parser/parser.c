@@ -17,7 +17,7 @@ static ParseStatus consume_program(Parser* parser) {
       case TOKEN_IDENTIFIER: {
         Keyword key = keyword_lookup(parser->word);
         if(key == KEYWORD_NONE) {
-          parser_error(parser, parser->node, "Unknown top-level identifier.");
+          parser_error(parser, "Unknown top-level identifier.");
           return PARSE_FATAL;
         }
 
@@ -56,10 +56,10 @@ static ParseStatus consume_program(Parser* parser) {
   }
 }
 
-ParseResult parse(Arena* arena, char* source, char* filename) {
+ParseResult parse(Arena* arena, char* source, char* filename, DiagnosticList* diagnostics) {
   Program* program = program_create(arena);
   Parser parser;
-  parser_init(&parser, arena, program, source, filename);
+  parser_init(&parser, arena, program, source, filename, diagnostics);
 
   ParseStatus status = consume_program(&parser);
 
