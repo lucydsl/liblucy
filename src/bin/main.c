@@ -10,6 +10,7 @@
 #include <getopt.h>
 #include "../core/xstate/compiler.h"
 #include "../core/error.h"
+#include "../core/mem.h"
 #include "../core/str_builder.h"
 
 #define RESET   "\033[0m"
@@ -52,8 +53,7 @@ static void usage(char* program_name) {
 }
 
 static void version() {
-  fprintf(stdout, PROGRAM_VERSION);
-  fprintf(stdout, "\n");
+  fputs(PROGRAM_VERSION "\n", stdout);
 }
 
 #define PRINT_TARGET_JS 0
@@ -113,68 +113,79 @@ int write_file(char* outfile, char* output) {
   return 0;
 }
 
-int compile_file(char* filename, int use_remote_imports, int include_dts,
-  char* out_file, unsigned long outlen, int print_target) {
-  FILE *fp;
-  if ((fp = fopen(filename, "r")) == NULL) {
-      fprintf(stderr, "Error opening file!\n");
-
-      // Program exits if the file pointer returns NULL.
-      return 1;
+// The contents of filename, NUL-terminated, or NULL if it can't be read.
+// The caller must free() it.
+static char* read_file(const char* filename) {
+  FILE *fp = fopen(filename, "r");
+  if(fp == NULL) {
+    return NULL;
   }
 
-  char* buffer;
-  long length;
-
-  fseek(fp, 0, SEEK_END);
-  length = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
-  buffer = malloc(length + 1);
-  if(buffer) {
-    fread(buffer, 1, length, fp);
-    buffer[length] = 0;
+  char* buffer = NULL;
+  long length = -1;
+  if(fseek(fp, 0, SEEK_END) == 0) {
+    length = ftell(fp);
+  }
+  if(length >= 0 && fseek(fp, 0, SEEK_SET) == 0) {
+    buffer = xmalloc(size_add((size_t)length, 1));
+    size_t read = fread(buffer, 1, (size_t)length, fp);
+    buffer[read] = '\0';
+    if(ferror(fp)) {
+      free(buffer);
+      buffer = NULL;
+    }
   }
   fclose(fp);
+  return buffer;
+}
+
+int compile_file(char* filename, int use_remote_imports, int include_dts,
+  char* out_file, size_t outlen, int print_target) {
+  char* buffer = read_file(filename);
+  if(buffer == NULL) {
+    fprintf(stderr, "Error opening file!\n");
+    return 1;
+  }
 
   CompileResult* result = xs_create();
   xs_init(result, use_remote_imports, include_dts);
   compile_xstate(result, buffer, filename);
+  // The result has its own copies of everything it needs.
+  free(buffer);
 
+  int ret = 0;
   if(result->success) {
-    int ret = 0;
     if(out_file != NULL) {
       ret = write_file(out_file, result->js);
 
       if(ret == 0 && include_dts) {
-        unsigned long dtslen = outlen + 2; // .d.ts vs .js
-        char* dtsname = malloc(sizeof(char) * dtslen);
-        size_t i = 0;
-        for(; i < outlen - 3; i++) {
-          dtsname[i] = out_file[i];
-        }
-        dtsname[i++] = '.';
-        dtsname[i++] = 'd';
-        dtsname[i++] = '.';
-        dtsname[i++] = 't';
-        dtsname[i++] = 's';
-        dtsname[i] = '\0';
+        // out.js -> out.d.ts. This took outlen - 3 unsigned, so a name
+        // shorter than ".js" wrapped around and overran the buffer.
+        size_t base_len = outlen >= 3 ? outlen - 3 : outlen;
+        str_builder_t* sb = str_builder_create();
+        str_builder_copy_str(sb, out_file, 0, base_len);
+        str_builder_add_str(sb, ".d.ts", 0);
+        char* dtsname = str_builder_release(sb, NULL);
         ret = write_file(dtsname, result->dts);
         free(dtsname);
       }
     } else {
-      if(print_target == PRINT_TARGET_JS) {
-        printf("%s\n", result->js);
-      } else if(print_target == PRINT_TARGET_DTS) {
+      // Without --experimental-dts there is no d.ts to print, so print the
+      // JavaScript, as scripts/lucyc.mjs does. This used to pass NULL to
+      // printf.
+      if(print_target == PRINT_TARGET_DTS && result->dts != NULL) {
         printf("%s\n", result->dts);
+      } else {
+        printf("%s\n", result->js);
       }
     }
-
-    destroy_xstate_result(result);
-    return ret;
   } else {
     fprintf(stderr, "Compilation failed!\n");
-    return 1;
+    ret = 1;
   }
+
+  destroy_xstate_result(result);
+  return ret;
 }
 
 int ends_with(const char *str, const char *suffix) {
@@ -187,41 +198,39 @@ int ends_with(const char *str, const char *suffix) {
     return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
 }
 
-char* basename(char* rootdir, char* filename, unsigned long fnlen) {
-  str_builder_t *sb = str_builder_create();
+// filename with the rootdir prefix, and the slashes after it, removed. The
+// caller must free() it. (This was called basename, which is also a POSIX
+// function, and it read rootdir past its end.)
+static char* relative_name(const char* rootdir, const char* filename, size_t fnlen) {
+  size_t rootlen = strlen(rootdir);
   size_t i = 0;
-  size_t len = 0;
-  int in_root = 1;
   while(i < fnlen) {
+    char ca = i < rootlen ? rootdir[i] : '\0';
     char cb = filename[i];
-    if(in_root) {
-      char ca = rootdir[i];
-      if(ca == cb || cb == '/') {
-        i++;
-        continue;
-      }
-      in_root = false;
+    if(ca != cb && cb != '/') {
+      break;
     }
-    str_builder_add_char(sb, cb);
     i++;
-    len++;
   }
-  char* out = str_builder_dump(sb, &len);
-  return out;
+
+  str_builder_t *sb = str_builder_create();
+  str_builder_copy_str(sb, filename, i, fnlen);
+  return str_builder_release(sb, NULL);
 }
 
-int compile_dir(char* rootdir, char* dirname, unsigned long dirlen,
-  int use_remote_imports, int include_dts, char* out_dir, unsigned long outdirlen,
+int compile_dir(char* rootdir, char* dirname, size_t dirlen,
+  int use_remote_imports, int include_dts, char* out_dir, size_t outdirlen,
   int print_target) {
   DIR* fd;
   struct dirent* in_file;
+  int ret = 0;
 
   if (NULL == (fd = opendir(dirname))) {
     fprintf(stderr, "Failed to open %s\n", dirname);
     return 1;
   }
 
-  while((in_file = readdir(fd))) {
+  while(ret == 0 && (in_file = readdir(fd))) {
     if(in_file->d_name[0] == '.') {
       continue;
     }
@@ -230,53 +239,41 @@ int compile_dir(char* rootdir, char* dirname, unsigned long dirlen,
     str_builder_add_str(sb, dirname, dirlen);
     str_builder_add_char(sb, '/');
     str_builder_add_str(sb, in_file->d_name, strlen(in_file->d_name));
-    
-    unsigned long fplen = dirlen + 1 + strlen(in_file->d_name);
-    char* fp = str_builder_dump(sb, &fplen);    
+
+    size_t fplen;
+    char* fp = str_builder_release(sb, &fplen);
 
     if(ends_with(in_file->d_name, ".lucy")) {
-      char* bname = basename(rootdir, fp, fplen);
-      unsigned long bnamelen = strlen(bname);
+      char* bname = relative_name(rootdir, fp, fplen);
+      size_t bnamelen = strlen(bname);
 
       str_builder_t *sbb = str_builder_create();
       str_builder_add_str(sbb, out_dir, outdirlen);
       str_builder_add_char(sbb, '/');
-      str_builder_add_str(sbb, bname, bnamelen - 5);
+      str_builder_copy_str(sbb, bname, 0, bnamelen - 5); // without .lucy
       str_builder_add_str(sbb, ".js", 3);
-      unsigned long outlen = outdirlen + 1 + bnamelen - 2; // .lucy - .js
-      char* outfp = str_builder_dump(sbb, &outlen);
+      size_t outlen;
+      char* outfp = str_builder_release(sbb, &outlen);
 
-      int ret = compile_file(fp, use_remote_imports, include_dts, outfp, outlen, print_target);
+      ret = compile_file(fp, use_remote_imports, include_dts, outfp, outlen, print_target);
 
-      free(fp);
       free(bname);
       free(outfp);
-
-      if(ret) {
-        return ret;
-      }
-
-      continue;
-    }
-
-    // If directory, recurse.
-    struct stat path_stat;
-    stat(fp, &path_stat);
-
-    if(S_ISDIR(path_stat.st_mode)) {
-      int ret = compile_dir(rootdir, fp, fplen, use_remote_imports, include_dts,
-        out_dir, outdirlen, print_target);
-
-      if(ret) {
-        free(fp);
-        return ret;
+    } else {
+      // If directory, recurse. (stat's result wasn't checked, so a failed
+      // stat left path_stat uninitialised.)
+      struct stat path_stat;
+      if(stat(fp, &path_stat) == 0 && S_ISDIR(path_stat.st_mode)) {
+        ret = compile_dir(rootdir, fp, fplen, use_remote_imports, include_dts,
+          out_dir, outdirlen, print_target);
       }
     }
 
     free(fp);
   }
 
-  return 0;
+  closedir(fd);
+  return ret;
 }
 
 #define OPTION_REMOTE_IMPORTS 0
@@ -293,14 +290,18 @@ static struct option long_options[] = {
   {"print", required_argument, 0, OPTION_PRINT},
   {"help", no_argument, 0, 'h'},
   {"version", no_argument, 0, 'v'},
+  // getopt_long needs the terminating entry; without it it read past the
+  // end of the array.
+  {0, 0, 0, 0},
 };
 
 int main(int argc, char *argv[]) {
   int use_remote_imports = 0;
   int include_dts = 0;
 
+  // These point into argv, which outlives everything here.
   char* out_file = NULL;
-  unsigned long out_file_len = 0;
+  size_t out_file_len = 0;
   char* out_dir = NULL;
   int print_target = 0;
 
@@ -317,12 +318,12 @@ int main(int argc, char *argv[]) {
         break;
       }
       case OPTION_OUT_FILE: {
-        out_file = strdup(optarg);
+        out_file = optarg;
         out_file_len = strlen(out_file);
         break;
       }
       case OPTION_OUT_DIR: {
-        out_dir = strdup(optarg);
+        out_dir = optarg;
         break;
       }
       case OPTION_PRINT: {
@@ -354,7 +355,10 @@ int main(int argc, char *argv[]) {
 
   if(filename != NULL) {
     struct stat path_stat;
-    stat(filename, &path_stat);
+    if(stat(filename, &path_stat) != 0) {
+      fprintf(stderr, "Error opening file!\n");
+      return 1;
+    }
 
     if(S_ISDIR(path_stat.st_mode)) {
       if(out_file != NULL) {
@@ -367,17 +371,16 @@ int main(int argc, char *argv[]) {
         return 1;
       }
 
-      unsigned long dir_len = strlen(filename);
-      unsigned long out_dir_len = strlen(out_dir);
+      size_t dir_len = strlen(filename);
+      size_t out_dir_len = strlen(out_dir);
       int ret = compile_dir(filename, filename, dir_len, use_remote_imports,
         include_dts, out_dir, out_dir_len, print_target);
       return ret;
     } else if(S_ISREG(path_stat.st_mode)) {
       // Check if the out_file is a directory.
       if(out_file != NULL) {
-        stat(out_file, &path_stat);
-
-        if(S_ISDIR(path_stat.st_mode)) {
+        // It doesn't have to exist yet.
+        if(stat(out_file, &path_stat) == 0 && S_ISDIR(path_stat.st_mode)) {
           fprintf(stderr, "Argument passed to --out-file is a directory. Did you mean to use --out-dir?\n");
           return 1;
         }
