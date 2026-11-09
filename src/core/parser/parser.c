@@ -1,12 +1,6 @@
-#include "error.h"
-#include "keyword.h"
-#include "../ast/program.h"
-#include "lexer.h"
-#include "core.h"
-#include "machine.h"
 #include "parser.h"
-#include "token.h"
-#include "use.h"
+
+#include "internal.h"
 
 static int consume_program(State* state) {
   int err = 0;

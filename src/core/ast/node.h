@@ -33,6 +33,10 @@
 #define EXPRESSION_INVOKE 9
 #define EXPRESSION_MEMBER 10
 
+// LocalNode.key: which of a state's actions a local sets.
+#define LOCAL_ENTRY 1
+#define LOCAL_EXIT 2
+
 #define MACHINE_USES_GUARD 1 << 0
 #define MACHINE_USES_ACTION 1 << 1
 #define MACHINE_USES_ASSIGN 1 << 2

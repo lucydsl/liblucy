@@ -1,10 +1,12 @@
+#include "ts_printer.h"
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "../support/arena.h"
 #include "../support/str_builder.h"
 #include "../support/str_set.h"
-#include "ts_printer.h"
 
 static void add_str_union(str_builder_t* sb, char* value) {
   long len = (long)str_builder_len(sb);

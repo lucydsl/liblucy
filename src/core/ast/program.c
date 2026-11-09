@@ -1,5 +1,6 @@
-#include "../support/arena.h"
 #include "program.h"
+
+#include "../support/arena.h"
 #include "node.h"
 
 Program* new_program(Arena* arena) {

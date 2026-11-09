@@ -1,6 +1,4 @@
-#include "../ast/node.h"
-#include "lexer.h"
-#include "core.h"
+#include "internal.h"
 
 int parser_consume_inline_send_args(State* state, void* expr, int _token, char* arg, int argi) {
   SendExpression* send_expression = (SendExpression*)expr;

@@ -1,19 +1,7 @@
+#include "internal.h"
+
 #include <stdlib.h>
 #include <string.h>
-#include "error.h"
-#include "keyword.h"
-#include "../ast/node.h"
-#include "lexer.h"
-#include "action.h"
-#include "assign.h"
-#include "core.h"
-#include "delay.h"
-#include "guard.h"
-#include "parser.h"
-#include "send.h"
-#include "token.h"
-
-#include <stdio.h> // TODO remove
 
 static char* get_event_name(TransitionNode* transition_node) {
   char* name = NULL;

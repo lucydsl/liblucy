@@ -1,16 +1,14 @@
+#include "compiler.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "../ast/program.h"
+#include "../parser/parser.h"
 #include "../support/arena.h"
 #include "../support/mem.h"
-#include "../parser/parser.h"
-#include "../ast/program.h"
-#include "assignment.h"
-#include "compiler.h"
-#include "core.h"
-#include "import.h"
-#include "machine.h"
-#include "state.h"
+#include "printer.h"
 #include "ts_printer.h"
 
 // Free the strings a compile left in result, so the result can be used
@@ -23,7 +21,7 @@ static void clear_output(CompileResult* result) {
   result->dts = NULL;
 }
 
-CompileResult* xs_create() {
+CompileResult* xs_create(void) {
   // Zeroed, so xs_init and compile_xstate can tell there is no output yet.
   // malloc left the struct uninitialised until xs_init, and wasn't checked.
   return xcalloc(1, sizeof(CompileResult));

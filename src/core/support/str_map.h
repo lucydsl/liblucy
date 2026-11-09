@@ -29,8 +29,7 @@ SOFTWARE.
 // the table goes when the arena does. Values are the caller's to manage.
 // Hashing, probing and growth are unchanged, so iteration order is too.
 
-#ifndef _HT_H
-#define _HT_H
+#pragma once
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -71,5 +70,3 @@ hti ht_iterator(ht* table);
 // and value to current item, and return true. If there are no more
 // items, return false. Don't call ht_set during iteration.
 bool ht_next(hti* it);
-
-#endif // _HT_H

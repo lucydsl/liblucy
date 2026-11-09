@@ -1,6 +1,8 @@
-#include <stddef.h>
-#include "arena.h"
 #include "string_list.h"
+
+#include <stddef.h>
+
+#include "arena.h"
 
 void string_list_init(string_list_t* list, Arena* arena) {
   list->arena = arena;

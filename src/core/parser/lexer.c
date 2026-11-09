@@ -1,8 +1,9 @@
+#include "internal.h"
+
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include "../ast/node.h"
-#include "lexer.h"
 
 void state_init(State* state, Arena* arena, Program* program, char* source, char* filename) {
   // Zero everything first: the parser reads modifier and the word
@@ -165,4 +166,233 @@ void state_add_action(State* state, char* name) {
 
 bool state_has_action(State* state, char* name) {
   return str_set_contains(&state->actions, name);
+}
+
+/* Whether c can appear in an identifier: ASCII letters and underscore. */
+static int is_valid_identifier_char(char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+static inline int is_newline(char c) {
+  return c == '\n';
+}
+
+static inline int is_whitespace(char c) {
+  return c == ' ';
+}
+
+typedef bool (*consume_condition)(State*, char);
+
+static void consume_while(State* state, consume_condition cond) {
+  char c = state_char(state);
+  size_t start = state->index;
+  size_t len = 0;
+
+  // Only a ':' at the very end of the source gets here with nothing left
+  // to read. Give it an empty word rather than stepping past the end.
+  if(!state_inbounds(state)) {
+    state_set_word(state, arena_strdup(state->arena, ""), start, start);
+    state->word_len = 0;
+    state->token_len = 0;
+    return;
+  }
+
+  do {
+    len++;
+
+    state_advance_column(state);
+    state_next(state);
+
+    c = state_char(state);
+  } while(state_inbounds(state) && cond(state, c));
+  state_rewind(state, 1);
+
+  if(is_newline(c)) {
+    state_advance_line(state);
+  }
+
+  size_t end = state->index + 1;
+  char* str = arena_strndup(state->arena, state->source + start, len);
+  state_set_word(state, str, start, end);
+  state->word_len = len;
+  state->token_len = len;
+}
+
+static char* consume_string(State* state) {
+  char c = state_char(state);
+  char quote = c;
+  size_t start = state->index;
+  size_t len = 0;
+
+  do {
+    len++;
+
+    state_advance_column(state);
+    state_next(state);
+
+
+    c = state_char(state);
+  } while(c != quote && c != '\n' && state_inbounds(state));
+
+  // The word is the string with its quotes, closing quote included even if
+  // the string ran into the end of the line instead.
+  char* str = arena_alloc(state->arena, len + 2);
+  memcpy(str, state->source + start, len);
+  str[len] = quote;
+
+  size_t end = state->index;
+  state_set_word(state, str, start, end);
+
+  return str;
+}
+
+static bool identifier_consume_condition(State* state, char c) {
+  return is_valid_identifier_char(c);
+}
+
+static void consume_identifier(State* state) {
+  consume_while(state, &identifier_consume_condition);
+}
+
+static bool member_consume_condition(State* state, char c) {
+  return is_valid_identifier_char(c) || c == '.';
+}
+
+static bool timeframe_consume_condition(State* state, char c) {
+  return is_timeframe_char(c);
+}
+
+static void consume_timeframe(State* state) {
+  consume_while(state, &timeframe_consume_condition);
+}
+
+/* Public API */
+int consume_token(State* state) {
+  int len = 0;
+  while(state_inbounds(state)) {
+    state_next(state);
+    state_advance_column(state);
+    char c = state_char(state);
+
+    if(is_whitespace(c)) {
+      continue;
+    }
+
+    if(is_newline(c)) {
+      state_advance_line(state);
+      state->token_len = 1;
+      return TOKEN_EOL;
+    }
+
+    len++;
+
+    if(c == '{') {
+      state->token_len = 1;
+      return TOKEN_BEGIN_BLOCK;
+    }
+
+    if(c == '}') {
+      state->token_len = 1;
+      return TOKEN_END_BLOCK;
+    }
+
+    if(c == '(') {
+      state->token_len = 1;
+      return TOKEN_BEGIN_CALL;
+    }
+
+    if(c == ')') {
+      state->token_len = 1;
+      return TOKEN_END_CALL;
+    }
+
+    if(c == '=') {
+      if(state_peek(state) == '>') {
+        state_next(state);
+        state->token_len = 2;
+        return TOKEN_CALL;
+      }
+      state->token_len = 1;
+      return TOKEN_ASSIGNMENT;
+    }
+
+    if(is_valid_identifier_char(c)) {
+      consume_identifier(state);
+      if(state_peek(state) == '.') {
+        return TOKEN_MEMBER_EXPRESSION;
+      }
+      return TOKEN_IDENTIFIER;
+    }
+
+    if(c == ':') {
+      state_advance_column(state);
+      state_next(state);
+      consume_identifier(state);
+      return TOKEN_SYMBOL;
+    }
+
+    if(c == '\'' || c == '"') {
+      consume_string(state);
+      return TOKEN_STRING;
+    }
+
+    if(c == ',') {
+      state->token_len = 1;
+      return TOKEN_COMMA;
+    }
+
+    if(c == '\0') {
+      state->token_len = 1;
+      return TOKEN_EOF;
+    }
+
+    if(c == '@') {
+      consume_identifier(state);
+      return TOKEN_LOCAL;
+    }
+
+    if(is_integer(c)) {
+      consume_timeframe(state);
+      char last = state->word[state->word_len - 1];
+      if(is_integer(last)) {
+        return TOKEN_INTEGER;
+      } else {
+        return TOKEN_TIMEFRAME;
+      }
+    }
+
+    if(c == '/') {
+      char nc = state_peek(state);
+      if(nc == '/') {
+        // single-line
+        do {
+          state_next(state);
+          state_advance_column(state);
+          nc = state_char(state);
+        } while(state_inbounds(state) && !is_newline(nc));
+        if(is_newline(state_char(state))) {
+          state_advance_line(state);
+        }
+        continue;
+      } else if(nc == '*') {
+        // multi-line
+        char lc = c;
+        do {
+          state_next(state);
+          state_advance_column(state);
+          nc = state_char(state);
+          if(is_newline(nc)) {
+            state_advance_line(state);
+          }
+        } while(state_inbounds(state) && (lc != '*' && nc != '/'));
+        continue;
+      }
+    }
+
+    state->token_len = len;
+    return TOKEN_UNKNOWN;
+  }
+
+  state->token_len = len;
+  return TOKEN_EOF;
 }

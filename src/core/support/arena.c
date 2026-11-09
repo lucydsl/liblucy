@@ -1,7 +1,9 @@
+#include "arena.h"
+
 #include <stdalign.h>
 #include <stdlib.h>
 #include <string.h>
-#include "arena.h"
+
 #include "mem.h"
 
 #ifndef ARENA_DEBUG

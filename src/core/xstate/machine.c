@@ -1,11 +1,9 @@
+#include "printer.h"
+
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "js_builder.h"
-#include "../ast/node.h"
-#include "core.h"
-#include "ts_printer.h"
 
 static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "{ ");

@@ -1,8 +1,10 @@
+#include "str_set.h"
+
 #include <stdint.h>
 #include <string.h>
+
 #include "arena.h"
 #include "mem.h"
-#include "str_set.h"
 
 #define STR_SET_INITIAL_CAPACITY 16
 

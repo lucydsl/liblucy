@@ -1,8 +1,4 @@
-#include "error.h"
-#include "../ast/node.h"
-#include "lexer.h"
-#include "core.h"
-#include "token.h"
+#include "internal.h"
 
 static int consume_inline_guard_args(State* state, void* expr, int token, char* arg, int _argi) {
   GuardExpression* guard_expression = (GuardExpression*)expr;

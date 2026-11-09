@@ -13,7 +13,6 @@
 #include <unistd.h>
 #include <getopt.h>
 #include "../core/xstate/compiler.h"
-#include "../core/parser/error.h"
 #include "../core/support/mem.h"
 #include "../core/support/str_builder.h"
 
@@ -56,14 +55,14 @@ static void usage(char* program_name) {
   fprintf(stderr, "%s$ %s --out-dir dist src\n", U_INDENT, program_name);
 }
 
-static void version() {
+static void version(void) {
   fputs(PROGRAM_VERSION "\n", stdout);
 }
 
 #define PRINT_TARGET_JS 0
 #define PRINT_TARGET_DTS 1
 
-int mkdirp(const char *path, int is_file) {
+static int mkdirp(const char *path, int is_file) {
     const size_t len = strlen(path);
     char _path[PATH_MAX];
     char *p; 
@@ -102,7 +101,7 @@ int mkdirp(const char *path, int is_file) {
     return 0;
 }
 
-int write_file(char* outfile, char* output) {
+static int write_file(char* outfile, char* output) {
   FILE *fp;
 
   mkdirp(outfile, true);
@@ -143,7 +142,7 @@ static char* read_file(const char* filename) {
   return buffer;
 }
 
-int compile_file(char* filename, int use_remote_imports, int include_dts,
+static int compile_file(char* filename, int use_remote_imports, int include_dts,
   char* out_file, size_t outlen, int print_target) {
   char* buffer = read_file(filename);
   if(buffer == NULL) {
@@ -192,7 +191,7 @@ int compile_file(char* filename, int use_remote_imports, int include_dts,
   return ret;
 }
 
-int ends_with(const char *str, const char *suffix) {
+static int ends_with(const char *str, const char *suffix) {
     if (!str || !suffix)
         return 0;
     size_t lenstr = strlen(str);
@@ -222,7 +221,7 @@ static char* relative_name(const char* rootdir, const char* filename, size_t fnl
   return str_builder_release(sb, NULL);
 }
 
-int compile_dir(char* rootdir, char* dirname, size_t dirlen,
+static int compile_dir(char* rootdir, char* dirname, size_t dirlen,
   int use_remote_imports, int include_dts, char* out_dir, size_t outdirlen,
   int print_target) {
   DIR* fd;

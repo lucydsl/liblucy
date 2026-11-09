@@ -1,13 +1,4 @@
-#include "error.h"
-#include "keyword.h"
-#include "../ast/node.h"
-#include "lexer.h"
-#include "action.h"
-#include "core.h"
-#include "guard.h"
-#include "machine_state.h"
-#include "token.h"
-#include "use.h"
+#include "internal.h"
 
 static int consume_machine_inner(State* state, bool is_implicit, int initial_token) {
   int err = 0;

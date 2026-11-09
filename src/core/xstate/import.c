@@ -1,7 +1,6 @@
+#include "printer.h"
+
 #include <stdio.h>
-#include "js_builder.h"
-#include "../ast/node.h"
-#include "core.h"
 
 void xs_enter_import(PrintState* state, JSBuilder* jsb, Node* node) {
   js_builder_add_str(jsb, "import ");

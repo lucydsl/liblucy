@@ -1,8 +1,10 @@
+#include "node.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "../support/arena.h"
-#include "node.h"
 
 Node* node_create_type(Arena* arena, unsigned short type, size_t size) {
   Node *node = arena_alloc(arena, size);

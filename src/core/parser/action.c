@@ -1,12 +1,6 @@
+#include "internal.h"
+
 #include <stdlib.h>
-#include "error.h"
-#include "keyword.h"
-#include "../ast/node.h"
-#include "lexer.h"
-#include "assign.h"
-#include "core.h"
-#include "send.h"
-#include "token.h"
 
 static int consume_inline_action_args(State* state, void* expr, int token, char* arg, int _argi) {
   ActionExpression* action_expression = (ActionExpression*)expr;
