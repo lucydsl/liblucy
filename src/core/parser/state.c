@@ -1,16 +1,7 @@
+#include "internal.h"
+
 #include <stdio.h>
 #include <string.h>
-#include "error.h"
-#include "keyword.h"
-#include "local_kind.h"
-#include "../ast/node.h"
-#include "lexer.h"
-#include "core.h"
-#include "invoke.h"
-#include "local.h"
-#include "machine.h"
-#include "token.h"
-#include "transition.h"
 
 int parser_consume_state(State* state) {
   int err = 0;

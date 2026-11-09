@@ -25,12 +25,13 @@ SOFTWARE.
 // Simple hash table implemented in C.
 
 #include "str_map.h"
-#include "mem.h"
 
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "mem.h"
 
 // Hash table entry (slot may be filled or empty).
 typedef struct {

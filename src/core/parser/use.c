@@ -1,9 +1,6 @@
+#include "internal.h"
+
 #include <string.h>
-#include "error.h"
-#include "../ast/node.h"
-#include "lexer.h"
-#include "core.h"
-#include "token.h"
 
 static int consume_use_specifiers(ImportNode* import_node, State* state) {
   int err = 0;

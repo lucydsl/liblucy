@@ -1,10 +1,4 @@
-#include "js_builder.h"
-#include "../parser/local_kind.h"
-#include "../ast/node.h"
-#include "core.h"
-#include "invoke.h"
-#include "transition.h"
-#include "ts_printer.h"
+#include "printer.h"
 
 static void compile_local_node(PrintState* state, JSBuilder* jsb, LocalNode* local_node) {
   switch(local_node->key) {

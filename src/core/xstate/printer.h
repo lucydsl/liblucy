@@ -1,5 +1,10 @@
 #pragma once
 
+/*
+ * The XState printer's internals, shared by the files in xstate/ (apart
+ * from js_builder and ts_printer, which have headers of their own).
+ */
+
 #include "../support/arena.h"
 #include "js_builder.h"
 #include "../ast/node.h"
@@ -61,3 +66,33 @@ void xs_add_action_ref(PrintState*, char*, Expression*);
 void xs_add_guard_ref(PrintState*, char*, Expression*);
 void xs_add_delay_ref(PrintState*, char*, Expression*);
 void xs_add_service_ref(PrintState*, char*, Expression*);
+
+/* machine.c */
+
+void xs_add_machine_binding_name(PrintState*, JSBuilder*, MachineNode*);
+void xs_enter_machine(PrintState*, JSBuilder*, Node*);
+void xs_exit_machine(PrintState*, JSBuilder*, Node*);
+
+/* state.c */
+
+void xs_enter_state(PrintState*, JSBuilder*, Node*);
+void xs_exit_state(PrintState*, JSBuilder*, Node*);
+
+/* assignment.c */
+
+void xs_enter_assignment(PrintState*, JSBuilder*, Node*);
+
+/* import.c */
+
+void xs_enter_import(PrintState*, JSBuilder*, Node*);
+
+/* invoke.c */
+
+void xs_compile_invoke(PrintState*, JSBuilder*, InvokeNode*);
+
+/* transition.c */
+
+void xs_compile_event_transition(PrintState*, JSBuilder*, TransitionNode*);
+void xs_compile_transition_action(PrintState*, JSBuilder*, TransitionAction*, const char*);
+void xs_compile_transition_key(PrintState*, JSBuilder*, Node*, char*);
+void xs_compile_inner_transition(PrintState*, JSBuilder*, TransitionNode*);

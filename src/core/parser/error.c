@@ -1,8 +1,9 @@
-#include <stdio.h>
-#include <stdbool.h>
+#include "internal.h"
+
 #include <limits.h>
-#include "../ast/node.h"
-#include "lexer.h"
+#include <stdbool.h>
+#include <stdio.h>
+
 #include "../support/str_builder.h"
 
 #define RESET   "\033[0m"

@@ -1,9 +1,4 @@
-#include "keyword.h"
-#include "../ast/node.h"
-#include "lexer.h"
-#include "core.h"
-#include "spawn.h"
-#include "token.h"
+#include "internal.h"
 
 static inline void maybe_add_machine_uses_assign(AssignExpression* assign_expression, Node* parent_node) {
   Expression* value = assign_expression->value;

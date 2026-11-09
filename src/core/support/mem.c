@@ -1,8 +1,9 @@
+#include "mem.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "mem.h"
 
 void mem_fail(const char* what) {
   fprintf(stderr, "liblucy: %s\n", what);

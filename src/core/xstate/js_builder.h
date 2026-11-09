@@ -16,7 +16,7 @@ typedef struct JSBuilder {
   str_builder_t* ib;
 } JSBuilder;
 
-JSBuilder* js_builder_create();
+JSBuilder* js_builder_create(void);
 void js_builder_destroy(JSBuilder*);
 
 void js_builder_add_char(JSBuilder*, char);

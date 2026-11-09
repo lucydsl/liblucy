@@ -1,9 +1,4 @@
-#include "error.h"
-#include "../ast/node.h"
-#include "lexer.h"
-#include "core.h"
-#include "token.h"
-#include "transition.h"
+#include "internal.h"
 
 static int consume_invoke_args(State* state, void* expr, int token, char* arg, int _argi) {
   InvokeExpression* invoke_expression = (InvokeExpression*)expr;

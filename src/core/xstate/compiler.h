@@ -23,7 +23,7 @@ typedef struct CompileResult {
   int flags;
 } CompileResult;
 
-CompileResult* xs_create();
+CompileResult* xs_create(void);
 void xs_init(CompileResult*, bool, bool);
 void compile_xstate(CompileResult*, char*, char*);
 char* xs_get_js(CompileResult*);

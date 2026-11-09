@@ -1,15 +1,12 @@
+#include "printer.h"
+
 #include <ctype.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "../support/arena.h"
-#include "js_builder.h"
+
 #include "../support/mem.h"
 #include "../support/str_builder.h"
-#include "../ast/node.h"
-#include "core.h"
-#include "ts_printer.h"
 
 void xs_compile_transition_action(PrintState* state, JSBuilder* jsb,
  TransitionAction* action, const char* actions_property) {

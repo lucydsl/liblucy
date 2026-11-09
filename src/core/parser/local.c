@@ -1,15 +1,7 @@
+#include "internal.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include "error.h"
-#include "keyword.h"
-#include "local_kind.h"
-#include "../ast/node.h"
-#include "lexer.h"
-#include "action.h"
-#include "assign.h"
-#include "core.h"
-#include "send.h"
-#include "token.h"
 
 int parser_consume_local(State* state, unsigned short key) {
   int err = 0;

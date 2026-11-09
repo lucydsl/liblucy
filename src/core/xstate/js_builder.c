@@ -1,11 +1,13 @@
+#include "js_builder.h"
+
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include "js_builder.h"
+
 #include "../support/mem.h"
 #include "../support/str_builder.h"
 
-JSBuilder* js_builder_create() {
+JSBuilder* js_builder_create(void) {
   JSBuilder* jsb = xmalloc(sizeof(*jsb));
   jsb->indent_str = "  ";
   jsb->indent_len = strlen(jsb->indent_str);

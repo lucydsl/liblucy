@@ -1,8 +1,6 @@
+#include "printer.h"
+
 #include <stdbool.h>
-#include "js_builder.h"
-#include "../ast/node.h"
-#include "core.h"
-#include "transition.h"
 
 void xs_compile_invoke(PrintState* state, JSBuilder* jsb, InvokeNode* invoke_node) {
   js_builder_start_prop(jsb, "invoke");
