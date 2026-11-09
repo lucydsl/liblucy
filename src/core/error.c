@@ -25,20 +25,14 @@
 
 #define CODE_BLOCK_INDENT 4
 
-static int num_places (int n) {
-    if (n < 0) n = (n == INT_MIN) ? INT_MAX : -n;
-    if (n < 10) return 1;
-    if (n < 100) return 2;
-    if (n < 1000) return 3;
-    if (n < 10000) return 4;
-    if (n < 100000) return 5;
-    if (n < 1000000) return 6;
-    if (n < 10000000) return 7;
-    if (n < 100000000) return 8;
-    if (n < 1000000000) return 9;
-    /*      2147483647 is 2^31-1 - add more ifs as needed
-       and adjust this final return as well. */
-    return 10;
+static int num_places(long n) {
+  unsigned long u = n < 0 ? -(unsigned long)n : (unsigned long)n;
+  int places = 1;
+  while(u >= 10) {
+    u /= 10;
+    places++;
+  }
+  return places;
 }
 
 static void error_file_info(State* state, pos_t* pos) {
@@ -51,36 +45,37 @@ void error_message(const char* msg) {
   fprintf(stderr, "\n " BOLDRED "𝒙" RESET RED " %s\n\n" RESET, msg);
 }
 
-static void print_code_line(str_builder_t *sb, size_t line, int max_spaces) {
+static void print_spaces(long count) {
+  for(long i = 0; i < count; i++) {
+    fputc(' ', stderr);
+  }
+}
+
+static void print_code_line(str_builder_t *sb, long line, int max_spaces) {
   int line_spaces = num_places(line);
   int num_spaces = max_spaces - line_spaces + 1;
 
-  char spaces[num_spaces + 1];
-  for(int i = 0; i < num_spaces; i++) {
-    spaces[i] = ' ';
-  }
-  spaces[num_spaces] = '\0';
-
-  fprintf(stderr, BOLDWHITE "    %zu" RESET "%s│ %s", line, spaces, str_builder_dump(sb, NULL));
+  fprintf(stderr, BOLDWHITE "    %ld" RESET, line);
+  print_spaces(num_spaces);
+  fprintf(stderr, "│ %s", str_builder_peek(sb));
 }
 
 static void error_annotate(State* state, pos_t* pos) {
   char* source = state->source;
   size_t source_len = state->source_len;
 
-  int problem_line = pos->line;
-  int problem_col =  pos->column;
+  long problem_line = pos->line;
+  long problem_col =  pos->column;
 
-  unsigned short start_line = problem_line > 2 ? (problem_line - 2) : 0;
-  unsigned short end_line = problem_line + 2;
-  unsigned int max_num_places = num_places(end_line);
+  long start_line = problem_line > 2 ? (problem_line - 2) : 0;
+  long end_line = problem_line + 2;
+  int max_num_places = num_places(end_line);
 
   str_builder_t *sb = str_builder_create();
 
   bool in_block = false;
   size_t i = 0;
-  size_t line = 0;
-  size_t col = 0;
+  long line = 0;
   char c;
   while(i < source_len) {
     c = source[i];
@@ -105,20 +100,11 @@ static void error_annotate(State* state, pos_t* pos) {
       }
 
       if(line == problem_line) {
-        unsigned short places = CODE_BLOCK_INDENT + max_num_places + 1 + problem_col + 1;
-        char spaces[places + 1];
-        for(int pi = 0; pi < places; pi++) {
-          spaces[pi] = ' ';
-        }
-        spaces[places] = '\0';
-
-        fprintf(stderr, "%s" BOLDRED "˄" RESET "\n", spaces);
+        print_spaces(CODE_BLOCK_INDENT + max_num_places + 1 + problem_col + 1);
+        fprintf(stderr, BOLDRED "˄" RESET "\n");
       }
 
       line++;
-      col = 0;
-    } else {
-      col++;
     }
 
     i++;

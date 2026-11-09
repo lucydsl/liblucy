@@ -96,6 +96,7 @@ void ts_printer_init(ts_printer_t* printer) {
 
 void ts_printer_destroy(ts_printer_t* printer) {
   js_builder_destroy(printer->buffer);
+  str_builder_destroy(printer->machine_def_sb);
   if(printer->event_names_sb != NULL) {
     str_builder_destroy(printer->event_names_sb);
   }
@@ -202,9 +203,7 @@ static char* build_extract_clause(string_list_t* event_list) {
     str_builder_add_char(sb, '\'');
   }
   str_builder_add_str(sb, " }>", 0);
-  char* extract_clause = str_builder_dump(sb, NULL);
-  str_builder_destroy(sb);
-  return extract_clause;
+  return str_builder_release(sb, NULL);
 }
 
 static void build_machine_name(ts_printer_t* printer, JSBuilder* buffer) {
@@ -221,13 +220,13 @@ static void print_machine_definitions(ts_printer_t* printer) {
 
   if(printer->event_names_sb != NULL) {
     js_builder_add_char(buffer, '\n');
-    js_builder_add_str(buffer, str_builder_dump(printer->event_names_sb, NULL));
+    js_builder_add_str(buffer, str_builder_peek(printer->event_names_sb));
     js_builder_add_str(buffer, ";\n");
   }
 
   if(printer->data_names_sb != NULL) {
     js_builder_add_char(buffer, '\n');
-    js_builder_add_str(buffer, str_builder_dump(printer->data_names_sb, NULL));
+    js_builder_add_str(buffer, str_builder_peek(printer->data_names_sb));
     js_builder_add_str(buffer, ";\n");
   }
 
@@ -287,6 +286,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
           js_builder_add_str(buffer, " ? ");
           js_builder_add_str(buffer, extract_clause);
           js_builder_add_str(buffer, " : TEvent\n");
+          free(extract_clause);
         } else {
           js_builder_add_str(buffer, "TEvent\n");
         }
@@ -343,6 +343,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
         js_builder_add_str(buffer, " ? ");
         js_builder_add_str(buffer, extract_clause);
         js_builder_add_str(buffer, " : TEvent,\n");
+        free(extract_clause);
       } else {
         js_builder_add_str(buffer, "TEvent,\n");
       }
@@ -392,6 +393,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
         js_builder_add_str(buffer, " ? ");
         js_builder_add_str(buffer, extract_clause);
         js_builder_add_str(buffer, " : TEvent\n");
+        free(extract_clause);
       } else {
         js_builder_add_str(buffer, "TEvent\n");
       }
@@ -426,18 +428,16 @@ static void print_machine_definitions(ts_printer_t* printer) {
 
   // Create machine definition
   js_builder_add_str(buffer, "\n\n");
-  js_builder_add_str(buffer, str_builder_dump(printer->machine_def_sb, NULL));
+  js_builder_add_str(buffer, str_builder_peek(printer->machine_def_sb));
 }
 
 char* ts_printer_dump(ts_printer_t* printer) {
   str_builder_t* buffer = str_builder_create();
   build_import_clause(printer, buffer);
   print_machine_definitions(printer);
-  str_builder_add_str(buffer, js_builder_dump(printer->buffer), 0);
-  
-  char* result = str_builder_dump(buffer, NULL);
-  str_builder_destroy(buffer);
-  return result;
+  str_builder_add_str(buffer, js_builder_peek(printer->buffer), 0);
+
+  return str_builder_release(buffer, NULL);
 }
 
 static void write_machine_name(ts_printer_t* printer, str_builder_t* sb) {
