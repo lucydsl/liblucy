@@ -39,6 +39,8 @@ typedef struct State {
   Program* program;
   Node* node;
   Node* parent_node;
+  // How many machines enclose the parser now. See MAX_MACHINE_DEPTH.
+  size_t machine_depth;
 } State;
 
 typedef struct pos_t {

@@ -81,8 +81,14 @@ static int consume_machine_inner(State* state, bool is_implicit, int initial_tok
   }
 }
 
-/* Public API */
-int parser_consume_machine(State* state) {
+// Machines nest inside states, and the parser recurses through
+// consume_machine_inner and parser_consume_state for each level, so deep
+// enough nesting ran out of stack. In wasm, where the stack is 64 KB, about
+// 150 levels did, and the trap left the module unusable. Nobody nests
+// machines anywhere near this deep.
+#define MAX_MACHINE_DEPTH 64
+
+static int consume_named_machine(State* state) {
   int err = 0;
 
   MachineNode* machine_node = node_create_machine(state->arena);
@@ -114,6 +120,20 @@ int parser_consume_machine(State* state) {
   }
 }
 
+/* Public API */
+int parser_consume_machine(State* state) {
+  if(state->machine_depth >= MAX_MACHINE_DEPTH) {
+    error_msg_with_code_block_dec(state, state->token_len, "Machines are nested too deeply.");
+    return 2;
+  }
+
+  state->machine_depth++;
+  int err = consume_named_machine(state);
+  state->machine_depth--;
+  return err;
+}
+
+// Only at the top level, so it can't be too deep.
 int parser_consume_implicit_machine(State* state, int current_token) {
   int err = 0;
 
@@ -122,7 +142,10 @@ int parser_consume_implicit_machine(State* state, int current_token) {
 
   state_node_set(state, node);
 
-  _check(consume_machine_inner(state, true, current_token));
+  state->machine_depth++;
+  int inner_err = consume_machine_inner(state, true, current_token);
+  state->machine_depth--;
+  _check(inner_err);
 
   state_node_up(state);
   return err;
