@@ -1,0 +1,6 @@
+state a {
+  go => guard(:x) => b
+  go => guard(:y) => c
+  go => d
+  go => e
+}

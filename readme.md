@@ -18,3 +18,5 @@ podman run --rm -v "$PWD":/src -w /src docker.io/emscripten/emsdk:7.0.0 make all
 ```
 
 The native compiler, `bin/lucyc`, only needs a C compiler: `make bin/lucyc`. Run the tests with `make test`.
+
+`make test-sanitize` checks for memory errors and leaks: it runs the tests, and every `.lucy` file under `test/`, through native builds with AddressSanitizer and UndefinedBehaviorSanitizer. It needs GCC or Clang on Linux.

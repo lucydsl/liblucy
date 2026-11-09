@@ -1,0 +1,4 @@
+machine m {
+  use './x' { a }
+  state a {}
+}

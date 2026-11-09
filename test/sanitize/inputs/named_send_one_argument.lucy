@@ -1,0 +1,4 @@
+action a = send(b)
+state s {
+  go => a
+}

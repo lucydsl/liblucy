@@ -1,0 +1,2 @@
+use './x' { a,, b }
+state s {}

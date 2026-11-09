@@ -1,0 +1,78 @@
+use './util' { logger, check, svc, calc }
+use "./other.js" {
+  one,
+  two
+}
+
+action log = logger
+action doLog = :doLog
+action setIt = assign(prop, :setter)
+action spawnIt = assign(child, spawn(other))
+action spawnSym = assign(child, spawn(:ext))
+action sendIt = send(child, ping)
+guard ok = check
+guard okSym = :okSym
+
+machine other {
+  initial state only {
+    ping => only
+  }
+}
+
+machine main {
+  action innerLog = logger
+
+  initial state idle {
+    go => ok => okSym => guard(check) => guard(:inline) => action(log) => action(:sym) => assign(a, :b) => assign(c) => send(child, ping) => busy
+    go => busy
+    go => {
+      okSym =>
+      setIt =>
+      busy
+    }
+    on(other) => busy
+    on(delay) => busy
+    => guard(:always) => busy
+    => busy
+    delay(1s) => busy
+    delay(2m) => busy
+    delay(500) => busy
+    delay(calc) => busy
+    delay(:named) => busy
+    @entry => log => action(:enter) => assign(x, :y) => send(child, ping)
+    @exit => action(log) => assign(z)
+    reportError => idle.errored.deep
+  }
+
+  final state busy {
+    invoke(svc) {
+      done => assign(res) => idle
+      error => idle
+    }
+  }
+
+  state invoking {
+    invoke(:service) {
+      done => idle
+    }
+    invoke(other) {
+      done => idle
+    }
+  }
+
+  state nested {
+    machine inner {
+      initial state x {
+        y => z
+      }
+      state z {
+        @entry => action(:deep)
+        q => assign(d, spawn(:actor)) => x
+      }
+    }
+  }
+}
+
+state top {
+  go => spawnIt => sendIt => spawnSym => top
+}
