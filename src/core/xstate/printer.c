@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef void (*set_ref)(Printer*, Ref*);
-
 // Forget the guard, action and delay refs at the end of a machine. They
 // are arena memory, so there is nothing to free. The service list is not
 // reset here, as it never has been; see the services leaking into a later
@@ -39,58 +37,39 @@ void printer_clear_refs(Printer* printer) {
   printer->delay_refs = NULL;
 }
 
-static void add_ref(Printer* printer, char* key, Expression* value, Ref* head, StrSet* set, set_ref setter) {
-  // If already added, don't do so again.
-  if(str_set_contains(set, key)) {
+// Add key to the end of the list at *refs, unless names says it is in it
+// already.
+static void add_ref(Printer* printer, Ref** refs, StrSet* names, char* key, Expression* value) {
+  if(str_set_contains(names, key)) {
     return;
   }
 
-  Ref *ref = ARENA_NEW(printer->arena, Ref);
+  Ref* ref = ARENA_NEW(printer->arena, Ref);
   ref->key = key;
   ref->value = value;
 
-  if(head == NULL) {
-    setter(printer, ref);
-  } else {
-    Ref* cur = head; 
-    while(cur->next != NULL) {
-      cur = cur->next;
-    }
-    cur->next = ref;
+  Ref** tail = refs;
+  while(*tail != NULL) {
+    tail = &(*tail)->next;
   }
-  str_set_add(set, key);
-}
-
-static void set_action_ref(Printer* printer, Ref* ref) {
-  printer->action_refs = ref;
+  *tail = ref;
+  str_set_add(names, key);
 }
 
 void printer_add_action_ref(Printer* printer, char* key, Expression* value) {
-  add_ref(printer, key, value, printer->action_refs, &printer->action_names, *set_action_ref);
-}
-
-static void set_guard_ref(Printer* printer, Ref* ref) {
-  printer->guard_refs = ref;
+  add_ref(printer, &printer->action_refs, &printer->action_names, key, value);
 }
 
 void printer_add_guard_ref(Printer* printer, char* key, Expression* value) {
-  add_ref(printer, key, value, printer->guard_refs, &printer->guard_names, *set_guard_ref);
-}
-
-static void set_delay_ref(Printer* printer, Ref* ref) {
-  printer->delay_refs = ref;
+  add_ref(printer, &printer->guard_refs, &printer->guard_names, key, value);
 }
 
 void printer_add_delay_ref(Printer* printer, char* key, Expression* value) {
-  add_ref(printer, key, value, printer->delay_refs, &printer->delay_names, *set_delay_ref);
-}
-
-static void set_service_ref(Printer* printer, Ref* ref) {
-  printer->service_refs = ref;
+  add_ref(printer, &printer->delay_refs, &printer->delay_names, key, value);
 }
 
 void printer_add_service_ref(Printer* printer, char* key, Expression* value) {
-  add_ref(printer, key, value, printer->service_refs, &printer->service_names, *set_service_ref);
+  add_ref(printer, &printer->service_refs, &printer->service_names, key, value);
 }
 
 void printer_start_assign_call(JSBuilder* jsb, AssignExpression* assign_expression) {

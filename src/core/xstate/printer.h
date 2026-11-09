@@ -101,5 +101,5 @@ void printer_compile_invoke(Printer*, JSBuilder*, InvokeNode*);
 
 void printer_compile_event_transition(Printer*, JSBuilder*, TransitionNode*);
 void printer_compile_transition_action(Printer*, JSBuilder*, TransitionAction*, const char*);
-void printer_compile_transition_key(Printer*, JSBuilder*, Node*, char*);
+void printer_compile_transition_key(Printer*, JSBuilder*, TransitionNode*, char*);
 void printer_compile_inner_transition(Printer*, JSBuilder*, TransitionNode*);

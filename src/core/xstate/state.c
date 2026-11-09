@@ -73,8 +73,7 @@ void printer_enter_state(Printer* printer, JSBuilder* jsb, Node* node) {
     js_builder_start_object(jsb);
     TransitionNode* transition_node = state_node->delay_transition;
     do {
-      Node* transition_node_node = (Node*)transition_node;
-      printer_compile_transition_key(printer, jsb, transition_node_node, NULL);
+      printer_compile_transition_key(printer, jsb, transition_node, NULL);
       printer_compile_inner_transition(printer, jsb, transition_node);
       transition_node = transition_node->next;
     } while(transition_node != NULL);

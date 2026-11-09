@@ -26,13 +26,22 @@ void js_builder_destroy(JSBuilder* jsb) {
   free(jsb);
 }
 
-static bool current_is_newline(JSBuilder* jsb) {
-  long len = str_builder_len(jsb->text);
-  char c = str_builder_char_at(jsb->text, len - 1);
-  if(c == '\n') {
-    return true;
+// The character n places from the end of the text so far (1 is the last),
+// or NUL if there aren't that many.
+static char char_from_end(JSBuilder* jsb, size_t n) {
+  return str_builder_char_from_end(jsb->text, n);
+}
+
+// Start a property in an object: a comma and a newline after the property
+// before it, if there is one, then the indentation.
+static void start_entry(JSBuilder* jsb) {
+  // An object starts with "{\n".
+  if(char_from_end(jsb, 2) != '{') {
+    js_builder_add_str(jsb, ",\n");
   }
-  return false;
+
+  // TODO Quote keys if necessary
+  js_builder_add_indent(jsb);
 }
 
 void js_builder_add_char(JSBuilder* jsb, char c) {
@@ -86,50 +95,24 @@ void js_builder_end_object(JSBuilder* jsb) {
 }
 
 void js_builder_start_prop(JSBuilder* jsb, char* key) {
-  long len = str_builder_len(jsb->text);
-  char c = str_builder_char_at(jsb->text, len - 2);
-
-  if(c != '{') {
-    js_builder_add_str(jsb, ",\n");
-  }
-
-  // TODO Quote if necessary
-  js_builder_add_indent(jsb);
+  start_entry(jsb);
   js_builder_add_str(jsb, key);
   js_builder_add_str(jsb, ": ");
 }
 
 void js_builder_start_prop_no_copy(JSBuilder* jsb, const char* key, size_t start, size_t end) {
-  long len = str_builder_len(jsb->text);
-  char c = str_builder_char_at(jsb->text, len - 2);
-
-  if(c != '{') {
-    js_builder_add_str(jsb, ",\n");
-  }
-
-  // TODO Quote if necessary
-  js_builder_add_indent(jsb);
+  start_entry(jsb);
   js_builder_copy_str(jsb, key, start, end);
   js_builder_add_str(jsb, ": ");
 }
 
 void js_builder_shorthand_prop(JSBuilder* jsb, char* key) {
-  long len = str_builder_len(jsb->text);
-  char c = str_builder_char_at(jsb->text, len - 2);
-
-  if(c != '{') {
-    js_builder_add_str(jsb, ",\n");
-  }
-
-  // TODO Quote if necessary
-  js_builder_add_indent(jsb);
+  start_entry(jsb);
   js_builder_add_str(jsb, key);
 }
 
 void js_builder_start_call(JSBuilder* jsb, char* name) {
-  long len = str_builder_len(jsb->text);
-  char c = str_builder_char_at(jsb->text, len - 1);
-  if(c == '\n') {
+  if(char_from_end(jsb, 1) == '\n') {
     js_builder_add_indent(jsb);
   }
 
@@ -159,15 +142,14 @@ void js_builder_end_array(JSBuilder* jsb, bool newline) {
 }
 
 void js_builder_add_export(JSBuilder* jsb) {
-  if(!current_is_newline(jsb)) {
+  if(char_from_end(jsb, 1) != '\n') {
     js_builder_add_str(jsb, "\n");
   }
   js_builder_add_str(jsb, "\nexport ");
 }
 
 void js_builder_add_arg(JSBuilder* jsb, char* identifier) {
-  long len = str_builder_len(jsb->text);
-  char c = str_builder_char_at(jsb->text, len - 1);
+  char c = char_from_end(jsb, 1);
 
   // Add a comma if we need to
   if(c != ' ' && c != '(') {

@@ -9,9 +9,7 @@
 #include "../support/str_set.h"
 
 static void add_str_union(StrBuilder* sb, char* value) {
-  long len = (long)str_builder_len(sb);
-  char c = str_builder_char_at(sb, len - 1);
-  if(c == '\'') {
+  if(str_builder_char_from_end(sb, 1) == '\'') {
     str_builder_add_str(sb, " | ");
   }
 

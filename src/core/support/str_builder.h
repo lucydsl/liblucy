@@ -108,10 +108,10 @@ const char *str_builder_peek(const StrBuilder *sb);
  */
 char *str_builder_release(StrBuilder *sb, size_t *len);
 
-/*! The character at index, or NUL if index is outside the string
- * (negative indexes included).
+/*! The character n places from the end of the string (1 is the last), or
+ * NUL if the string is shorter than that.
  */
-char str_builder_char_at(const StrBuilder *sb, long index);
+char str_builder_char_from_end(const StrBuilder *sb, size_t n);
 
 /*! @}
  */

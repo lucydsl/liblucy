@@ -20,11 +20,6 @@ static ParseStatus consume_invoke_args(Parser* parser, void* expr, TokenType tok
   return PARSE_OK;
 }
 
-static inline void link_invoke(Node* state_node_node, InvokeNode* invoke_node) {
-  StateNode* state_node = (StateNode*)state_node_node;
-  state_node->invoke = invoke_node;
-}
-
 ParseStatus parser_consume_invoke(Parser* parser) {
   ParseStatus status = PARSE_OK;
 
@@ -38,7 +33,7 @@ ParseStatus parser_consume_invoke(Parser* parser) {
   }
 
   parser_enter_node(parser, node);
-  link_invoke(parent_node, invoke_node);
+  ((StateNode*)parent_node)->invoke = invoke_node;
 
   invoke_node->expr = expression_create_invoke(parser->arena);
   if(parse_merge(&status, parser_consume_call(parser, "invoke", invoke_node->expr, &consume_invoke_args)) == PARSE_FATAL) {
