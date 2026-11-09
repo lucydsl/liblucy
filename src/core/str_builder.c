@@ -1,9 +1,11 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "mem.h"
 #include "str_builder.h"
 
 /* - - - - */
@@ -22,8 +24,8 @@ str_builder_t *str_builder_create(void)
 {
     str_builder_t *sb;
 
-    sb          = calloc(1, sizeof(*sb));
-    sb->str     = malloc(str_builder_min_size);
+    sb          = xcalloc(1, sizeof(*sb));
+    sb->str     = xmalloc(str_builder_min_size);
     *sb->str    = '\0';
     sb->alloced = str_builder_min_size;
     sb->len     = 0;
@@ -48,26 +50,25 @@ void str_builder_destroy(str_builder_t *sb)
  */
 static void str_builder_ensure_space(str_builder_t *sb, size_t add_len)
 {
+    size_t needed;
+
     if (sb == NULL || add_len == 0)
         return;
 
-    if (sb->alloced >= sb->len+add_len+1)
+    needed = size_add(size_add(sb->len, add_len), 1);
+    if (sb->alloced >= needed)
         return;
 
-    while (sb->alloced < sb->len+add_len+1) {
-        /* Doubling growth strategy. */
-        sb->alloced <<= 1;
-        if (sb->alloced == 0) {
-            /* Left shift of max bits will go to 0. An unsigned type set to
-             * -1 will return the maximum possible size. However, we should
-             *  have run out of memory well before we need to do this. Since
-             *  this is the theoretical maximum total system memory we don't
-             *  have a flag saying we can't grow any more because it should
-             *  be impossible to get to this point. */
-            sb->alloced--;
+    /* Doubling growth strategy, falling back to the exact size if
+     * doubling would overflow. */
+    while (sb->alloced < needed) {
+        if (sb->alloced > SIZE_MAX / 2) {
+            sb->alloced = needed;
+            break;
         }
+        sb->alloced <<= 1;
     }
-    sb->str = realloc(sb->str, sb->alloced);
+    sb->str = xrealloc(sb->str, sb->alloced);
 }
 
 /* - - - - */
@@ -86,12 +87,13 @@ void str_builder_add_str(str_builder_t *sb, const char *str, size_t len)
     sb->str[sb->len] = '\0';
 }
 
-void str_builder_copy_str(str_builder_t *sb, char *str, size_t start, size_t end)
+void str_builder_copy_str(str_builder_t *sb, const char *str, size_t start, size_t end)
 {
-    size_t len = end - start;
-    if (sb == NULL || str == NULL || *str == '\0')
+    size_t len;
+    if (sb == NULL || str == NULL || end <= start)
         return;
 
+    len = end - start;
     str_builder_ensure_space(sb, len);
     memmove(sb->str+sb->len, str + start, len);
     sb->len += len;
@@ -177,14 +179,30 @@ char *str_builder_dump(const str_builder_t *sb, size_t *len)
 
     if (len != NULL)
         *len = sb->len;
-    out = malloc(sb->len+1);
+    out = xmalloc(size_add(sb->len, 1));
     memcpy(out, sb->str, sb->len+1);
     return out;
 }
 
-char str_builder_char_at(const str_builder_t *sb, int index) {
-    if(sb == NULL)
-        return 0;
+char *str_builder_release(str_builder_t *sb, size_t *len)
+{
+    char *out;
+
+    if (sb == NULL)
+        return NULL;
+
+    if (len != NULL)
+        *len = sb->len;
+    out = sb->str;
+    free(sb);
+    return out;
+}
+
+char str_builder_char_at(const str_builder_t *sb, long index) {
+    /* Callers look behind the end with len - 1 and len - 2, which go
+     * negative on a short string. Out of range reads as NUL. */
+    if (sb == NULL || index < 0 || (size_t)index >= sb->len)
+        return '\0';
 
     return sb->str[index];
 }

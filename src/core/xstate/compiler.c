@@ -211,9 +211,8 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     }
   }
 
-  char* js = js_builder_dump(jsb);
   result->success = true;
-  result->js = js;
+  result->js = js_builder_release(jsb);
 
   if(result->flags & XS_FLAG_DTS) {
     char* dts = ts_printer_dump(state.tsprinter);
@@ -223,7 +222,6 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
 
   // Teardown
   destroy_state(&state);
-  js_builder_destroy(jsb);
 
   return;
 }

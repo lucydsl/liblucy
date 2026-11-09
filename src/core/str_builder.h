@@ -37,7 +37,9 @@ void str_builder_destroy(str_builder_t *sb);
  */
 void str_builder_add_str(str_builder_t *sb, const char *str, size_t len);
 
-void str_builder_copy_str(str_builder_t *sb, char *str, size_t start, size_t end);
+/*! Add str[start, end) to the builder. Nothing is added if end <= start.
+ */
+void str_builder_copy_str(str_builder_t *sb, const char *str, size_t start, size_t end);
 
 /*! Add a character to the builder.
  *
@@ -98,6 +100,9 @@ const char *str_builder_peek(const str_builder_t *sb);
 
 /*! Return a copy of the string data.
  *
+ * The copy is malloc'd and the caller must free() it. To read the data
+ * without copying use str_builder_peek.
+ *
  * param[in]  sb  Builder.
  * param[out] len Length of returned data. Can be NULL if not needed.
  *
@@ -105,7 +110,22 @@ const char *str_builder_peek(const str_builder_t *sb);
  */
 char *str_builder_dump(const str_builder_t *sb, size_t *len);
 
-char str_builder_char_at(const str_builder_t *sb, int index);
+/*! Destroy the builder but keep its string.
+ *
+ * Use this instead of dump + destroy when the builder isn't needed any
+ * more: it hands over the buffer without copying it.
+ *
+ * param[in]  sb  Builder. It is freed and must not be used again.
+ * param[out] len Length of returned data. Can be NULL if not needed.
+ *
+ * return The builder's string. The caller owns it and must free() it.
+ */
+char *str_builder_release(str_builder_t *sb, size_t *len);
+
+/*! The character at index, or NUL if index is outside the string
+ * (negative indexes included).
+ */
+char str_builder_char_at(const str_builder_t *sb, long index);
 
 /*! @}
  */
