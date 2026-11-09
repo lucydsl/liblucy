@@ -2,7 +2,7 @@
 
 #include "arena.h"
 #include "node.h"
-#include "set.h"
+#include "str_set.h"
 #include "program.h"
 
 #define MODIFIER_NONE 0
@@ -10,10 +10,10 @@
 #define MODIFIER_TYPE_FINAL 2
 
 /*
- * The parser's state for one parse. It lives on parse()'s stack; set it
- * up with state_init and tear it down with state_destroy. Words, nodes and
- * everything else it creates come from arena, which belongs to the
- * caller and outlives the parse.
+ * The parser's state for one parse. It lives on parse()'s stack and is set
+ * up with state_init. Words, nodes and everything else it creates come
+ * from arena, which belongs to the caller and outlives the parse, so there
+ * is nothing to tear down.
  */
 typedef struct State {
   Arena* arena;
@@ -33,8 +33,8 @@ typedef struct State {
   size_t word_len;
   size_t token_len;
 
-  SimpleSet guards;
-  SimpleSet actions;
+  str_set_t guards;
+  str_set_t actions;
 
   Program* program;
   Node* node;
@@ -55,7 +55,6 @@ void state_rewind(State*, int);
 void state_find_position(State*, pos_t*, int);
 
 void state_init(State*, Arena*, Program*, char* source, char* filename);
-void state_destroy(State*);
 void state_advance_line(State*);
 void state_advance_column(State*);
 void state_set_word(State*, char*, size_t, size_t);

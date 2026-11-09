@@ -25,6 +25,7 @@ SOFTWARE.
 // Simple hash table implemented in C.
 
 #include "ht.h"
+#include "mem.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -37,8 +38,9 @@ typedef struct {
     void* value;
 } ht_entry;
 
-// Hash table structure: create with ht_create, free with ht_destroy.
+// Hash table structure: create with ht_create.
 struct ht {
+    Arena* arena;       // where entries and keys are allocated
     ht_entry* entries;  // hash slots
     size_t capacity;    // size of _entries array
     size_t length;      // number of items in hash table
@@ -46,35 +48,15 @@ struct ht {
 
 #define INITIAL_CAPACITY 16  // must not be zero
 
-ht* ht_create(void) {
-    // Allocate space for hash table struct.
-    ht* table = malloc(sizeof(ht));
-    if (table == NULL) {
-        return NULL;
-    }
+ht* ht_create(Arena* arena) {
+    ht* table = ARENA_NEW(arena, ht);
+    table->arena = arena;
     table->length = 0;
     table->capacity = INITIAL_CAPACITY;
 
-    // Allocate (zero'd) space for entry buckets.
-    table->entries = calloc(table->capacity, sizeof(ht_entry));
-    if (table->entries == NULL) {
-        free(table); // error, free table before we return!
-        return NULL;
-    }
+    // Zeroed space for entry buckets.
+    table->entries = arena_alloc_array(arena, table->capacity, sizeof(ht_entry));
     return table;
-}
-
-void ht_destroy(ht* table) {
-    // First free allocated keys.
-    for (size_t i = 0; i < table->capacity; i++) {
-        if (table->entries[i].key != NULL) {
-            free((void*)table->entries[i].key);
-        }
-    }
-
-    // Then free entries array and table itself.
-    free(table->entries);
-    free(table);
 }
 
 #define FNV_OFFSET 14695981039346656037UL
@@ -112,9 +94,10 @@ void* ht_get(ht* table, const char* key) {
     return NULL;
 }
 
-// Internal function to set an entry (without expanding table).
+// Internal function to set an entry (without expanding table). A new
+// key is copied into arena, unless arena is NULL (when moving entries).
 static const char* ht_set_entry(ht_entry* entries, size_t capacity,
-        const char* key, void* value, size_t* plength) {
+        const char* key, void* value, size_t* plength, Arena* arena) {
     // AND hash with capacity-1 to ensure it's within entries array.
     uint64_t hash = hash_key(key);
     size_t index = (size_t)(hash & (uint64_t)(capacity - 1));
@@ -135,11 +118,10 @@ static const char* ht_set_entry(ht_entry* entries, size_t capacity,
     }
 
     // Didn't find key, allocate+copy if needed, then insert it.
+    if (arena != NULL) {
+        key = arena_strdup(arena, key);
+    }
     if (plength != NULL) {
-        key = strdup(key);
-        if (key == NULL) {
-            return NULL;
-        }
         (*plength)++;
     }
     entries[index].key = (char*)key;
@@ -147,33 +129,25 @@ static const char* ht_set_entry(ht_entry* entries, size_t capacity,
     return key;
 }
 
-// Expand hash table to twice its current size. Return true on success,
-// false if out of memory.
-static bool ht_expand(ht* table) {
-    // Allocate new entries array.
-    size_t new_capacity = table->capacity * 2;
-    if (new_capacity < table->capacity) {
-        return false;  // overflow (capacity would be too big)
-    }
-    ht_entry* new_entries = calloc(new_capacity, sizeof(ht_entry));
-    if (new_entries == NULL) {
-        return false;
-    }
+// Expand hash table to twice its current size.
+static void ht_expand(ht* table) {
+    // Allocate new entries array (zeroed, size overflow checked).
+    size_t new_capacity = size_mul(table->capacity, 2);
+    ht_entry* new_entries = arena_alloc_array(table->arena, new_capacity,
+                                              sizeof(ht_entry));
 
     // Iterate entries, move all non-empty ones to new table's entries.
     for (size_t i = 0; i < table->capacity; i++) {
         ht_entry entry = table->entries[i];
         if (entry.key != NULL) {
             ht_set_entry(new_entries, new_capacity, entry.key,
-                         entry.value, NULL);
+                         entry.value, NULL, NULL);
         }
     }
 
-    // Free old entries array and update this table's details.
-    free(table->entries);
+    // The old entries array stays in the arena until it is destroyed.
     table->entries = new_entries;
     table->capacity = new_capacity;
-    return true;
 }
 
 const char* ht_set(ht* table, const char* key, void* value) {
@@ -184,14 +158,12 @@ const char* ht_set(ht* table, const char* key, void* value) {
 
     // If length will exceed half of current capacity, expand it.
     if (table->length >= table->capacity / 2) {
-        if (!ht_expand(table)) {
-            return NULL;
-        }
+        ht_expand(table);
     }
 
     // Set entry and update length.
     return ht_set_entry(table->entries, table->capacity, key, value,
-                        &table->length);
+                        &table->length, table->arena);
 }
 
 size_t ht_length(ht* table) {

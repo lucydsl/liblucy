@@ -4,7 +4,6 @@
 #include <string.h>
 #include "../js_builder.h"
 #include "../node.h"
-#include "../set.h"
 #include "core.h"
 #include "ts_printer.h"
 
@@ -266,9 +265,9 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     ts_printer_create_machine(state->tsprinter);
   }
 
-  set_clear(&state->guard_names);
-  set_clear(&state->action_names);
-  set_clear(&state->delay_names);
-  set_clear(&state->service_names);
+  str_set_clear(&state->guard_names);
+  str_set_clear(&state->action_names);
+  str_set_clear(&state->delay_names);
+  str_set_clear(&state->service_names);
   xs_clear_state_refs(state);
 }

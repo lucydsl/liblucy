@@ -14,13 +14,8 @@ void state_init(State* state, Arena* arena, Program* program, char* source, char
   state->filename = filename;
   state->source_len = strlen(source);
 
-  set_init(&state->guards);
-  set_init(&state->actions);
-}
-
-void state_destroy(State* state) {
-  set_destroy(&state->guards);
-  set_destroy(&state->actions);
+  str_set_init(&state->guards, arena);
+  str_set_init(&state->actions, arena);
 }
 
 void state_set_word(State* state, char* word, size_t start, size_t end) {
@@ -148,17 +143,17 @@ void state_node_start_pos(State* state, Node* node, unsigned short rewind_amount
 }
 
 void state_add_guard(State* state, char* name) {
-  set_add(&state->guards, name);
+  str_set_add(&state->guards, name);
 }
 
 bool state_has_guard(State* state, char* name) {
-  return set_contains(&state->guards, name) == SET_TRUE;
+  return str_set_contains(&state->guards, name);
 }
 
 void state_add_action(State* state, char* name) {
-  set_add(&state->actions, name);
+  str_set_add(&state->actions, name);
 }
 
 bool state_has_action(State* state, char* name) {
-  return set_contains(&state->actions, name) == SET_TRUE;
+  return str_set_contains(&state->actions, name);
 }

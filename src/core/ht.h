@@ -23,30 +23,32 @@ SOFTWARE.
 */
  
 // Simple hash table implemented in C.
+//
+// Changed for liblucy: the table, its entries and its copies of the keys
+// are allocated from an arena (see arena.h), so there is no ht_destroy;
+// the table goes when the arena does. Values are the caller's to manage.
+// Hashing, probing and growth are unchanged, so iteration order is too.
 
 #ifndef _HT_H
 #define _HT_H
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "arena.h"
 
-// Hash table structure: create with ht_create, free with ht_destroy.
+// Hash table structure: create with ht_create.
 typedef struct ht ht;
 
-// Create hash table and return pointer to it, or NULL if out of memory.
-ht* ht_create(void);
-
-// Free memory allocated for hash table, including allocated keys.
-void ht_destroy(ht* table);
+// Create a hash table in arena. Never returns NULL.
+ht* ht_create(Arena* arena);
 
 // Get item with given key (NUL-terminated) from hash table. Return
 // value (which was set with ht_set), or NULL if key not found.
 void* ht_get(ht* table, const char* key);
 
 // Set item with given key (NUL-terminated) to value (which must not
-// be NULL). If not already present in table, key is copied to newly
-// allocated memory (keys are freed automatically when ht_destroy is
-// called). Return address of copied key, or NULL if out of memory.
+// be NULL). If not already present in table, key is copied into the
+// arena. Return address of copied key.
 const char* ht_set(ht* table, const char* key, void* value);
 
 // Return number of items in hash table.
