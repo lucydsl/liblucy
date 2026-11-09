@@ -1,7 +1,7 @@
 #include "internal.h"
 
-static int consume_machine_inner(Parser* parser, bool is_implicit, TokenType initial_token) {
-  int err = 0;
+static ParseStatus consume_machine_inner(Parser* parser, bool is_implicit, TokenType initial_token) {
+  ParseStatus status = PARSE_OK;
   TokenType token = is_implicit ? initial_token : parser_next_token(parser);
 
   while(true) {
@@ -13,14 +13,14 @@ static int consume_machine_inner(Parser* parser, bool is_implicit, TokenType ini
           goto end;
         }
         parser_error_unexpected_identifier(parser, parser->node);
-        err = 1;
+        status = PARSE_ERROR;
         break;
       }
       case TOKEN_IDENTIFIER: {
         Keyword key = keyword_lookup(parser->word);
         if(key == KEYWORD_NONE) {
           parser_error(parser, parser->node, "Unknown top-level identifier.");
-          err = 2;
+          status = PARSE_FATAL;
           goto end;
         }
 
@@ -34,19 +34,27 @@ static int consume_machine_inner(Parser* parser, bool is_implicit, TokenType ini
             break;
           }
           case KEYWORD_STATE: {
-            _check(parser_consume_state(parser));
+            if(parse_merge(&status, parser_consume_state(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
           case KEYWORD_USE: {
-            _check(parser_consume_use(parser));
+            if(parse_merge(&status, parser_consume_use(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
           case KEYWORD_ACTION: {
-            _check(parser_consume_action(parser));
+            if(parse_merge(&status, parser_consume_action(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
           case KEYWORD_GUARD: {
-            _check(parser_consume_guard(parser));
+            if(parse_merge(&status, parser_consume_guard(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
           default: {
@@ -58,7 +66,7 @@ static int consume_machine_inner(Parser* parser, bool is_implicit, TokenType ini
       }
       default: {
         parser_error_unexpected_identifier(parser, parser->node);
-        err = 2;
+        status = PARSE_FATAL;
         goto end;
       }
     }
@@ -69,7 +77,7 @@ static int consume_machine_inner(Parser* parser, bool is_implicit, TokenType ini
   }
 
   end: {
-    return err;
+    return status;
   }
 }
 
@@ -80,8 +88,8 @@ static int consume_machine_inner(Parser* parser, bool is_implicit, TokenType ini
 // machines anywhere near this deep.
 #define MAX_MACHINE_DEPTH 64
 
-static int consume_named_machine(Parser* parser) {
-  int err = 0;
+static ParseStatus consume_named_machine(Parser* parser) {
+  ParseStatus status = PARSE_OK;
 
   MachineNode* machine_node = node_create_machine(parser->arena);
   Node* node = (Node*)machine_node;
@@ -90,7 +98,7 @@ static int consume_named_machine(Parser* parser) {
   TokenType token = parser_next_token(parser);
   if(token != TOKEN_IDENTIFIER) {
     parser_error(parser, node, "Machine must have a name.");
-    err = 1;
+    status = PARSE_ERROR;
     goto end;
   }
   machine_node->name_start = parser->word_start;
@@ -100,34 +108,38 @@ static int consume_named_machine(Parser* parser) {
 
   if(token != TOKEN_BEGIN_BLOCK) {
     parser_error_unexpected_identifier(parser, node);
-    err = 1;
+    status = PARSE_ERROR;
     goto end;
   }
 
-  _check(consume_machine_inner(parser, false, 0));
+  if(parse_merge(&status, consume_machine_inner(parser, false, 0)) == PARSE_FATAL) {
+
+    return PARSE_FATAL;
+
+  }
 
   end: {
     parser_leave_node(parser);
-    return err;
+    return status;
   }
 }
 
 /* Public API */
-int parser_consume_machine(Parser* parser) {
+ParseStatus parser_consume_machine(Parser* parser) {
   if(parser->machine_depth >= MAX_MACHINE_DEPTH) {
     parser_error_back(parser, parser->token_len, "Machines are nested too deeply.");
-    return 2;
+    return PARSE_FATAL;
   }
 
   parser->machine_depth++;
-  int err = consume_named_machine(parser);
+  ParseStatus status = consume_named_machine(parser);
   parser->machine_depth--;
-  return err;
+  return status;
 }
 
 // Only at the top level, so it can't be too deep.
-int parser_consume_implicit_machine(Parser* parser, TokenType current_token) {
-  int err = 0;
+ParseStatus parser_consume_implicit_machine(Parser* parser, TokenType current_token) {
+  ParseStatus status = PARSE_OK;
 
   MachineNode* machine_node = node_create_machine(parser->arena);
   Node* node = (Node*)machine_node;
@@ -135,10 +147,12 @@ int parser_consume_implicit_machine(Parser* parser, TokenType current_token) {
   parser_enter_node(parser, node);
 
   parser->machine_depth++;
-  int inner_err = consume_machine_inner(parser, true, current_token);
+  ParseStatus inner = consume_machine_inner(parser, true, current_token);
   parser->machine_depth--;
-  _check(inner_err);
+  if(parse_merge(&status, inner) == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
 
   parser_leave_node(parser);
-  return err;
+  return status;
 }

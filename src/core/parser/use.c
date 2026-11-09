@@ -2,8 +2,8 @@
 
 #include <string.h>
 
-static int consume_use_specifiers(ImportNode* import_node, Parser* parser) {
-  int err = 0;
+static ParseStatus consume_use_specifiers(ImportNode* import_node, Parser* parser) {
+  ParseStatus status = PARSE_OK;
   TokenType token;
 
   // The specifier read but not yet added. Only add one once: `{ a,, b }`
@@ -19,7 +19,7 @@ static int consume_use_specifiers(ImportNode* import_node, Parser* parser) {
         if(strcmp(identifier, "as") == 0) {
 
           parser_error(parser, (Node*)import_node, "Import aliases are not currently supported.");
-          return 2;
+          return PARSE_FATAL;
         }
 
         specifier = node_create_import_specifier(parser->arena, identifier);
@@ -49,12 +49,12 @@ static int consume_use_specifiers(ImportNode* import_node, Parser* parser) {
   }
 
   end: {
-    return err;
+    return status;
   }
 }
 
-int parser_consume_use(Parser* parser) {
-  int err = 0;
+ParseStatus parser_consume_use(Parser* parser) {
+  ParseStatus status = PARSE_OK;
   Node *current_node = parser->node;
 
   if(current_node != NULL) {
@@ -62,7 +62,7 @@ int parser_consume_use(Parser* parser) {
     // Return rather than go to end: no node has been pushed yet, so
     // parser_leave_node would pop the enclosing machine, and the next state
     // would find no parent.
-    return 1;
+    return PARSE_ERROR;
   }
 
   ImportNode *import_node = node_create_import(parser->arena);
@@ -77,7 +77,7 @@ int parser_consume_use(Parser* parser) {
   // use './util'
   if(token != TOKEN_STRING) {
     parser_error(parser, current_node, "Expected a string.");
-    err = 1;
+    status = PARSE_ERROR;
     goto end;
   }
   import_node->from = parser_take_word(parser);
@@ -94,26 +94,31 @@ int parser_consume_use(Parser* parser) {
         if(consumed_specifiers) {
           goto end;
         }
-      };
+        // Known bug: a newline before the specifiers falls through and is
+        // parsed as if it were the {.
+      }
+      // fall through
       case TOKEN_BEGIN_BLOCK: {
-        _check(consume_use_specifiers(import_node, parser));
+        if(parse_merge(&status, consume_use_specifiers(import_node, parser)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
         consumed_specifiers = true;
 
         break;
       }
       case TOKEN_IDENTIFIER: {
         parser_error_unexpected_identifier(parser, node);
-        err = 1;
+        status = PARSE_ERROR;
         goto end;
       }
       case TOKEN_UNKNOWN: {
         parser_error_unexpected_identifier(parser, node);
-        err = 2;
+        status = PARSE_FATAL;
         goto end;
       }
       default: {
         parser_error_unexpected_identifier(parser, node);
-        err = 2;
+        status = PARSE_FATAL;
         goto end;
       }
     }
@@ -121,6 +126,6 @@ int parser_consume_use(Parser* parser) {
 
   end: {
     parser_leave_node(parser);
-    return err;
+    return status;
   }
 }

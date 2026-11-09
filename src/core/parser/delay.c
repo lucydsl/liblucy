@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int consume_inline_delay_args(Parser* parser, void* expr, TokenType token, char* arg, int _argi) {
+static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenType token, char* arg, size_t _index) {
   DelayExpression* delay_expression = (DelayExpression*)expr;
 
   int time = 0;
@@ -15,7 +15,7 @@ static int consume_inline_delay_args(Parser* parser, void* expr, TokenType token
 
       if(tf.error != NULL) {
         parser_error(parser, NULL, tf.error);
-        return 2;
+        return PARSE_FATAL;
       }
 
       time = tf.time;
@@ -26,7 +26,7 @@ static int consume_inline_delay_args(Parser* parser, void* expr, TokenType token
 
       if(tf.error != NULL) {
         parser_error(parser, NULL, tf.error);
-        return 2;
+        return PARSE_FATAL;
       }
 
       time = tf.time;
@@ -46,23 +46,27 @@ static int consume_inline_delay_args(Parser* parser, void* expr, TokenType token
     }
     default: {
       parser_error(parser, NULL, "Expected either an integer time (in milliseconds) or a timeframe such as 200ms.");
-      return 2;
+      return PARSE_FATAL;
     }
   }
 
   delay_expression->time = time;
   delay_expression->ref = ref;
 
-  return 0;
+  return PARSE_OK;
 }
 
-int parser_consume_inline_delay(Parser* parser, TransitionNode* transition_node, StateNode* state_node) {
-  int err = 0;
+ParseStatus parser_consume_inline_delay(Parser* parser, TransitionNode* transition_node, StateNode* state_node) {
+  ParseStatus status = PARSE_OK;
 
   transition_node->type = TRANSITION_DELAY;
   DelayExpression* expression = expression_create_delay(parser->arena);
 
-  _check(parser_consume_call(parser, "delay", expression, &consume_inline_delay_args));
+  if(parse_merge(&status, parser_consume_call(parser, "delay", expression, &consume_inline_delay_args)) == PARSE_FATAL) {
+
+    return PARSE_FATAL;
+
+  }
 
   node_transition_set_delay(parser->arena, transition_node, NULL, expression);
   if(expression-> ref != NULL && expression->ref->type == EXPRESSION_SYMBOL) {
@@ -70,5 +74,5 @@ int parser_consume_inline_delay(Parser* parser, TransitionNode* transition_node,
     machine_node->flags |= MACHINE_USES_DELAY;
   }
 
-  return err;
+  return status;
 }

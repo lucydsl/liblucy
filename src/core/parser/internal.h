@@ -13,6 +13,35 @@
 #include "../support/arena.h"
 #include "../support/str_set.h"
 
+/*
+ * What each parse function returns. By the time one returns PARSE_ERROR or
+ * PARSE_FATAL it has reported the error.
+ */
+typedef enum ParseStatus {
+  PARSE_OK,
+  // There was an error, but the parser can carry on and look for more.
+  PARSE_ERROR,
+  // There was an error the parser can't carry on from: every caller
+  // returns PARSE_FATAL at once, without tidying up.
+  PARSE_FATAL,
+} ParseStatus;
+
+/*
+ * Record result, what a nested parse returned, in *status, which keeps the
+ * worst result so far, and return result. A caller stops at once when a
+ * nested parse is fatal:
+ *
+ *   if(parse_merge(&status, parser_consume_state(parser)) == PARSE_FATAL) {
+ *     return PARSE_FATAL;
+ *   }
+ */
+static inline ParseStatus parse_merge(ParseStatus* status, ParseStatus result) {
+  if(result > *status) {
+    *status = result;
+  }
+  return result;
+}
+
 // The keyword before a state: `initial state a` or `final state b`.
 typedef enum Modifier {
   MODIFIER_NONE,
@@ -110,19 +139,27 @@ TokenType parser_next_token(Parser*);
 
 /* call.c: calls such as guard(x). */
 
-#define _check(f) { int _fa = f; if(_fa == 2)  { return 2; } else if(_fa > err) { err = _fa; } }
+/*
+ * Called by parser_consume_call for each of a call's arguments: a word,
+ * a number, a timeframe or a :symbol. expr is the expression the caller
+ * passed, for the handler to fill in; index counts the arguments and
+ * commas so far.
+ */
+typedef ParseStatus (*CallArgHandler)(Parser*, void* expr, TokenType, char* arg, size_t index);
 
-typedef int (*CallArgHandler)(Parser*, void*, TokenType, char*, int);
-
-int parser_consume_call(Parser*, const char*, void*, CallArgHandler on_args);
+/*
+ * Parse a call's argument list, `(a, b)`, after its name (fn_name, for
+ * error messages), passing each argument to on_args.
+ */
+ParseStatus parser_consume_call(Parser*, const char* fn_name, void* expr, CallArgHandler on_args);
 
 /*
  * Check that a call such as guard(x) got the argument it needs, arg being
- * what the argument callback stored (NULL if nothing). err is the result
- * of parser_consume_call. With no argument this reports an error,
- * unless the call already reported one, and returns non-zero.
+ * what the argument handler stored (NULL if nothing). status is what
+ * parser_consume_call returned. With no argument this reports an error,
+ * unless the call already reported one, and returns PARSE_ERROR.
  */
-int parser_expect_call_argument(Parser*, const char* fn_name, const void* arg, int err);
+ParseStatus parser_expect_call_argument(Parser*, const char* fn_name, const void* arg, ParseStatus status);
 
 /* error.c: error messages pointing into the source. */
 
@@ -173,20 +210,20 @@ Timeframe timeframe_parse(char*, size_t);
 
 /* The parsers for each construct, one file each. */
 
-int parser_consume_machine(Parser*);
-int parser_consume_implicit_machine(Parser*, TokenType);
-int parser_consume_state(Parser*);
-int parser_consume_use(Parser*);
-int parser_consume_local(Parser*, LocalKind);
-int parser_consume_transition(Parser*);
-int parser_consume_invoke(Parser*);
-int parser_consume_action(Parser*);
-int parser_consume_inline_action(Parser*, Node*);
-int parser_consume_guard(Parser*);
-int parser_consume_inline_guard(Parser*, TransitionNode*);
-int parser_consume_inline_assign_args(Parser*, void*, TokenType, char*, int);
-int parser_consume_inline_assign(Parser*, Node*);
-int parser_consume_inline_send_args(Parser*, void*, TokenType, char*, int);
-int parser_consume_inline_send(Parser*, Node*);
-int parser_consume_inline_spawn(Parser*, AssignExpression*);
-int parser_consume_inline_delay(Parser*, TransitionNode*, StateNode*);
+ParseStatus parser_consume_machine(Parser*);
+ParseStatus parser_consume_implicit_machine(Parser*, TokenType);
+ParseStatus parser_consume_state(Parser*);
+ParseStatus parser_consume_use(Parser*);
+ParseStatus parser_consume_local(Parser*, LocalKind);
+ParseStatus parser_consume_transition(Parser*);
+ParseStatus parser_consume_invoke(Parser*);
+ParseStatus parser_consume_action(Parser*);
+ParseStatus parser_consume_inline_action(Parser*, Node*);
+ParseStatus parser_consume_guard(Parser*);
+ParseStatus parser_consume_inline_guard(Parser*, TransitionNode*);
+ParseStatus parser_consume_inline_assign_args(Parser*, void*, TokenType, char*, size_t);
+ParseStatus parser_consume_inline_assign(Parser*, Node*);
+ParseStatus parser_consume_inline_send_args(Parser*, void*, TokenType, char*, size_t);
+ParseStatus parser_consume_inline_send(Parser*, Node*);
+ParseStatus parser_consume_inline_spawn(Parser*, AssignExpression*);
+ParseStatus parser_consume_inline_delay(Parser*, TransitionNode*, StateNode*);

@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-static int consume_inline_action_args(Parser* parser, void* expr, TokenType token, char* arg, int _argi) {
+static ParseStatus consume_inline_action_args(Parser* parser, void* expr, TokenType token, char* arg, size_t _index) {
   ActionExpression* action_expression = (ActionExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
@@ -16,21 +16,27 @@ static int consume_inline_action_args(Parser* parser, void* expr, TokenType toke
 
   } else {
     parser_error_back(parser, parser->token_len, "Unexpected argument to action()");
-    return 1;
+    return PARSE_ERROR;
   }
 
-  return 0;
+  return PARSE_OK;
 }
 
-int parser_consume_inline_action(Parser* parser, Node* node) {
-  int err = 0;
+ParseStatus parser_consume_inline_action(Parser* parser, Node* node) {
+  ParseStatus status = PARSE_OK;
 
   ActionExpression* action_expression = expression_create_action(parser->arena);
 
-  _check(parser_consume_call(parser, "action", action_expression, &consume_inline_action_args));
-  _check(parser_expect_call_argument(parser, "action", action_expression->ref, err));
+  if(parse_merge(&status, parser_consume_call(parser, "action", action_expression, &consume_inline_action_args)) == PARSE_FATAL) {
+
+    return PARSE_FATAL;
+
+  }
+  if(parse_merge(&status, parser_expect_call_argument(parser, "action", action_expression->ref, status)) == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
   if(action_expression->ref == NULL) {
-    return err;
+    return status;
   }
 
   switch(node->type) {
@@ -57,11 +63,11 @@ int parser_consume_inline_action(Parser* parser, Node* node) {
     parent_machine_node->flags |= MACHINE_USES_ACTION;
   }
 
-  return err;
+  return status;
 }
 
-int parser_consume_action(Parser* parser) {
-  int err = 0;
+ParseStatus parser_consume_action(Parser* parser) {
+  ParseStatus status = PARSE_OK;
 
   AssignmentNode* assignment = node_create_assignment(parser->arena, ASSIGNMENT_ACTION);
   Node *node = (Node*)assignment;
@@ -72,7 +78,7 @@ int parser_consume_action(Parser* parser) {
 
   if(token != TOKEN_IDENTIFIER) {
     parser_error_unexpected_identifier(parser, node);
-    return 2;
+    return PARSE_FATAL;
   }
 
   char* binding_name = parser_take_word(parser);
@@ -81,7 +87,7 @@ int parser_consume_action(Parser* parser) {
   token = parser_next_token(parser);
   if(token != TOKEN_ASSIGNMENT) {
     parser_error(parser, node, "Expected an assignment");
-    return 2;
+    return PARSE_FATAL;
   }
 
   token = parser_next_token(parser);
@@ -92,14 +98,17 @@ int parser_consume_action(Parser* parser) {
       switch(key) {
         case KEYWORD_ASSIGN: {
           AssignExpression *expression = expression_create_assign(parser->arena);
-          parser_consume_call(parser, "assign", expression, &parser_consume_inline_assign_args);
+          // Known bug: an error in the call is reported but ignored, so
+          // the compile still succeeds.
+          (void)parser_consume_call(parser, "assign", expression, &parser_consume_inline_assign_args);
           assignment->value = (Expression*)expression;
           program_add_flag(parser->program, PROGRAM_USES_ASSIGN);
           break;
         }
         case KEYWORD_SEND: {
           SendExpression* expression = expression_create_send(parser->arena);
-          parser_consume_call(parser, "send", expression, &parser_consume_inline_send_args);
+          // Known bug: as for assign above.
+          (void)parser_consume_call(parser, "send", expression, &parser_consume_inline_send_args);
           assignment->value = (Expression*)expression;
           program_add_flag(parser->program, PROGRAM_USES_SEND);
           break;
@@ -120,13 +129,13 @@ int parser_consume_action(Parser* parser) {
     }
     default: {
       parser_error_back(parser, parser->token_len, "Expected an identifier");
-      return 2;
+      return PARSE_FATAL;
     }
   }
 
   end: {
     parser_add_action_name(parser, assignment->binding_name);
     parser_leave_node(parser);
-    return err;
+    return status;
   }
 }
