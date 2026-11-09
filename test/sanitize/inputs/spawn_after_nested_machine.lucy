@@ -1,0 +1,6 @@
+state a {
+  machine inner {
+    state b {}
+  }
+  go => assign(x, spawn(:y)) => a
+}

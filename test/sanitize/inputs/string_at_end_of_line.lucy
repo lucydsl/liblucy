@@ -1,0 +1,3 @@
+use './util
+{ a }
+state a {}

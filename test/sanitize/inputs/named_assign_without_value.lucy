@@ -1,0 +1,4 @@
+action a = assign(key)
+state s {
+  go => a
+}

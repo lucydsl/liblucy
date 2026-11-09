@@ -1,0 +1,5 @@
+state a {
+  invoke() {
+    done => b
+  }
+}

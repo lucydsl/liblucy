@@ -1,0 +1,3 @@
+state a {
+  delay(1s)
+}

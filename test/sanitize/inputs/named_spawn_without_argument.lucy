@@ -1,0 +1,4 @@
+action a = assign(x, spawn())
+state s {
+  go => a
+}
