@@ -1,5 +1,17 @@
 EMCC=emcc
 
+# Every build, native and wasm, is C17 with these warnings. CI builds with
+# WERROR=1, which makes them errors.
+CSTD=-std=c17
+WARNINGS=-Wall -Wextra -Wpedantic \
+	-Wstrict-prototypes -Wmissing-prototypes -Wold-style-definition \
+	-Wshadow -Wconversion -Wcast-qual -Wwrite-strings \
+	-Wvla -Wformat=2 -Wundef -Wpointer-arith
+ifdef WERROR
+WARNINGS+=-Werror
+endif
+LUCY_CFLAGS=$(CSTD) $(WARNINGS)
+
 VERSION=$(shell cat package.json | jq -r '.version')
 SRC_FILES=$(shell find src -type f)
 CORE_C_FILES=$(shell find src/core -type f -name "*.c")
@@ -13,7 +25,7 @@ all: dist/liblucy-debug-node.mjs dist/liblucy-debug-browser.mjs \
 dist:
 	@mkdir -p dist
 
-EMCC_FLAGS=$(WASM_C_FILES) $(CORE_C_FILES) \
+EMCC_FLAGS=$(LUCY_CFLAGS) $(WASM_C_FILES) $(CORE_C_FILES) \
 	-sEXPORT_ES6 \
 	-sMODULARIZE \
 	-sALLOW_MEMORY_GROWTH \
@@ -34,7 +46,7 @@ dist/liblucy-release-browser.mjs: $(SRC_FILES) | dist
 
 bin/lucyc: $(SRC_FILES)
 	@mkdir -p bin
-	$(CC) ${BIN_C_FILES} $(CORE_C_FILES) -o $@ \
+	$(CC) $(LUCY_CFLAGS) $(CFLAGS) ${BIN_C_FILES} $(CORE_C_FILES) -o $@ \
 		-DVERSION=\"$(VERSION)\" \
 		-lm
 
@@ -46,7 +58,7 @@ SANITIZE_ENV=ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1
 
 bin/lucyc-sanitize: $(SRC_FILES)
 	@mkdir -p bin
-	$(CC) $(SANITIZE_FLAGS) ${BIN_C_FILES} $(CORE_C_FILES) -o $@ \
+	$(CC) $(LUCY_CFLAGS) $(SANITIZE_FLAGS) ${BIN_C_FILES} $(CORE_C_FILES) -o $@ \
 		-DVERSION=\"$(VERSION)\" \
 		-lm
 
@@ -55,11 +67,11 @@ bin/lucyc-sanitize: $(SRC_FILES)
 # block allocator, so that it runs under the sanitizers too.
 bin/compile-all-sanitize: test/sanitize/compile_all.c $(SRC_FILES)
 	@mkdir -p bin
-	$(CC) $(SANITIZE_FLAGS) test/sanitize/compile_all.c $(CORE_C_FILES) -o $@ -lm
+	$(CC) $(LUCY_CFLAGS) $(SANITIZE_FLAGS) test/sanitize/compile_all.c $(CORE_C_FILES) -o $@ -lm
 
 bin/compile-all-sanitize-arena: test/sanitize/compile_all.c $(SRC_FILES)
 	@mkdir -p bin
-	$(CC) $(SANITIZE_FLAGS) -DARENA_DEBUG=0 test/sanitize/compile_all.c $(CORE_C_FILES) -o $@ -lm
+	$(CC) $(LUCY_CFLAGS) $(SANITIZE_FLAGS) -DARENA_DEBUG=0 test/sanitize/compile_all.c $(CORE_C_FILES) -o $@ -lm
 
 clean:
 	@rm -rf dist bin
