@@ -44,12 +44,14 @@ async function run() {
   const rel = env === 'production' ? 'prod' : 'dev';
   const [
     contents,
-    { compileXstate, ready }
+    liblucy
   ] = await Promise.all([
     readFile(filename, 'utf-8'),
     import(`../main-node-${rel}.mjs`)
   ]);
-  await ready;
+  await liblucy.ready;
+  // compileXstate is only set once ready resolves.
+  const { compileXstate } = liblucy;
 
   try {
     const result = compileXstate(contents, filename, options);
@@ -65,7 +67,8 @@ async function run() {
 
       process.stdout.write("\n");
     }
-  } catch {
+  } catch (err) {
+    if(process.env.LUCY_DEBUG) console.error(err);
     process.stderr.write("Compilation failed!\n");
     process.exit(1);
   }

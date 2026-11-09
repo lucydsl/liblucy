@@ -3,6 +3,8 @@
 LUCYC="${LUCYC:-bin/lucyc}"
 NODE_ENV="${NODE_ENV:-development}"
 ret=0
+COLORDIFF=colordiff
+command -v colordiff &> /dev/null || COLORDIFF=cat
 upd=0
 
 red='\033[0;31m'
@@ -59,7 +61,7 @@ run_test() {
       return
   fi
   
-  d=$(diff $output $tmp | colordiff)
+  d=$(diff $output $tmp | $COLORDIFF)
 
   if [ ${#d} -ge 1 ]; then
     echo -e "${red}FAILED${nc} - $input"
