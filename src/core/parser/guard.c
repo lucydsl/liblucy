@@ -1,6 +1,6 @@
 #include "internal.h"
 
-static int consume_inline_guard_args(Parser* parser, void* expr, TokenType token, char* arg, int _argi) {
+static ParseStatus consume_inline_guard_args(Parser* parser, void* expr, TokenType token, char* arg, size_t _index) {
   GuardExpression* guard_expression = (GuardExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
@@ -13,20 +13,26 @@ static int consume_inline_guard_args(Parser* parser, void* expr, TokenType token
     guard_expression->ref = (Expression*)ref;
   } else {
     parser_error_back(parser, parser->token_len, "Unexpected function argument to guard()");
-    return 1;
+    return PARSE_ERROR;
   }
 
-  return 0;
+  return PARSE_OK;
 }
 
-int parser_consume_inline_guard(Parser* parser, TransitionNode* transition_node) {
-  int err = 0;
+ParseStatus parser_consume_inline_guard(Parser* parser, TransitionNode* transition_node) {
+  ParseStatus status = PARSE_OK;
   GuardExpression* guard_expression = expression_create_guard(parser->arena);
   
-  _check(parser_consume_call(parser, "guard", guard_expression, &consume_inline_guard_args));
-  _check(parser_expect_call_argument(parser, "guard", guard_expression->ref, err));
+  if(parse_merge(&status, parser_consume_call(parser, "guard", guard_expression, &consume_inline_guard_args)) == PARSE_FATAL) {
+  
+    return PARSE_FATAL;
+  
+  }
+  if(parse_merge(&status, parser_expect_call_argument(parser, "guard", guard_expression->ref, status)) == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
   if(guard_expression->ref == NULL) {
-    return err;
+    return status;
   }
 
   TransitionGuard* guard = node_transition_add_guard(parser->arena, transition_node, NULL);
@@ -37,11 +43,11 @@ int parser_consume_inline_guard(Parser* parser, TransitionNode* transition_node)
     parent_machine_node->flags |= MACHINE_USES_GUARD;
   }
 
-  return err;
+  return status;
 }
 
 /* Public API */
-int parser_consume_guard(Parser* parser) {
+ParseStatus parser_consume_guard(Parser* parser) {
   AssignmentNode* assignment = node_create_assignment(parser->arena, ASSIGNMENT_GUARD);
   Node* node = (Node*)assignment;
   parser_enter_node(parser, node);
@@ -52,7 +58,7 @@ int parser_consume_guard(Parser* parser) {
 
   if(token != TOKEN_IDENTIFIER) {
     parser_error_unexpected_identifier(parser, node);
-    return 2;
+    return PARSE_FATAL;
   }
 
   assignment->binding_name = parser_take_word(parser);
@@ -61,7 +67,7 @@ int parser_consume_guard(Parser* parser) {
 
   if(token != TOKEN_ASSIGNMENT) {
     parser_error(parser, node, "Expected an identifier");
-    return 2;
+    return PARSE_FATAL;
   }
 
   token = parser_next_token(parser);
@@ -80,11 +86,11 @@ int parser_consume_guard(Parser* parser) {
     }
     default: {
       parser_error_back(parser, parser->token_len, "Expected an identifier");
-      return 2;
+      return PARSE_FATAL;
     }
   }
 
   parser_add_guard_name(parser, assignment->binding_name);
   parser_leave_node(parser);
-  return 0;
+  return PARSE_OK;
 }

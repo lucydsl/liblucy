@@ -1,6 +1,6 @@
 #include "internal.h"
 
-static int consume_invoke_args(Parser* parser, void* expr, TokenType token, char* arg, int _argi) {
+static ParseStatus consume_invoke_args(Parser* parser, void* expr, TokenType token, char* arg, size_t _index) {
   InvokeExpression* invoke_expression = (InvokeExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
@@ -13,10 +13,10 @@ static int consume_invoke_args(Parser* parser, void* expr, TokenType token, char
     invoke_expression->ref = (Expression*)symbol_expression;
   } else {
     parser_error_back(parser, parser->token_len, "Unexpected argument to invoke()");
-    return 1;
+    return PARSE_ERROR;
   }
 
-  return 0;
+  return PARSE_OK;
 }
 
 static inline void link_invoke(Node* state_node_node, InvokeNode* invoke_node) {
@@ -24,8 +24,8 @@ static inline void link_invoke(Node* state_node_node, InvokeNode* invoke_node) {
   state_node->invoke = invoke_node;
 }
 
-int parser_consume_invoke(Parser* parser) {
-  int err = 0;
+ParseStatus parser_consume_invoke(Parser* parser) {
+  ParseStatus status = PARSE_OK;
 
   InvokeNode* invoke_node = node_create_invoke(parser->arena);
   Node* node = (Node*)invoke_node;
@@ -34,16 +34,20 @@ int parser_consume_invoke(Parser* parser) {
   Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_STATE) {
     parser_error(parser, node, "Unexpected parent for invoke.");
-    return 2;
+    return PARSE_FATAL;
   }
 
   parser_enter_node(parser, node);
   link_invoke(parent_node, invoke_node);
 
   invoke_node->expr = expression_create_invoke(parser->arena);
-  _check(parser_consume_call(parser, "invoke", invoke_node->expr, &consume_invoke_args));
+  if(parse_merge(&status, parser_consume_call(parser, "invoke", invoke_node->expr, &consume_invoke_args)) == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
   // Without an argument keep going, so the block after it is still parsed.
-  _check(parser_expect_call_argument(parser, "invoke", invoke_node->expr->ref, err));
+  if(parse_merge(&status, parser_expect_call_argument(parser, "invoke", invoke_node->expr->ref, status)) == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
   MachineNode* machine_node = node_find_machine(parent_node);
   if(invoke_node->expr->ref != NULL &&
     invoke_node->expr->ref->type == EXPRESSION_SYMBOL && machine_node != NULL) {
@@ -54,7 +58,7 @@ int parser_consume_invoke(Parser* parser) {
 
   if(token != TOKEN_BEGIN_BLOCK) {
     parser_error_unexpected_identifier(parser, node);
-    return 2;
+    return PARSE_FATAL;
   }
 
   while(true) {
@@ -66,12 +70,14 @@ int parser_consume_invoke(Parser* parser) {
         goto end;
       }
       case TOKEN_IDENTIFIER: {
-        _check(parser_consume_transition(parser));
+        if(parse_merge(&status, parser_consume_transition(parser)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
         break;
       }
       default: {
         parser_error_unexpected_identifier(parser, node);
-        err = 2;
+        status = PARSE_FATAL;
         goto end;
       }
     }
@@ -79,6 +85,6 @@ int parser_consume_invoke(Parser* parser) {
 
   end: {
     parser_leave_node(parser);
-    return err;
+    return status;
   }
 }

@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int parser_consume_local(Parser* parser, LocalKind key) {
-  int err = 0;
+ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
+  ParseStatus status = PARSE_OK;
 
   LocalNode* local_node = node_create_local(parser->arena);
   Node* node = (Node*)local_node;
@@ -16,7 +16,7 @@ int parser_consume_local(Parser* parser, LocalKind key) {
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "Unexpected parent of %s", local_name(key));
     parser_error_back(parser, parser->token_len, buffer);
-    err = 1;
+    status = PARSE_ERROR;
   }
 
   parser_enter_node(parser, node);
@@ -42,14 +42,14 @@ int parser_consume_local(Parser* parser, LocalKind key) {
 
     if(token != TOKEN_CALL) {
       parser_error_back(parser, parser->token_len, "Expected a => here.");
-      err = 1;
+      status = PARSE_ERROR;
     }
 
     token = parser_next_token(parser);
 
     if(token != TOKEN_IDENTIFIER) {
       parser_error_back(parser, parser->token_len, "Expected an action.");
-      err = 2;
+      status = PARSE_FATAL;
       goto end;
     }
 
@@ -59,19 +59,25 @@ int parser_consume_local(Parser* parser, LocalKind key) {
     Keyword keyword = keyword_lookup(identifier);
     switch(keyword) {
       case KEYWORD_ACTION: {
-        _check(parser_consume_inline_action(parser, node));
+        if(parse_merge(&status, parser_consume_inline_action(parser, node)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
         break;
       }
       case KEYWORD_ASSIGN: {
-        _check(parser_consume_inline_assign(parser, node));
+        if(parse_merge(&status, parser_consume_inline_assign(parser, node)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
         break;
       }
       case KEYWORD_SEND: {
-        _check(parser_consume_inline_send(parser, node));
+        if(parse_merge(&status, parser_consume_inline_send(parser, node)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
         break;
       }
       case KEYWORD_GUARD: {
-        err = 1;
+        status = PARSE_ERROR;
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "Guards are not allowed in %s", local_name(key));
         parser_error_back(parser, parser->token_len, buffer);
@@ -84,7 +90,7 @@ int parser_consume_local(Parser* parser, LocalKind key) {
           action->name = identifier;
           node_local_add_action(local_node, action);
         } else {
-          err = 1;
+          status = PARSE_ERROR;
           char buffer[256];
           snprintf(buffer, sizeof(buffer), "Unknown action [%s]. Did you mean to declare this action at the top of the machine?", identifier);
           parser_error_back(parser, parser->token_len, buffer);
@@ -93,7 +99,7 @@ int parser_consume_local(Parser* parser, LocalKind key) {
       }
       default: {
         parser_error_back(parser, parser->token_len, "Unexpected keyword in action assignment.");
-        err = 1;
+        status = PARSE_ERROR;
         break;
       }
     }
@@ -101,13 +107,13 @@ int parser_consume_local(Parser* parser, LocalKind key) {
 
   // `@entry` on its own has no actions, and the printer crashed on the
   // empty list.
-  if(err == 0 && local_node->action == NULL) {
+  if(status == PARSE_OK && local_node->action == NULL) {
     parser_error_back(parser, parser->token_len, "Expected a => here.");
-    err = 1;
+    status = PARSE_ERROR;
   }
 
   end: {
     parser_leave_node(parser);
-    return err;
+    return status;
   }
 }

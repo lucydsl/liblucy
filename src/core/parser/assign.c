@@ -9,17 +9,19 @@ static inline void maybe_add_machine_uses_assign(AssignExpression* assign_expres
 }
 
 /* Public API */
-int parser_consume_inline_assign_args(Parser* parser, void* expr, TokenType token, char* arg, int argi) {
-  int err = 0;
+ParseStatus parser_consume_inline_assign_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+  ParseStatus status = PARSE_OK;
   AssignExpression* assign_expression = (AssignExpression*)expr;
 
-  if(argi == 0) {
+  if(index == 0) {
     assign_expression->key = arg;
   } else {
     Keyword key = keyword_lookup(arg);
     switch(key) {
       case KEYWORD_SPAWN: {
-        _check(parser_consume_inline_spawn(parser, assign_expression));
+        if(parse_merge(&status, parser_consume_inline_spawn(parser, assign_expression)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
         break;
       }
       default: {
@@ -47,14 +49,18 @@ int parser_consume_inline_assign_args(Parser* parser, void* expr, TokenType toke
     }
   }
   
-  return err;
+  return status;
 }
 
-int parser_consume_inline_assign(Parser* parser, Node* node) {
-  int err = 0;
+ParseStatus parser_consume_inline_assign(Parser* parser, Node* node) {
+  ParseStatus status = PARSE_OK;
   AssignExpression* assign_expression = expression_create_assign(parser->arena);
 
-  _check(parser_consume_call(parser, "assign", assign_expression, &parser_consume_inline_assign_args));
+  if(parse_merge(&status, parser_consume_call(parser, "assign", assign_expression, &parser_consume_inline_assign_args)) == PARSE_FATAL) {
+
+    return PARSE_FATAL;
+
+  }
 
   switch(node->type) {
     case NODE_TRANSITION: {
@@ -78,5 +84,5 @@ int parser_consume_inline_assign(Parser* parser, Node* node) {
   program_add_flag(parser->program, PROGRAM_USES_ASSIGN);
   maybe_add_machine_uses_assign(assign_expression, node);
 
-  return err;
+  return status;
 }

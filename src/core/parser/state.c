@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-int parser_consume_state(Parser* parser) {
-  int err = 0;
+ParseStatus parser_consume_state(Parser* parser) {
+  ParseStatus status = PARSE_OK;
 
   StateNode* state_node = node_create_state(parser->arena);
   Node* state_node_node = (Node*)state_node;
@@ -13,7 +13,7 @@ int parser_consume_state(Parser* parser) {
   Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_MACHINE) {
     parser_error(parser, state_node_node, "Unexpected parent node for state.");
-    return 2;
+    return PARSE_FATAL;
   }
 
   parser_enter_node(parser, state_node_node);
@@ -48,7 +48,7 @@ int parser_consume_state(Parser* parser) {
       break;
     }
     default: {
-      err = 1;
+      status = PARSE_ERROR;
       parser_error_back(parser, parser->token_len, "States must be given a name.");
       break;
     }
@@ -56,7 +56,7 @@ int parser_consume_state(Parser* parser) {
 
   if(token != TOKEN_BEGIN_BLOCK) {
     parser_error_unexpected_identifier(parser, state_node_node);
-    return 2;
+    return PARSE_FATAL;
   }
 
   while(true) {
@@ -70,7 +70,9 @@ int parser_consume_state(Parser* parser) {
       };
       case TOKEN_CALL: {
         parser_set_word(parser, NULL, 0, 0);
-        _check(parser_consume_transition(parser));
+        if(parse_merge(&status, parser_consume_transition(parser)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
         break;
       }
       case TOKEN_IDENTIFIER: {
@@ -78,15 +80,21 @@ int parser_consume_state(Parser* parser) {
 
         switch(key) {
           case KEYWORD_INVOKE: {
-            _check(parser_consume_invoke(parser));
+            if(parse_merge(&status, parser_consume_invoke(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
           case KEYWORD_MACHINE: {
-            _check(parser_consume_machine(parser));
+            if(parse_merge(&status, parser_consume_machine(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
           default: {
-            _check(parser_consume_transition(parser));
+            if(parse_merge(&status, parser_consume_transition(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
         }
@@ -99,20 +107,24 @@ int parser_consume_state(Parser* parser) {
         switch(key) {
           case LOCAL_ENTRY:
           case LOCAL_EXIT: {
-            _check(parser_consume_local(parser, key));
+            if(parse_merge(&status, parser_consume_local(parser, key)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
           default: {
             char buffer[256];
             snprintf(buffer, sizeof(buffer), "Unknown local variable (%s)", local);
             parser_error_back(parser, parser->token_len, buffer);
-            err = 1;
+            status = PARSE_ERROR;
             break;
           }
         }
         break;
       }
       default: {
+        // Known bug: this reports the error but returns the status so far,
+        // which may be PARSE_OK, so the compile can still succeed.
         parser_error_unexpected_identifier(parser, state_node_node);
         goto end;
       }
@@ -121,6 +133,6 @@ int parser_consume_state(Parser* parser) {
 
   end: {
     parser_leave_node(parser);
-    return err;
+    return status;
   }
 }

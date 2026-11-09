@@ -2,8 +2,8 @@
 
 #include "internal.h"
 
-static int consume_program(Parser* parser) {
-  int err = 0;
+static ParseStatus consume_program(Parser* parser) {
+  ParseStatus status = PARSE_OK;
   Program* program = parser->program;
 
   TokenType token;
@@ -18,21 +18,27 @@ static int consume_program(Parser* parser) {
         Keyword key = keyword_lookup(parser->word);
         if(key == KEYWORD_NONE) {
           parser_error(parser, parser->node, "Unknown top-level identifier.");
-          return 2;
+          return PARSE_FATAL;
         }
 
         switch(key) {
           case KEYWORD_USE: {
-            _check(parser_consume_use(parser));
+            if(parse_merge(&status, parser_consume_use(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
           case KEYWORD_MACHINE: {
-            _check(parser_consume_machine(parser));
+            if(parse_merge(&status, parser_consume_machine(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
           default: {
             // Top-level machine
-            _check(parser_consume_implicit_machine(parser, token));
+            if(parse_merge(&status, parser_consume_implicit_machine(parser, token)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
             break;
           }
         }
@@ -46,7 +52,7 @@ static int consume_program(Parser* parser) {
   }
 
   end: {
-    return err;
+    return status;
   }
 }
 
@@ -55,10 +61,10 @@ ParseResult parse(Arena* arena, char* source, char* filename) {
   Parser parser;
   parser_init(&parser, arena, program, source, filename);
 
-  int err = consume_program(&parser);
+  ParseStatus status = consume_program(&parser);
 
   ParseResult result = {
-    .success = err == 0,
+    .success = status == PARSE_OK,
     .program = program
   };
   return result;

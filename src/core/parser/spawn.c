@@ -1,6 +1,6 @@
 #include "internal.h"
 
-static int consume_inline_spawn_args(Parser* parser, void* expr, TokenType token, char* arg, int _argi) {
+static ParseStatus consume_inline_spawn_args(Parser* parser, void* expr, TokenType token, char* arg, size_t _index) {
   SpawnExpression* spawn_expression = (SpawnExpression*)expr;
   switch(token) {
     case TOKEN_IDENTIFIER: {
@@ -19,17 +19,21 @@ static int consume_inline_spawn_args(Parser* parser, void* expr, TokenType token
       break;
     }
   }
-  return 0;
+  return PARSE_OK;
 }
 
-int parser_consume_inline_spawn(Parser* parser, AssignExpression* assign_expression) {
-  int err = 0;
+ParseStatus parser_consume_inline_spawn(Parser* parser, AssignExpression* assign_expression) {
+  ParseStatus status = PARSE_OK;
 
   SpawnExpression* spawn_expression = expression_create_spawn(parser->arena);
-  _check(parser_consume_call(parser, "spawn", spawn_expression, &consume_inline_spawn_args));
-  _check(parser_expect_call_argument(parser, "spawn", spawn_expression->target, err));
+  if(parse_merge(&status, parser_consume_call(parser, "spawn", spawn_expression, &consume_inline_spawn_args)) == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
+  if(parse_merge(&status, parser_expect_call_argument(parser, "spawn", spawn_expression->target, status)) == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
   if(spawn_expression->target == NULL) {
-    return err;
+    return status;
   }
   assign_expression->value = (Expression*)spawn_expression;
   program_add_flag(parser->program, PROGRAM_USES_SPAWN);
@@ -41,5 +45,5 @@ int parser_consume_inline_spawn(Parser* parser, AssignExpression* assign_express
     machine_node->flags |= MACHINE_USES_SERVICE;
   }
 
-  return err;
+  return status;
 }

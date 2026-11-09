@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-int parser_consume_call(Parser* parser, const char* fn_name, void* expr, CallArgHandler on_args) {
-  int err = 0;
+ParseStatus parser_consume_call(Parser* parser, const char* fn_name, void* expr, CallArgHandler on_args) {
+  ParseStatus status = PARSE_OK;
   TokenType token = parser_next_token(parser);
 
   bool in_call = false;
@@ -21,14 +21,14 @@ int parser_consume_call(Parser* parser, const char* fn_name, void* expr, CallArg
       // What should this be?
       parser_error(parser, NULL, "Expected a (");
     }
-    err = 1;
+    status = PARSE_ERROR;
   } else {
     in_call = true;
     token = parser_next_token(parser);
   }
 
   char* identifier = NULL;
-  int argi = 0;
+  size_t index = 0;
   while(token != TOKEN_END_CALL) {
     switch(token) {
       case TOKEN_COMMA: break;
@@ -37,20 +37,22 @@ int parser_consume_call(Parser* parser, const char* fn_name, void* expr, CallArg
       case TOKEN_SYMBOL:
       case TOKEN_TIMEFRAME: {
         identifier = parser_take_word(parser);
-        _check(on_args(parser, expr, token, identifier, argi));
+        if(parse_merge(&status, on_args(parser, expr, token, identifier, index)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
         break;
       }
       default: {
         if(in_call) {
           parser_error_back(parser, parser->token_len, "Unknown function argument.");
-          err = 2;
+          status = PARSE_FATAL;
           goto end;
         }
         goto end_args;
       }
     }
     token = parser_next_token(parser);
-    argi++;
+    index++;
   }
 
   end_args: {
@@ -66,24 +68,24 @@ int parser_consume_call(Parser* parser, const char* fn_name, void* expr, CallArg
       // Rewind back out, so the next thing consumes this token.
       parser_rewind(parser, parser->token_len);
 
-      err = 1;
+      status = PARSE_ERROR;
     }
   }
 
   end: {
-    return err;
+    return status;
   }
 }
 
-int parser_expect_call_argument(Parser* parser, const char* fn_name, const void* arg, int err) {
+ParseStatus parser_expect_call_argument(Parser* parser, const char* fn_name, const void* arg, ParseStatus status) {
   if(arg != NULL) {
-    return err;
+    return status;
   }
-  if(err == 0) {
+  if(status == PARSE_OK) {
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "%s() needs an argument.", fn_name);
     parser_error_back(parser, parser->token_len, buffer);
-    return 1;
+    return PARSE_ERROR;
   }
-  return err;
+  return status;
 }

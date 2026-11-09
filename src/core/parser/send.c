@@ -1,22 +1,24 @@
 #include "internal.h"
 
-int parser_consume_inline_send_args(Parser* parser, void* expr, TokenType _token, char* arg, int argi) {
+ParseStatus parser_consume_inline_send_args(Parser* parser, void* expr, TokenType _token, char* arg, size_t index) {
   SendExpression* send_expression = (SendExpression*)expr;
 
-  if(argi == 0) {
+  if(index == 0) {
     send_expression->actor = arg;
   } else {
     send_expression->event = arg;
   }
 
-  return 0;
+  return PARSE_OK;
 }
 
-int parser_consume_inline_send(Parser* parser, Node* node) {
-  int err = 0;
+ParseStatus parser_consume_inline_send(Parser* parser, Node* node) {
+  ParseStatus status = PARSE_OK;
 
   SendExpression* send_expression = expression_create_send(parser->arena);
-  _check(parser_consume_call(parser, "send", send_expression, &parser_consume_inline_send_args));
+  if(parse_merge(&status, parser_consume_call(parser, "send", send_expression, &parser_consume_inline_send_args)) == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
 
   switch(node->type) {
     case NODE_TRANSITION: {
@@ -39,5 +41,5 @@ int parser_consume_inline_send(Parser* parser, Node* node) {
 
   program_add_flag(parser->program, PROGRAM_USES_SEND);
 
-  return err;
+  return status;
 }
