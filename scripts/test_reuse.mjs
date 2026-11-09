@@ -63,8 +63,25 @@ try {
   fail(`long identifier: ${err}`);
 }
 
-// Failed compiles used to leak their result.
+// The parser recursed without limit, and about 150 nested machines
+// overflowed the stack in the debug build. 64 levels compile, even with an
+// error reported from the deepest; more are an error.
+function nest(depth, inner = '') {
+  return 'machine m {\n  state a {\n'.repeat(depth) + inner + '}\n}\n'.repeat(depth);
+}
 quiet = true;
+for(const [depth, inner, ok] of [[64, '', true], [64, '  bogus\n', false], [65, '', false], [5000, '', false]]) {
+  try {
+    compileXstate(nest(depth, inner), 'nested.lucy');
+    if(!ok) fail(`${depth} nested machines compiled`);
+  } catch(err) {
+    if(ok || err.message !== 'Compiler error') {
+      fail(`${depth} nested machines: ${err}`);
+    }
+  }
+}
+
+// Failed compiles used to leak their result.
 for(let i = 0; i < 50; i++) {
   for(const name of errorTests) {
     const filename = `${dir}/${name}/input.lucy`;
