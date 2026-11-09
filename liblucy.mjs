@@ -26,6 +26,12 @@ export default async function(createModule) {
   function stringToHeap(str) {
     const size = lengthBytesUTF8(str) + 1;
     const ptr = _malloc(size);
+    // The heap can grow, and when it can't grow enough malloc returns 0
+    // rather than aborting. Writing the string there would overwrite the
+    // start of memory.
+    if(ptr === 0) {
+      throw new Error('Out of memory');
+    }
     stringToUTF8(str, ptr, size);
     return ptr;
   }
@@ -50,7 +56,13 @@ export default async function(createModule) {
     const dts = options.dts;
 
     const srcPtr = stringToHeap(source);
-    const fnPtr = stringToHeap(filename);
+    let fnPtr;
+    try {
+      fnPtr = stringToHeap(filename);
+    } catch(err) {
+      _free(srcPtr);
+      throw err;
+    }
     const resPtr = _xsCreate();
     _xsInit(resPtr, useRemote, dts);
     _compileXstate(resPtr, srcPtr, fnPtr);
