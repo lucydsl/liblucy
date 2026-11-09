@@ -15,4 +15,3 @@ typedef struct Program {
 
 /* The program is allocated from arena, like its nodes. */
 Program* program_create(Arena*);
-void program_add_flag(Program*, unsigned);

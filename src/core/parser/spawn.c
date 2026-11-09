@@ -37,7 +37,7 @@ ParseStatus parser_consume_inline_spawn(Parser* parser, AssignExpression* assign
     return status;
   }
   assign_expression->value = (Expression*)spawn_expression;
-  program_add_flag(parser->program, PROGRAM_USES_SPAWN);
+  parser->program->flags |= PROGRAM_USES_SPAWN;
 
   // The machine this is in. parser->current_machine_node was NULL here
   // after a nested machine had ended.

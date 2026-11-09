@@ -40,7 +40,7 @@ void js_builder_add_char(JSBuilder* jsb, char c) {
 }
 
 void js_builder_add_str(JSBuilder* jsb, const char* str) {
-  str_builder_add_str(jsb->text, str, 0);
+  str_builder_add_str(jsb->text, str);
 }
 
 void js_builder_copy_str(JSBuilder* jsb, const char* str, size_t start, size_t end) {
@@ -60,11 +60,11 @@ void js_builder_copy_string(JSBuilder* jsb, const char* input, size_t start, siz
 }
 
 void js_builder_add_indent(JSBuilder* jsb) {
-  str_builder_add_str(jsb->text, str_builder_peek(jsb->indent), 0);
+  str_builder_add_str(jsb->text, str_builder_peek(jsb->indent));
 }
 
 void js_builder_increase_indent(JSBuilder* jsb) {
-  str_builder_add_str(jsb->indent, jsb->indent_unit, 0);
+  str_builder_add_str(jsb->indent, jsb->indent_unit);
 }
 
 void js_builder_decrease_indent(JSBuilder* jsb) {

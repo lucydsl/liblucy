@@ -12,11 +12,11 @@ static void add_str_union(StrBuilder* sb, char* value) {
   long len = (long)str_builder_len(sb);
   char c = str_builder_char_at(sb, len - 1);
   if(c == '\'') {
-    str_builder_add_str(sb, " | ", 3);
+    str_builder_add_str(sb, " | ");
   }
 
   str_builder_add_char(sb, '\'');
-  str_builder_add_str(sb, value, 0);
+  str_builder_add_str(sb, value);
   str_builder_add_char(sb, '\'');
 }
 
@@ -92,37 +92,37 @@ static void build_import_clause(TSPrinter* printer, StrBuilder* buffer) {
     string_list_append(&identifiers, "PartialAssigner");
   }
   string_list_append(&identifiers, "StateMachine");
-  str_builder_add_str(buffer, "import { ", 0);
+  str_builder_add_str(buffer, "import { ");
 
   int i = 0;
   StringListIterator it = string_list_iterator(&identifiers);
   while(string_list_next(&it)) {
     if(i > 0) {
-      str_builder_add_str(buffer, ", ", 0);
+      str_builder_add_str(buffer, ", ");
     }
-    str_builder_add_str(buffer, it.node->value, 0);
+    str_builder_add_str(buffer, it.node->value);
     i++;
   }
 
-  str_builder_add_str(buffer, " } from '", 0);
-  str_builder_add_str(buffer, printer->xstate_specifier, 0);
-  str_builder_add_str(buffer, "';\n", 0);
+  str_builder_add_str(buffer, " } from '");
+  str_builder_add_str(buffer, printer->xstate_specifier);
+  str_builder_add_str(buffer, "';\n");
 }
 
 static char* build_extract_clause(StringList* event_list) {
   StrBuilder* sb = str_builder_create();
-  str_builder_add_str(sb, "Extract<TEvent, { type: ", 0);
+  str_builder_add_str(sb, "Extract<TEvent, { type: ");
   StringListIterator ir = string_list_iterator(event_list);
   while(string_list_next(&ir)) {
     if(ir.index > 0) {
-      str_builder_add_str(sb, " | ", 0);
+      str_builder_add_str(sb, " | ");
     }
 
     str_builder_add_char(sb, '\'');
-    str_builder_add_str(sb, ir.node->value, 0);
+    str_builder_add_str(sb, ir.node->value);
     str_builder_add_char(sb, '\'');
   }
-  str_builder_add_str(sb, " }>", 0);
+  str_builder_add_str(sb, " }>");
   return str_builder_release(sb, NULL);
 }
 
@@ -354,14 +354,14 @@ char* ts_printer_dump(TSPrinter* printer) {
   StrBuilder* buffer = str_builder_create();
   build_import_clause(printer, buffer);
   print_machine_definitions(printer);
-  str_builder_add_str(buffer, js_builder_peek(printer->buffer), 0);
+  str_builder_add_str(buffer, js_builder_peek(printer->buffer));
 
   return str_builder_release(buffer, NULL);
 }
 
 static void write_machine_name(TSPrinter* printer, StrBuilder* sb) {
   if(printer->machine_name_start == 0) {
-    str_builder_add_str(sb, "Machine", 0);
+    str_builder_add_str(sb, "Machine");
   } else {
     str_builder_add_char(sb, toupper((unsigned char)printer->source[printer->machine_name_start]));
     str_builder_copy_str(sb, printer->source, printer->machine_name_start, printer->machine_name_end);
@@ -371,9 +371,9 @@ static void write_machine_name(TSPrinter* printer, StrBuilder* sb) {
 void ts_printer_add_event(TSPrinter* printer, char* event_name) {
   if(printer->event_names_sb == NULL) {
     printer->event_names_sb = str_builder_create();
-    str_builder_add_str(printer->event_names_sb, "type ", 0);
+    str_builder_add_str(printer->event_names_sb, "type ");
     write_machine_name(printer, printer->event_names_sb);
-    str_builder_add_str(printer->event_names_sb, "EventNames = ", 0);
+    str_builder_add_str(printer->event_names_sb, "EventNames = ");
   }
 
   add_str_union(printer->event_names_sb, event_name);
@@ -382,9 +382,9 @@ void ts_printer_add_event(TSPrinter* printer, char* event_name) {
 void ts_printer_add_data(TSPrinter* printer, char* data_prop) {
   if(printer->data_names_sb == NULL) {
     printer->data_names_sb = str_builder_create();
-    str_builder_add_str(printer->data_names_sb, "type ", 0);
+    str_builder_add_str(printer->data_names_sb, "type ");
     write_machine_name(printer, printer->data_names_sb);
-    str_builder_add_str(printer->data_names_sb, "KnownContextKeys = ", 0);
+    str_builder_add_str(printer->data_names_sb, "KnownContextKeys = ");
   }
 
   add_str_union(printer->data_names_sb, data_prop);
@@ -471,28 +471,28 @@ void ts_printer_add_delay(TSPrinter* printer, char* name) {
 void ts_printer_create_machine(TSPrinter* printer) {
   StrBuilder* sb = printer->machine_def_sb;
   if(printer->machine_flags & TS_MACHINE_DEFAULT) {
-    str_builder_add_str(sb, "export default ", 0);
+    str_builder_add_str(sb, "export default ");
   }
 
-  str_builder_add_str(sb, "function create", 0);
+  str_builder_add_str(sb, "function create");
   write_machine_name(printer, sb);
-  str_builder_add_str(sb, "<TContext extends Record<", 0);
+  str_builder_add_str(sb, "<TContext extends Record<");
   if(printer->data_names_sb == NULL) {
-    str_builder_add_str(sb, "any", 0);
+    str_builder_add_str(sb, "any");
   } else {
     write_machine_name(printer, sb);
-    str_builder_add_str(sb, "KnownContextKeys", 0);
+    str_builder_add_str(sb, "KnownContextKeys");
   }
-  str_builder_add_str(sb, ", any>, TEvent", 0);
+  str_builder_add_str(sb, ", any>, TEvent");
   if(printer->event_names_sb != NULL) {
-    str_builder_add_str(sb, " extends { type: ", 0);
+    str_builder_add_str(sb, " extends { type: ");
     write_machine_name(printer, sb);
-    str_builder_add_str(sb, "EventNames } = any", 0);
+    str_builder_add_str(sb, "EventNames } = any");
   }
-  str_builder_add_str(sb, ">(options: ", 0);
-  str_builder_add_str(sb, "Create", 0);
+  str_builder_add_str(sb, ">(options: ");
+  str_builder_add_str(sb, "Create");
   write_machine_name(printer, sb);
-  str_builder_add_str(sb, "Options<TContext, TEvent>): StateMachine<TContext, any, TEvent>;", 0);
+  str_builder_add_str(sb, "Options<TContext, TEvent>): StateMachine<TContext, any, TEvent>;");
 }
 
 void ts_printer_add_machine_name(TSPrinter* printer, size_t name_start, size_t name_end) {

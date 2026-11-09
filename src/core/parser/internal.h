@@ -208,15 +208,17 @@ const char* local_name(LocalKind);
 /* timeframe.c: delays such as 200 or 2s. */
 
 typedef struct Timeframe {
-  bool timeframe_is_digit;
+  // In milliseconds.
   int time;
-  char* error;
+  // Why the timeframe isn't valid, or NULL if it is.
+  const char* error;
 } Timeframe;
 
 bool timeframe_is_digit(char);
+/* Whether c can be part of a timeframe: a digit, or the s or m suffix. */
 bool timeframe_is_char(char);
-bool timeframe_is_suffix(const char*);
-Timeframe timeframe_parse(char*, size_t);
+/* Parse the len characters of word as a timeframe. */
+Timeframe timeframe_parse(const char* word, size_t len);
 
 /* The parsers for each construct, one file each. */
 

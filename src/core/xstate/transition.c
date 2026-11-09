@@ -236,15 +236,15 @@ static char* serialize_destination(Printer* printer, TransitionNode* transition_
     case EXPRESSION_MEMBER: {
       MemberExpression* member_expression = (MemberExpression*)dest;
       StrBuilder* sb_name = str_builder_create();
-      str_builder_add_str(sb_name, member_expression->owner, 0);
+      str_builder_add_str(sb_name, member_expression->owner);
       while(member_expression->property->type != EXPRESSION_IDENTIFIER) {
         member_expression = (MemberExpression*)member_expression->property;
         str_builder_add_char(sb_name, '.');
-        str_builder_add_str(sb_name, member_expression->owner, 0);
+        str_builder_add_str(sb_name, member_expression->owner);
       }
       IdentifierExpression* prop = (IdentifierExpression*)member_expression->property;
       str_builder_add_char(sb_name, '.');
-      str_builder_add_str(sb_name, prop->name, 0);
+      str_builder_add_str(sb_name, prop->name);
       char* d_name = arena_strdup(printer->arena, str_builder_peek(sb_name));
       str_builder_destroy(sb_name);
       return d_name;
