@@ -107,7 +107,7 @@ static int consume_on_args(State* state, void* expr, int _token, char* arg, int 
 static int consume_on(State* state, TransitionNode* transition_node) {
   int err = 0;
 
-  OnExpression* expression = node_create_onexpression();
+  OnExpression* expression = node_create_onexpression(state->arena);
   _check(consume_call_expression(state, "on", expression, &consume_on_args));
   transition_node->event = (Expression*)expression;
 
@@ -117,7 +117,7 @@ static int consume_on(State* state, TransitionNode* transition_node) {
 static int consume_member_expression(State* state, TransitionNode* transition_node) {
   int err = 0;
 
-  MemberExpression* top_member_expression = node_create_memberexpression();
+  MemberExpression* top_member_expression = node_create_memberexpression(state->arena);
   top_member_expression->owner = state_take_word(state);
   state_next(state);
   int token = consume_token(state);
@@ -127,7 +127,7 @@ static int consume_member_expression(State* state, TransitionNode* transition_no
     err = 1;
     goto exit;
   } else {
-    IdentifierExpression* prop = node_create_identifierexpression();
+    IdentifierExpression* prop = node_create_identifierexpression(state->arena);
     prop->name = state_take_word(state);
     top_member_expression->property = (Expression*)prop;
     transition_node->dest = (Expression*)top_member_expression;
@@ -141,7 +141,7 @@ static int consume_member_expression(State* state, TransitionNode* transition_no
 /* Public API */
 int parser_consume_transition(State* state) {
   int err = 0;
-  TransitionNode* transition_node = node_create_transition();
+  TransitionNode* transition_node = node_create_transition(state->arena);
 
   Node* current_node = state->node;
   size_t current_node_type = current_node->type;
@@ -181,7 +181,7 @@ int parser_consume_transition(State* state) {
         break;
       }
       default: {
-        IdentifierExpression* identifier_expression = node_create_identifierexpression();
+        IdentifierExpression* identifier_expression = node_create_identifierexpression(state->arena);
         identifier_expression->name = event;
         transition_node->event = (Expression*)identifier_expression;
         link_event_transition(current_node, transition_node);
@@ -267,31 +267,27 @@ int parser_consume_transition(State* state) {
           // Inline guard
           case KW_GUARD: {
             _check(parser_consume_inline_guard(state, transition_node));
-            free(identifier);
             break;
           }
           case KW_ASSIGN: {
             _check(parser_consume_inline_assign(state, transition_node_node));
-            free(identifier);
             break;
           }
           case KW_ACTION: {
             _check(parser_consume_inline_action(state, transition_node_node));
-            free(identifier);
             break;
           }
           case KW_SEND: {
             _check(parser_consume_inline_send(state, transition_node_node));
-            free(identifier);
             break;
           }
           default: {
             if(state_has_guard(state, identifier)) {
-              node_transition_add_guard(transition_node, identifier);
+              node_transition_add_guard(state->arena, transition_node, identifier);
             } else if(state_has_action(state, identifier)) {
-              node_transition_add_action(transition_node, identifier);
+              node_transition_add_action(state->arena, transition_node, identifier);
             } else {
-              IdentifierExpression* identifier_expression = node_create_identifierexpression();
+              IdentifierExpression* identifier_expression = node_create_identifierexpression(state->arena);
               identifier_expression->name = identifier;
               transition_node->dest = (Expression*)identifier_expression;
             }

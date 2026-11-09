@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "../arena.h"
 #include "../parser/parser.h"
 #include "../program.h"
 #include "assignment.h"
@@ -12,12 +13,11 @@
 #include "ts_printer.h"
 
 static void destroy_state(PrintState *state) {
-  xs_destroy_state_refs(state);
-  set_destroy(state->events);
-  set_destroy(state->action_names);
-  set_destroy(state->guard_names);
-  set_destroy(state->delay_names);
-  set_destroy(state->service_names);
+  set_destroy(&state->events);
+  set_destroy(&state->action_names);
+  set_destroy(&state->guard_names);
+  set_destroy(&state->delay_names);
+  set_destroy(&state->service_names);
 }
 
 CompileResult* xs_create() {
@@ -40,15 +40,21 @@ void xs_init(CompileResult* result, bool use_remote_source, bool include_dts) {
 }
 
 void compile_xstate(CompileResult* result, char* source, char* filename) {
-  ParseResult *parse_result = parse(source, filename);
+  // Everything this compile allocates, apart from the strings it returns
+  // in result, comes from this arena and is freed with it at the end.
+  Arena arena;
+  arena_init(&arena);
 
-  if(parse_result->success == false) {
+  ParseResult parse_result = parse(&arena, source, filename);
+
+  if(parse_result.success == false) {
     result->success = false;
     result->js = NULL;
+    arena_destroy(&arena);
     return;
   }
 
-  Program *program = parse_result->program;
+  Program *program = parse_result.program;
   char* xstate_specifier;
   if(result->flags & XS_FLAG_USE_REMOTE) {
     xstate_specifier = "https://cdn.skypack.dev/xstate";
@@ -61,27 +67,24 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
 
   PrintState state = {
     .flags = result->flags,
+    .arena = &arena,
     .source = source,
     .program = program,
     .guard = NULL,
     .action = NULL,
     .delay = NULL,
-    .events = malloc(sizeof(SimpleSet)),
-    .guard_names = malloc(sizeof(SimpleSet)),
-    .action_names = malloc(sizeof(SimpleSet)),
-    .delay_names = malloc(sizeof(SimpleSet)),
-    .service_names = malloc(sizeof(SimpleSet)),
+    .service = NULL,
     .tsprinter = NULL,
     .cur_event_name = NULL,
     .cur_state_start = 0,
     .cur_state_end = 0,
     .in_entry = false
   };
-  set_init(state.events);
-  set_init(state.guard_names);
-  set_init(state.action_names);
-  set_init(state.delay_names);
-  set_init(state.service_names);
+  set_init(&state.events);
+  set_init(&state.guard_names);
+  set_init(&state.action_names);
+  set_init(&state.delay_names);
+  set_init(&state.service_names);
 
   if(state.flags & XS_FLAG_DTS) {
     state.tsprinter = ts_printer_alloc();
@@ -114,6 +117,8 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     }
   }
 
+  // Walk the tree depth first, calling enter on the way down and exit on
+  // the way back up. The nodes belong to the arena, so nothing is freed.
   bool exit = false;
   while(node != NULL) {
     unsigned short type = node->type;
@@ -122,36 +127,13 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
       switch(type) {
         case NODE_STATE_TYPE: {
           xs_exit_state(&state, jsb, node);
-          node_destroy_state((StateNode*)node);
-          break;
-        }
-        case NODE_TRANSITION_TYPE: {
-          node_destroy_transition((TransitionNode*)node);
-          break;
-        }
-        case NODE_ASSIGNMENT_TYPE: {
-          node_destroy_assignment((Assignment*)node);
-          break;
-        }
-        case NODE_IMPORT_SPECIFIER_TYPE: {
-          node_destroy_import_specifier((ImportSpecifier*)node);
-          break;
-        }
-        case NODE_IMPORT_TYPE: {
-          node_destroy_import((ImportNode*)node);
           break;
         }
         case NODE_MACHINE_TYPE: {
           xs_exit_machine(&state, jsb, node);
-          node_destroy_machine((MachineNode*)node);
-          break;
-        }
-        case NODE_INVOKE_TYPE: {
-          node_destroy_invoke((InvokeNode*)node);
           break;
         }
         default: {
-          printf("Node type %hu not torn down (this is a compiler bug)\n", type);
           break;
         }
       }
@@ -178,7 +160,6 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
         case NODE_LOCAL_TYPE: {
           // Do not walk down local nodes.
           exit = true;
-          node_destroy_local((LocalNode*)node);
           break;
         }
         case NODE_MACHINE_TYPE: {
@@ -201,12 +182,9 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
       node = node->next;
     } else if(node->parent) {
       exit = true;
-      Node* parent = node->parent;
-      node_destroy(node);
-      node = parent;
+      node = node->parent;
     } else {
       // Reached the end.
-      node_destroy(node);
       break;
     }
   }
@@ -222,8 +200,7 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
 
   // Teardown
   destroy_state(&state);
-
-  return;
+  arena_destroy(&arena);
 }
 
 char* xs_get_js(CompileResult* result) {

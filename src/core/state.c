@@ -1,35 +1,29 @@
-#include <stdio.h> // TODO remove
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include "node.h"
 #include "state.h"
 
-State* state_new_state(char* source, char* filename) {
-  State *state = malloc(sizeof *state);
+void state_init(State* state, Arena* arena, Program* program, char* source, char* filename) {
+  // Zero everything first: the parser reads modifier and the word
+  // fields before it ever sets them.
+  memset(state, 0, sizeof(*state));
+  state->arena = arena;
+  state->program = program;
   state->source = source;
   state->filename = filename;
   state->source_len = strlen(source);
-  state->index = 0;
-  state->started = false;
 
-  state->guards = malloc(sizeof(SimpleSet));
-  set_init(state->guards);
-  state->actions = malloc(sizeof(SimpleSet));
-  set_init(state->actions);
+  set_init(&state->guards);
+  set_init(&state->actions);
+}
 
-  state->node = NULL;
-  state->parent_node = NULL;
-  state->current_machine_node = NULL;
-
-  state->word = NULL;
-  state->line = 0;
-  state->column = 0;
-  return state;
+void state_destroy(State* state) {
+  set_destroy(&state->guards);
+  set_destroy(&state->actions);
 }
 
 void state_set_word(State* state, char* word, size_t start, size_t end) {
-  state_reset_word(state);
   state->word = word;
   state->word_start = start;
   state->word_end = end;
@@ -42,10 +36,7 @@ char* state_take_word(State* state) {
 }
 
 void state_reset_word(State* state) {
-  if(state->word != NULL) {
-    free(state->word);
-    state->word = NULL;
-  }
+  state->word = NULL;
 }
 
 void state_advance_column(State* state) {
@@ -157,17 +148,17 @@ void state_node_start_pos(State* state, Node* node, unsigned short rewind_amount
 }
 
 void state_add_guard(State* state, char* name) {
-  set_add(state->guards, name);
+  set_add(&state->guards, name);
 }
 
 bool state_has_guard(State* state, char* name) {
-  return set_contains(state->guards, name) == SET_TRUE;
+  return set_contains(&state->guards, name) == SET_TRUE;
 }
 
 void state_add_action(State* state, char* name) {
-  set_add(state->actions, name);
+  set_add(&state->actions, name);
 }
 
 bool state_has_action(State* state, char* name) {
-  return set_contains(state->actions, name) == SET_TRUE;
+  return set_contains(&state->actions, name) == SET_TRUE;
 }

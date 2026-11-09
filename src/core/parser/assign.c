@@ -30,13 +30,13 @@ int parser_consume_inline_assign_args(State* state, void* expr, int token, char*
       default: {
         switch(token) {
           case TOKEN_IDENTIFIER: {
-            IdentifierExpression* identifier_expression = node_create_identifierexpression();
+            IdentifierExpression* identifier_expression = node_create_identifierexpression(state->arena);
             identifier_expression->name = arg;
             assign_expression->value = (Expression*)identifier_expression;
             break;
           }
           case TOKEN_SYMBOL: {
-            SymbolExpression* symbol_expression = node_create_symbolexpression();
+            SymbolExpression* symbol_expression = node_create_symbolexpression(state->arena);
             symbol_expression->name = arg;
             assign_expression->value = (Expression*)symbol_expression;
             break;
@@ -54,20 +54,20 @@ int parser_consume_inline_assign_args(State* state, void* expr, int token, char*
 
 int parser_consume_inline_assign(State* state, Node* node) {
   int err = 0;
-  AssignExpression* assign_expression = node_create_assignexpression();
+  AssignExpression* assign_expression = node_create_assignexpression(state->arena);
 
   _check(consume_call_expression(state, "assign", assign_expression, &parser_consume_inline_assign_args));
 
   switch(node->type) {
     case NODE_TRANSITION_TYPE: {
       TransitionNode* transition_node = (TransitionNode*)node;
-      TransitionAction* action = node_transition_add_action(transition_node, NULL);
+      TransitionAction* action = node_transition_add_action(state->arena, transition_node, NULL);
       action->expression = (Expression*)assign_expression;
       break;
     }
     case NODE_LOCAL_TYPE: {
       LocalNode* local_node = (LocalNode*)node;
-      TransitionAction* action = create_transition_action();
+      TransitionAction* action = create_transition_action(state->arena);
       action->expression = (Expression*)assign_expression;
       node_local_add_action(local_node, action);
       break;

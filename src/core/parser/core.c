@@ -1,9 +1,10 @@
 #include <stdio.h>
+#include <string.h>
+#include "../arena.h"
 #include "../error.h"
 #include "../identifier.h"
 #include "../node.h"
 #include "../state.h"
-#include "../str_builder.h"
 #include "../timeframe.h"
 #include "core.h"
 #include "token.h"
@@ -21,13 +22,9 @@ typedef bool (*consume_condition)(State*, char);
 static void consume_while(State* state, consume_condition cond) {
   char c = state_char(state);
   size_t start = state->index;
-
-  str_builder_t *sb;
-  sb = str_builder_create();
   size_t len = 0;
 
   do {
-    str_builder_add_char(sb, c);
     len++;
 
     state_advance_column(state);
@@ -42,24 +39,19 @@ static void consume_while(State* state, consume_condition cond) {
   }
 
   size_t end = state->index + 1;
-  char* str = str_builder_dump(sb, NULL);
+  char* str = arena_strndup(state->arena, state->source + start, len);
   state_set_word(state, str, start, end);
   state->word_len = len;
   state->token_len = len;
-  str_builder_destroy(sb);
 }
 
 static char* consume_string(State* state) {
   char c = state_char(state);
   char quote = c;
-  size_t len = 0;
   size_t start = state->index;
-
-  str_builder_t *sb;
-  sb = str_builder_create();
+  size_t len = 0;
 
   do {
-    str_builder_add_char(sb, c);
     len++;
 
     state_advance_column(state);
@@ -69,13 +61,15 @@ static char* consume_string(State* state) {
     c = state_char(state);
   } while(c != quote && c != '\n');
 
-  str_builder_add_char(sb, quote);
+  // The word is the string with its quotes, closing quote included even if
+  // the string ran into the end of the line instead.
+  char* str = arena_alloc(state->arena, len + 2);
+  memcpy(str, state->source + start, len);
+  str[len] = quote;
 
   size_t end = state->index;
-  char* str = str_builder_dump(sb, &len);
   state_set_word(state, str, start, end);
-  str_builder_destroy(sb);
-  
+
   return str;
 }
 

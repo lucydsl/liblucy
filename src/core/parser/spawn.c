@@ -7,13 +7,13 @@ static int consume_inline_spawn_args(State* state, void* expr, int token, char* 
   SpawnExpression* spawn_expression = (SpawnExpression*)expr;
   switch(token) {
     case TOKEN_IDENTIFIER: {
-      IdentifierExpression* identifier_expression = node_create_identifierexpression();
+      IdentifierExpression* identifier_expression = node_create_identifierexpression(state->arena);
       identifier_expression->name = arg;
       spawn_expression->target = (Expression*)identifier_expression;
       break;
     }
     case TOKEN_SYMBOL: {
-      SymbolExpression* symbol_expression = node_create_symbolexpression();
+      SymbolExpression* symbol_expression = node_create_symbolexpression(state->arena);
       symbol_expression->name = arg;
       spawn_expression->target = (Expression*)symbol_expression;
       break;
@@ -25,7 +25,7 @@ static int consume_inline_spawn_args(State* state, void* expr, int token, char* 
 int parser_consume_inline_spawn(State* state, AssignExpression* assign_expression) {
   int err = 0;
 
-  SpawnExpression* spawn_expression = node_create_spawnexpression();
+  SpawnExpression* spawn_expression = node_create_spawnexpression(state->arena);
   _check(consume_call_expression(state, "spawn", spawn_expression, &consume_inline_spawn_args));
   assign_expression->value = (Expression*)spawn_expression;
   program_add_flag(state->program, PROGRAM_USES_SPAWN);

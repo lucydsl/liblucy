@@ -8,11 +8,11 @@ static int consume_inline_guard_args(State* state, void* expr, int token, char* 
   GuardExpression* guard_expression = (GuardExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
-    IdentifierExpression* ref = node_create_identifierexpression();
+    IdentifierExpression* ref = node_create_identifierexpression(state->arena);
     ref->name = arg;
     guard_expression->ref = (Expression*)ref;
   } else if(token == TOKEN_SYMBOL) {
-    SymbolExpression* ref = node_create_symbolexpression();
+    SymbolExpression* ref = node_create_symbolexpression(state->arena);
     ref->name = arg;
     guard_expression->ref = (Expression*)ref;
   } else {
@@ -25,11 +25,11 @@ static int consume_inline_guard_args(State* state, void* expr, int token, char* 
 
 int parser_consume_inline_guard(State* state, TransitionNode* transition_node) {
   int err = 0;
-  GuardExpression* guard_expression = node_create_guardexpression();
+  GuardExpression* guard_expression = node_create_guardexpression(state->arena);
   
   _check(consume_call_expression(state, "guard", guard_expression, &consume_inline_guard_args));
 
-  TransitionGuard* guard = node_transition_add_guard(transition_node, NULL);
+  TransitionGuard* guard = node_transition_add_guard(state->arena, transition_node, NULL);
   guard->expression = guard_expression;
 
   if(guard->expression->ref->type == EXPRESSION_SYMBOL) {
@@ -42,7 +42,7 @@ int parser_consume_inline_guard(State* state, TransitionNode* transition_node) {
 
 /* Public API */
 int parser_consume_guard(State* state) {
-  Assignment* assignment = node_create_assignment(ASSIGNMENT_GUARD);
+  Assignment* assignment = node_create_assignment(state->arena, ASSIGNMENT_GUARD);
   Node* node = (Node*)assignment;
   state_node_set(state, node);
 
@@ -67,13 +67,13 @@ int parser_consume_guard(State* state) {
   token = consume_token(state);
   switch(token) {
     case TOKEN_IDENTIFIER: {
-      IdentifierExpression *expression = node_create_identifierexpression();
+      IdentifierExpression *expression = node_create_identifierexpression(state->arena);
       expression->name = state_take_word(state);
       assignment->value = (Expression*)expression;
       break;
     }
     case TOKEN_SYMBOL: {
-      SymbolExpression* expression = node_create_symbolexpression();
+      SymbolExpression* expression = node_create_symbolexpression(state->arena);
       expression->name = state_take_word(state);
       assignment->value = (Expression*)expression;
       break;

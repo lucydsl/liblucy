@@ -103,5 +103,5 @@ void xs_exit_state(PrintState* state, JSBuilder* jsb, Node* node) {
   if(!node->next || node->next->type != NODE_STATE_TYPE) {
     js_builder_end_object(jsb);
   }
-  set_clear(state->events);
+  set_clear(&state->events);
 }

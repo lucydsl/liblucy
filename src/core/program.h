@@ -1,5 +1,6 @@
 #pragma once
 
+#include "arena.h"
 #include "node.h"
 
 #define PROGRAM_USES_ASSIGN 1 << 0
@@ -11,5 +12,6 @@ typedef struct Program {
   int flags;
 } Program;
 
-Program * new_program();
+/* The program is allocated from arena, like its nodes. */
+Program* new_program(Arena*);
 void program_add_flag(Program*, int);
