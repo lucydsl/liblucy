@@ -86,6 +86,7 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   if(state.flags & XS_FLAG_DTS) {
     state.tsprinter = ts_printer_alloc();
     ts_printer_init(state.tsprinter);
+    state.tsprinter->source = source;
   }
 
   Node* node;
@@ -200,8 +201,9 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
       node = node->next;
     } else if(node->parent) {
       exit = true;
+      Node* parent = node->parent;
       node_destroy(node);
-      node = node->parent;
+      node = parent;
     } else {
       // Reached the end.
       node_destroy(node);

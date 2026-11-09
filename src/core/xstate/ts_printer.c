@@ -74,15 +74,19 @@ static void assign_executor_add(xs_assign_executor_t* executor, char* event_name
 
 void ts_printer_init(ts_printer_t* printer) {
   printer->flags = 0;
+  printer->source = NULL;
+  printer->machine_flags = 0;
   printer->buffer = js_builder_create();
   printer->machine_name_start = 0;
   printer->machine_name_end = 0;
   printer->xstate_specifier = NULL;
+  printer->imp_sb = NULL;
   printer->event_names_sb = NULL;
   printer->data_names_sb = NULL;
   printer->machine_def_sb = str_builder_create();
   printer->guards = NULL;
   printer->actions = NULL;
+  printer->assigns = NULL;
   printer->invokes = NULL;
   printer->actors = NULL;
   printer->delays = NULL;
