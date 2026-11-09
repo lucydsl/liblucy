@@ -69,7 +69,7 @@ void printer_enter_machine(Printer* printer, JSBuilder* jsb, Node* node) {
   Node* parent_node = node->parent;
   bool is_nested = node_is_nested_machine(node);
   compile_machine(printer, jsb, machine_node, is_nested);
-  if(printer->flags & XS_FLAG_DTS) {
+  if(printer->ts_printer != NULL) {
     ts_printer_add_machine_name(printer->ts_printer, machine_node->name_start, machine_node->name_end);
   }
 }
@@ -270,7 +270,7 @@ void printer_exit_machine(Printer* printer, JSBuilder* jsb, Node* node) {
     js_builder_decrease_indent(jsb);
   }
 
-  if(printer->flags & XS_FLAG_DTS) {
+  if(printer->ts_printer != NULL) {
     ts_printer_figure_out_entry_events(printer->ts_printer);
     ts_printer_create_machine(printer->ts_printer);
   }

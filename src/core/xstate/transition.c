@@ -35,7 +35,7 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
       switch(expression_type) {
         case EXPRESSION_ASSIGN: {
           AssignExpression* assign_expression = (AssignExpression*)action->expression;
-          if(printer->flags & XS_FLAG_DTS) {
+          if(printer->ts_printer != NULL) {
             ts_printer_add_data(printer->ts_printer, assign_expression->key);
           }
 
@@ -46,7 +46,7 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
                 js_builder_add_string(jsb, symbol_expression->name);
                 printer_add_action_ref(printer, symbol_expression->name, (Expression*)assign_expression);
 
-                if(printer->flags & XS_FLAG_DTS) {
+                if(printer->ts_printer != NULL) {
                   ts_printer_add_assign(printer->ts_printer, assign_expression->key, symbol_expression->name, printer->current_event);
                 }
                 break;
@@ -72,7 +72,7 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
                   js_builder_add_string(jsb, action_name);
                   printer_add_action_ref(printer, action_name, (Expression*)assign_expression);
 
-                  if(printer->flags & XS_FLAG_DTS) {
+                  if(printer->ts_printer != NULL) {
                     ts_printer_add_actor(printer->ts_printer, symbol_expression->name);
                   }
                 } else {
@@ -107,7 +107,7 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
             js_builder_add_string(jsb, expr->name);
             printer_add_action_ref(printer, expr->name, action_expression->ref);
 
-            if(printer->flags & XS_FLAG_DTS) {
+            if(printer->ts_printer != NULL) {
               if(printer->in_entry && printer->entry_state_start != 0) {
                 char* cur_state_name = arena_strndup(printer->arena,
                   printer->source + printer->entry_state_start,
@@ -193,7 +193,7 @@ void printer_compile_transition_key(Printer* printer, JSBuilder* jsb, Node* node
             printer_add_delay_ref(printer, symbol_expression->name, (Expression*)delay);
             js_builder_start_prop(jsb, symbol_expression->name);
 
-            if(printer->flags & XS_FLAG_DTS) {
+            if(printer->ts_printer != NULL) {
               ts_printer_add_delay(printer->ts_printer, symbol_expression->name);
             }
           }
@@ -217,7 +217,7 @@ static inline void compile_guard_expression(Printer* printer, JSBuilder* jsb, Gu
     SymbolExpression* symbol_expression = (SymbolExpression*)ref;
     js_builder_add_string(jsb, symbol_expression->name);
     printer_add_guard_ref(printer, symbol_expression->name, ref);
-    if(printer->flags & XS_FLAG_DTS) {
+    if(printer->ts_printer != NULL) {
       if(printer->current_event != NULL) {
         ts_printer_add_guard(printer->ts_printer, symbol_expression->name, printer->current_event);
       }
@@ -269,7 +269,7 @@ void printer_compile_inner_transition(Printer* printer, JSBuilder* jsb, Transiti
       js_builder_start_prop(jsb, "target");
       js_builder_add_string(jsb, serialize_destination(printer, transition_node));
 
-      if(printer->flags & XS_FLAG_DTS) {
+      if(printer->ts_printer != NULL) {
         if(printer->current_event != NULL) {
           ts_printer_add_state_entry(printer->ts_printer, printer->current_event, serialize_destination(printer, transition_node));
         }
@@ -334,7 +334,7 @@ void printer_compile_event_transition(Printer* printer, JSBuilder* jsb, Transiti
   }
 
   printer->current_event = event_name;
-  if(printer->flags & XS_FLAG_DTS) {
+  if(printer->ts_printer != NULL) {
     ts_printer_add_event(printer->ts_printer, event_name);
   }
   printer_compile_transition_key(printer, jsb, (Node*)transition_node, event_name);

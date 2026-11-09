@@ -1,69 +1,16 @@
-#include "compiler.h"
+#include "xstate.h"
 
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <stddef.h>
 
-#include "../ast/program.h"
-#include "../parser/parser.h"
-#include "../support/arena.h"
-#include "../support/mem.h"
+#include "js_builder.h"
 #include "printer.h"
 #include "ts_printer.h"
 
-// Free the strings a compile left in result, so the result can be used
-// again.
-static void clear_output(CompileResult* result) {
-  free(result->js);
-  free(result->dts);
-  result->success = false;
-  result->js = NULL;
-  result->dts = NULL;
-}
-
-CompileResult* xs_create(void) {
-  // Zeroed, so xs_init and compile_xstate can tell there is no output yet.
-  // malloc left the struct uninitialised until xs_init, and wasn't checked.
-  return xcalloc(1, sizeof(CompileResult));
-}
-
-void xs_init(CompileResult* result, bool use_remote_source, bool include_dts) {
-  // A result may be initialised again and reused; set js and dts to NULL
-  // without freeing them leaked the last compile's output.
-  clear_output(result);
-  result->flags = 0;
-  
-  if(use_remote_source) {
-    result->flags |= XS_FLAG_USE_REMOTE;
-  }
-  if(include_dts) {
-    result->flags |= XS_FLAG_DTS;
-  }
-}
-
-void compile_xstate(CompileResult* result, char* source, char* filename) {
-  // Output from an earlier compile into the same result is replaced.
-  clear_output(result);
-
-  if(source == NULL || filename == NULL) {
-    return;
-  }
-
-  // Everything this compile allocates, apart from the strings it returns
-  // in result, comes from this arena and is freed with it at the end.
-  Arena arena;
-  arena_init(&arena);
-
-  ParseResult parse_result = parse(&arena, source, filename);
-
-  if(parse_result.success == false) {
-    arena_destroy(&arena);
-    return;
-  }
-
-  Program *program = parse_result.program;
+XStateOutput xstate_print(Arena* arena, Program* program, char* source,
+  bool use_remote_imports, bool include_dts) {
   char* xstate_specifier;
-  if(result->flags & XS_FLAG_USE_REMOTE) {
+  if(use_remote_imports) {
     xstate_specifier = "https://cdn.skypack.dev/xstate";
   } else {
     xstate_specifier = "xstate";
@@ -73,8 +20,7 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
   jsb = js_builder_create();
 
   Printer printer = {
-    .flags = result->flags,
-    .arena = &arena,
+    .arena = arena,
     .source = source,
     .program = program,
     .guard_refs = NULL,
@@ -87,14 +33,14 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     .entry_state_end = 0,
     .in_entry = false
   };
-  str_set_init(&printer.event_names, &arena);
-  str_set_init(&printer.guard_names, &arena);
-  str_set_init(&printer.action_names, &arena);
-  str_set_init(&printer.delay_names, &arena);
-  str_set_init(&printer.service_names, &arena);
+  str_set_init(&printer.event_names, arena);
+  str_set_init(&printer.guard_names, arena);
+  str_set_init(&printer.action_names, arena);
+  str_set_init(&printer.delay_names, arena);
+  str_set_init(&printer.service_names, arena);
 
-  if(printer.flags & XS_FLAG_DTS) {
-    printer.ts_printer = ts_printer_create(&arena, source);
+  if(include_dts) {
+    printer.ts_printer = ts_printer_create(arena, source);
   }
 
   Node* node;
@@ -117,7 +63,7 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
 
     js_builder_add_str(jsb, xstate_specifier);
     js_builder_add_str(jsb, "';\n");
-    if(result->flags & XS_FLAG_DTS) {
+    if(include_dts) {
       printer.ts_printer->xstate_specifier = xstate_specifier;
     }
   }
@@ -197,31 +143,15 @@ void compile_xstate(CompileResult* result, char* source, char* filename) {
     }
   }
 
-  result->success = true;
-  result->js = js_builder_release(jsb);
+  XStateOutput output = {
+    .js = js_builder_release(jsb),
+    .dts = NULL
+  };
 
-  if(result->flags & XS_FLAG_DTS) {
-    char* dts = ts_printer_dump(printer.ts_printer);
-    result->dts = dts;
+  if(include_dts) {
+    output.dts = ts_printer_dump(printer.ts_printer);
     ts_printer_destroy(printer.ts_printer);
   }
 
-  // Teardown
-  arena_destroy(&arena);
-}
-
-char* xs_get_js(CompileResult* result) {
-  return result->js;
-}
-
-char* xs_get_dts(CompileResult* result) {
-  return result->dts;
-}
-
-void destroy_xstate_result(CompileResult* result) {
-  if(result == NULL) {
-    return;
-  }
-  clear_output(result);
-  free(result);
+  return output;
 }

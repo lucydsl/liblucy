@@ -29,8 +29,8 @@ EMCC_FLAGS=$(LUCY_CFLAGS) $(WASM_C_FILES) $(CORE_C_FILES) \
 	-sEXPORT_ES6 \
 	-sMODULARIZE \
 	-sALLOW_MEMORY_GROWTH \
-	-sEXPORTED_FUNCTIONS=_main,_compile_xstate,_xs_get_js,_xs_get_dts,_xs_init,_xs_create,_destroy_xstate_result,_malloc,_free \
-	-sEXPORTED_RUNTIME_METHODS=stringToUTF8,UTF8ToString,lengthBytesUTF8,HEAPU8
+	-sEXPORTED_FUNCTIONS=_main,_lucy_result_create,_lucy_result_destroy,_lucy_result_set_options,_lucy_compile_xstate,_lucy_result_success,_lucy_result_js,_lucy_result_dts,_malloc,_free \
+	-sEXPORTED_RUNTIME_METHODS=stringToUTF8,UTF8ToString,lengthBytesUTF8
 
 dist/liblucy-debug-node.mjs: $(SRC_FILES) | dist
 	$(EMCC) $(EMCC_FLAGS) -sENVIRONMENT=node -o $@
