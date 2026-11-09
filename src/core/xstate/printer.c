@@ -4,30 +4,30 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef void (*set_ref)(PrintState*, Ref*);
+typedef void (*set_ref)(Printer*, Ref*);
 
 // Forget the guard, action and delay refs at the end of a machine. They
 // are arena memory, so there is nothing to free. The service list is not
 // reset here, as it never has been; see the services leaking into a later
 // machine's options in the report on this change.
-void xs_clear_state_refs(PrintState *state) {
-  state->guard = NULL;
-  state->action = NULL;
-  state->delay = NULL;
+void printer_clear_refs(Printer* printer) {
+  printer->guard_refs = NULL;
+  printer->action_refs = NULL;
+  printer->delay_refs = NULL;
 }
 
-static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, str_set_t* set, set_ref setter) {
+static void add_ref(Printer* printer, char* key, Expression* value, Ref* head, StrSet* set, set_ref setter) {
   // If already added, don't do so again.
   if(str_set_contains(set, key)) {
     return;
   }
 
-  Ref *ref = ARENA_NEW(state->arena, Ref);
+  Ref *ref = ARENA_NEW(printer->arena, Ref);
   ref->key = key;
   ref->value = value;
 
   if(head == NULL) {
-    setter(state, ref);
+    setter(printer, ref);
   } else {
     Ref* cur = head; 
     while(cur->next != NULL) {
@@ -38,60 +38,60 @@ static void add_ref(PrintState* state, char* key, Expression* value, Ref* head, 
   str_set_add(set, key);
 }
 
-static void set_action_ref(PrintState* state, Ref* ref) {
-  state->action = ref;
+static void set_action_ref(Printer* printer, Ref* ref) {
+  printer->action_refs = ref;
 }
 
-void xs_add_action_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->action, &state->action_names, *set_action_ref);
+void printer_add_action_ref(Printer* printer, char* key, Expression* value) {
+  add_ref(printer, key, value, printer->action_refs, &printer->action_names, *set_action_ref);
 }
 
-static void set_guard_ref(PrintState* state, Ref* ref) {
-  state->guard = ref;
+static void set_guard_ref(Printer* printer, Ref* ref) {
+  printer->guard_refs = ref;
 }
 
-void xs_add_guard_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->guard, &state->guard_names, *set_guard_ref);
+void printer_add_guard_ref(Printer* printer, char* key, Expression* value) {
+  add_ref(printer, key, value, printer->guard_refs, &printer->guard_names, *set_guard_ref);
 }
 
-static void set_delay_ref(PrintState* state, Ref* ref) {
-  state->delay = ref;
+static void set_delay_ref(Printer* printer, Ref* ref) {
+  printer->delay_refs = ref;
 }
 
-void xs_add_delay_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->delay, &state->delay_names, *set_delay_ref);
+void printer_add_delay_ref(Printer* printer, char* key, Expression* value) {
+  add_ref(printer, key, value, printer->delay_refs, &printer->delay_names, *set_delay_ref);
 }
 
-static void set_service_ref(PrintState* state, Ref* ref) {
-  state->service = ref;
+static void set_service_ref(Printer* printer, Ref* ref) {
+  printer->service_refs = ref;
 }
 
-void xs_add_service_ref(PrintState* state, char* key, Expression* value) {
-  add_ref(state, key, value, state->service, &state->service_names, *set_service_ref);
+void printer_add_service_ref(Printer* printer, char* key, Expression* value) {
+  add_ref(printer, key, value, printer->service_refs, &printer->service_names, *set_service_ref);
 }
 
-void xs_start_assign_call(JSBuilder* jsb, AssignExpression* assign_expression) {
+void printer_start_assign_call(JSBuilder* jsb, AssignExpression* assign_expression) {
   js_builder_start_call(jsb, "assign");
   js_builder_start_object(jsb);
   js_builder_start_prop(jsb, assign_expression->key);
 }
 
-void xs_end_assign_call(JSBuilder* jsb) {
+void printer_end_assign_call(JSBuilder* jsb) {
   js_builder_end_object(jsb);
   js_builder_end_call(jsb);
 }
 
-bool xs_find_and_add_top_level_machine_name(PrintState* state, JSBuilder* jsb, char* matching_name) {
+bool printer_add_top_level_machine_name(Printer* printer, JSBuilder* jsb, char* matching_name) {
   size_t matching_len = strlen(matching_name);
-  Node* cur = state->program->body;
+  Node* cur = printer->program->body;
   while(cur != NULL) {
     if(cur->type == NODE_MACHINE) {
       MachineNode* cur_machine = (MachineNode*)cur;
       if(cur_machine->name_start != 0) {
         size_t len = cur_machine->name_end - cur_machine->name_start;
         if(len == matching_len &&
-          memcmp(state->source + cur_machine->name_start, matching_name, len) == 0) {
-          xs_add_machine_binding_name(state, jsb, cur_machine);
+          memcmp(printer->source + cur_machine->name_start, matching_name, len) == 0) {
+          printer_add_machine_binding_name(printer, jsb, cur_machine);
           return true;
         }
       }
@@ -101,14 +101,14 @@ bool xs_find_and_add_top_level_machine_name(PrintState* state, JSBuilder* jsb, c
   return false;
 }
 
-void xs_add_spawn_call(PrintState* state, JSBuilder* jsb, SpawnExpression* spawn_expression) {
+void printer_add_spawn_call(Printer* printer, JSBuilder* jsb, SpawnExpression* spawn_expression) {
   js_builder_add_str(jsb, "() => ");
   js_builder_start_call(jsb, "spawn");
   Expression* target = spawn_expression->target;
   char* name = NULL;
   if(target->type == EXPRESSION_IDENTIFIER) {
     name = ((IdentifierExpression*)target)->name;
-    if(!xs_find_and_add_top_level_machine_name(state, jsb, name)) {
+    if(!printer_add_top_level_machine_name(printer, jsb, name)) {
       js_builder_add_str(jsb, name);
     }
   } else {
@@ -121,7 +121,7 @@ void xs_add_spawn_call(PrintState* state, JSBuilder* jsb, SpawnExpression* spawn
   js_builder_end_call(jsb);
 }
 
-void xs_add_send_call(JSBuilder* jsb, SendExpression* send_expression) {
+void printer_add_send_call(JSBuilder* jsb, SendExpression* send_expression) {
   js_builder_start_call(jsb, "send");
   js_builder_add_str(jsb, "(ctx, ev) => ({ type: ");
   js_builder_add_string(jsb, send_expression->event);

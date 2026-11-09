@@ -5,87 +5,87 @@
 #include <stdlib.h>
 #include <string.h>
 
-void state_init(State* state, Arena* arena, Program* program, char* source, char* filename) {
+void parser_init(Parser* parser, Arena* arena, Program* program, char* source, char* filename) {
   // Zero everything first: the parser reads modifier and the word
   // fields before it ever sets them.
-  memset(state, 0, sizeof(*state));
-  state->arena = arena;
-  state->program = program;
-  state->source = source;
-  state->filename = filename;
-  state->source_len = strlen(source);
+  memset(parser, 0, sizeof(*parser));
+  parser->arena = arena;
+  parser->program = program;
+  parser->source = source;
+  parser->filename = filename;
+  parser->source_len = strlen(source);
 
-  str_set_init(&state->guards, arena);
-  str_set_init(&state->actions, arena);
+  str_set_init(&parser->guard_names, arena);
+  str_set_init(&parser->action_names, arena);
 }
 
-void state_set_word(State* state, char* word, size_t start, size_t end) {
-  state->word = word;
-  state->word_start = start;
-  state->word_end = end;
+void parser_set_word(Parser* parser, char* word, size_t start, size_t end) {
+  parser->word = word;
+  parser->word_start = start;
+  parser->word_end = end;
 }
 
-char* state_take_word(State* state) {
-  char* word = state->word;
-  state->word = NULL;
+char* parser_take_word(Parser* parser) {
+  char* word = parser->word;
+  parser->word = NULL;
   return word;
 }
 
-void state_reset_word(State* state) {
-  state->word = NULL;
+void parser_reset_word(Parser* parser) {
+  parser->word = NULL;
 }
 
-void state_advance_column(State* state) {
-  state->column++;
+void parser_advance_column(Parser* parser) {
+  parser->column++;
 }
 
-void state_advance_line(State* state) {
-  state->line++;
-  state->column = 0;
+void parser_advance_line(Parser* parser) {
+  parser->line++;
+  parser->column = 0;
 }
 
-int state_inbounds(State* state) {
-  return state->index < state->source_len;
+int parser_in_bounds(Parser* parser) {
+  return parser->index < parser->source_len;
 }
 
 // Every read of the source goes through here. The lexer steps past the
 // end in a few places (a ':' or an unterminated string at the end of the
 // file), so anything past the end reads as the terminating NUL.
-static inline char state_char_at(State* state, size_t index) {
-  return index < state->source_len ? state->source[index] : '\0';
+static inline char char_at(Parser* parser, size_t index) {
+  return index < parser->source_len ? parser->source[index] : '\0';
 }
 
-char state_char(State* state) {
-  return state_char_at(state, state->index);
+char parser_char(Parser* parser) {
+  return char_at(parser, parser->index);
 }
 
-char state_peek(State* state) {
-  return state_char_at(state, state->index + 1);
+char parser_peek(Parser* parser) {
+  return char_at(parser, parser->index + 1);
 }
 
-char state_next(State* state) {
-  if(!state->started) {
-    state->started = true;
+char parser_next(Parser* parser) {
+  if(!parser->started) {
+    parser->started = true;
   } else {
-    state->index++;
+    parser->index++;
   }
 
-  return state_char(state);
+  return parser_char(parser);
 }
 
 // The line and column of the point inc characters back from the current
 // index. inc is a token length, so it is a size_t: as an int, as it was, a
-// token over INT_MAX characters went negative and state_rewind went back to
+// token over INT_MAX characters went negative and parser_rewind went back to
 // the start of the source.
-void state_find_position(State* state, pos_t* pos, size_t inc) {
-  size_t index = state->index;
+void parser_find_position(Parser* parser, Position* pos, size_t inc) {
+  size_t index = parser->index;
   long col = 0;
-  long line = (long)state->line;
+  long line = (long)parser->line;
   // How far back from the current index this has looked.
   size_t back = 0;
   char c;
   while(index > 0) {
-    c = state_char_at(state, index);
+    c = char_at(parser, index);
 
     if(back >= inc) {
       col++;
@@ -108,68 +108,68 @@ void state_find_position(State* state, pos_t* pos, size_t inc) {
   pos->column = col;
 }
 
-void state_rewind(State* state, size_t inc) {
-  pos_t pos;
-  state_find_position(state, &pos, inc);
-  state->index = inc < state->index ? state->index - inc : 0;
-  state->line = (size_t)pos.line;
-  state->column = (size_t)pos.column;
+void parser_rewind(Parser* parser, size_t inc) {
+  Position pos;
+  parser_find_position(parser, &pos, inc);
+  parser->index = inc < parser->index ? parser->index - inc : 0;
+  parser->line = (size_t)pos.line;
+  parser->column = (size_t)pos.column;
 }
 
-void state_node_set(State* state, Node* node) {
-  if(state->node != NULL) {
-    Node* parent_node = state->node;
-    state->parent_node = parent_node;
+void parser_enter_node(Parser* parser, Node* node) {
+  if(parser->node != NULL) {
+    Node* parent_node = parser->node;
+    parser->parent_node = parent_node;
 
-    node_append(parent_node, node);
+    node_append_child(parent_node, node);
   } else {
-    Program* program = state->program;
+    Program* program = parser->program;
     if(program->body == NULL) {
       program->body = node;
     } else {
-      node_after_last(program->body, node);
+      node_append_sibling(program->body, node);
     }
   }
 
-  state->node = node;
+  parser->node = node;
 }
 
-void state_node_up(State* state) {
-  Node* current_parent = state->parent_node;
+void parser_leave_node(Parser* parser) {
+  Node* current_parent = parser->parent_node;
   if(current_parent != NULL) {
     Node* new_parent = current_parent->parent;
-    state->node = current_parent;
-    state->parent_node = new_parent;
+    parser->node = current_parent;
+    parser->parent_node = new_parent;
   } else {
-    state->node = NULL;
+    parser->node = NULL;
   }
 }
 
-void state_node_start_pos(State* state, Node* node, size_t rewind_amount) {
+void parser_node_start_pos(Parser* parser, Node* node, size_t rewind_amount) {
   // A keyword at the very start of the source is shorter than the amount
   // some callers rewind by, which wrapped start around to SIZE_MAX.
-  node->start = rewind_amount < state->index ? state->index - rewind_amount : 0;
-  node->line = state->line;
+  node->start = rewind_amount < parser->index ? parser->index - rewind_amount : 0;
+  node->line = parser->line;
 }
 
-void state_add_guard(State* state, char* name) {
-  str_set_add(&state->guards, name);
+void parser_add_guard_name(Parser* parser, char* name) {
+  str_set_add(&parser->guard_names, name);
 }
 
-bool state_has_guard(State* state, char* name) {
-  return str_set_contains(&state->guards, name);
+bool parser_has_guard_name(Parser* parser, char* name) {
+  return str_set_contains(&parser->guard_names, name);
 }
 
-void state_add_action(State* state, char* name) {
-  str_set_add(&state->actions, name);
+void parser_add_action_name(Parser* parser, char* name) {
+  str_set_add(&parser->action_names, name);
 }
 
-bool state_has_action(State* state, char* name) {
-  return str_set_contains(&state->actions, name);
+bool parser_has_action_name(Parser* parser, char* name) {
+  return str_set_contains(&parser->action_names, name);
 }
 
 /* Whether c can appear in an identifier: ASCII letters and underscore. */
-static int is_valid_identifier_char(char c) {
+static int is_identifier_char(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
@@ -181,180 +181,180 @@ static inline int is_whitespace(char c) {
   return c == ' ';
 }
 
-typedef bool (*consume_condition)(State*, char);
+typedef bool (*CharPredicate)(Parser*, char);
 
-static void consume_while(State* state, consume_condition cond) {
-  char c = state_char(state);
-  size_t start = state->index;
+static void consume_while(Parser* parser, CharPredicate cond) {
+  char c = parser_char(parser);
+  size_t start = parser->index;
   size_t len = 0;
 
   // Only a ':' at the very end of the source gets here with nothing left
   // to read. Give it an empty word rather than stepping past the end.
-  if(!state_inbounds(state)) {
-    state_set_word(state, arena_strdup(state->arena, ""), start, start);
-    state->word_len = 0;
-    state->token_len = 0;
+  if(!parser_in_bounds(parser)) {
+    parser_set_word(parser, arena_strdup(parser->arena, ""), start, start);
+    parser->word_len = 0;
+    parser->token_len = 0;
     return;
   }
 
   do {
     len++;
 
-    state_advance_column(state);
-    state_next(state);
+    parser_advance_column(parser);
+    parser_next(parser);
 
-    c = state_char(state);
-  } while(state_inbounds(state) && cond(state, c));
-  state_rewind(state, 1);
+    c = parser_char(parser);
+  } while(parser_in_bounds(parser) && cond(parser, c));
+  parser_rewind(parser, 1);
 
   if(is_newline(c)) {
-    state_advance_line(state);
+    parser_advance_line(parser);
   }
 
-  size_t end = state->index + 1;
-  char* str = arena_strndup(state->arena, state->source + start, len);
-  state_set_word(state, str, start, end);
-  state->word_len = len;
-  state->token_len = len;
+  size_t end = parser->index + 1;
+  char* str = arena_strndup(parser->arena, parser->source + start, len);
+  parser_set_word(parser, str, start, end);
+  parser->word_len = len;
+  parser->token_len = len;
 }
 
-static char* consume_string(State* state) {
-  char c = state_char(state);
+static char* consume_string(Parser* parser) {
+  char c = parser_char(parser);
   char quote = c;
-  size_t start = state->index;
+  size_t start = parser->index;
   size_t len = 0;
 
   do {
     len++;
 
-    state_advance_column(state);
-    state_next(state);
+    parser_advance_column(parser);
+    parser_next(parser);
 
 
-    c = state_char(state);
-  } while(c != quote && c != '\n' && state_inbounds(state));
+    c = parser_char(parser);
+  } while(c != quote && c != '\n' && parser_in_bounds(parser));
 
   // The word is the string with its quotes, closing quote included even if
   // the string ran into the end of the line instead.
-  char* str = arena_alloc(state->arena, len + 2);
-  memcpy(str, state->source + start, len);
+  char* str = arena_alloc(parser->arena, len + 2);
+  memcpy(str, parser->source + start, len);
   str[len] = quote;
 
-  size_t end = state->index;
-  state_set_word(state, str, start, end);
+  size_t end = parser->index;
+  parser_set_word(parser, str, start, end);
 
   return str;
 }
 
-static bool identifier_consume_condition(State* state, char c) {
-  return is_valid_identifier_char(c);
+static bool identifier_consume_condition(Parser* parser, char c) {
+  return is_identifier_char(c);
 }
 
-static void consume_identifier(State* state) {
-  consume_while(state, &identifier_consume_condition);
+static void consume_identifier(Parser* parser) {
+  consume_while(parser, &identifier_consume_condition);
 }
 
-static bool member_consume_condition(State* state, char c) {
-  return is_valid_identifier_char(c) || c == '.';
+static bool member_consume_condition(Parser* parser, char c) {
+  return is_identifier_char(c) || c == '.';
 }
 
-static bool timeframe_consume_condition(State* state, char c) {
-  return is_timeframe_char(c);
+static bool timeframe_consume_condition(Parser* parser, char c) {
+  return timeframe_is_char(c);
 }
 
-static void consume_timeframe(State* state) {
-  consume_while(state, &timeframe_consume_condition);
+static void consume_timeframe(Parser* parser) {
+  consume_while(parser, &timeframe_consume_condition);
 }
 
 /* Public API */
-TokenType consume_token(State* state) {
+TokenType parser_next_token(Parser* parser) {
   int len = 0;
-  while(state_inbounds(state)) {
-    state_next(state);
-    state_advance_column(state);
-    char c = state_char(state);
+  while(parser_in_bounds(parser)) {
+    parser_next(parser);
+    parser_advance_column(parser);
+    char c = parser_char(parser);
 
     if(is_whitespace(c)) {
       continue;
     }
 
     if(is_newline(c)) {
-      state_advance_line(state);
-      state->token_len = 1;
+      parser_advance_line(parser);
+      parser->token_len = 1;
       return TOKEN_EOL;
     }
 
     len++;
 
     if(c == '{') {
-      state->token_len = 1;
+      parser->token_len = 1;
       return TOKEN_BEGIN_BLOCK;
     }
 
     if(c == '}') {
-      state->token_len = 1;
+      parser->token_len = 1;
       return TOKEN_END_BLOCK;
     }
 
     if(c == '(') {
-      state->token_len = 1;
+      parser->token_len = 1;
       return TOKEN_BEGIN_CALL;
     }
 
     if(c == ')') {
-      state->token_len = 1;
+      parser->token_len = 1;
       return TOKEN_END_CALL;
     }
 
     if(c == '=') {
-      if(state_peek(state) == '>') {
-        state_next(state);
-        state->token_len = 2;
+      if(parser_peek(parser) == '>') {
+        parser_next(parser);
+        parser->token_len = 2;
         return TOKEN_CALL;
       }
-      state->token_len = 1;
+      parser->token_len = 1;
       return TOKEN_ASSIGNMENT;
     }
 
-    if(is_valid_identifier_char(c)) {
-      consume_identifier(state);
-      if(state_peek(state) == '.') {
+    if(is_identifier_char(c)) {
+      consume_identifier(parser);
+      if(parser_peek(parser) == '.') {
         return TOKEN_MEMBER_EXPRESSION;
       }
       return TOKEN_IDENTIFIER;
     }
 
     if(c == ':') {
-      state_advance_column(state);
-      state_next(state);
-      consume_identifier(state);
+      parser_advance_column(parser);
+      parser_next(parser);
+      consume_identifier(parser);
       return TOKEN_SYMBOL;
     }
 
     if(c == '\'' || c == '"') {
-      consume_string(state);
+      consume_string(parser);
       return TOKEN_STRING;
     }
 
     if(c == ',') {
-      state->token_len = 1;
+      parser->token_len = 1;
       return TOKEN_COMMA;
     }
 
     if(c == '\0') {
-      state->token_len = 1;
+      parser->token_len = 1;
       return TOKEN_EOF;
     }
 
     if(c == '@') {
-      consume_identifier(state);
+      consume_identifier(parser);
       return TOKEN_LOCAL;
     }
 
-    if(is_integer(c)) {
-      consume_timeframe(state);
-      char last = state->word[state->word_len - 1];
-      if(is_integer(last)) {
+    if(timeframe_is_digit(c)) {
+      consume_timeframe(parser);
+      char last = parser->word[parser->word_len - 1];
+      if(timeframe_is_digit(last)) {
         return TOKEN_INTEGER;
       } else {
         return TOKEN_TIMEFRAME;
@@ -362,37 +362,37 @@ TokenType consume_token(State* state) {
     }
 
     if(c == '/') {
-      char nc = state_peek(state);
+      char nc = parser_peek(parser);
       if(nc == '/') {
         // single-line
         do {
-          state_next(state);
-          state_advance_column(state);
-          nc = state_char(state);
-        } while(state_inbounds(state) && !is_newline(nc));
-        if(is_newline(state_char(state))) {
-          state_advance_line(state);
+          parser_next(parser);
+          parser_advance_column(parser);
+          nc = parser_char(parser);
+        } while(parser_in_bounds(parser) && !is_newline(nc));
+        if(is_newline(parser_char(parser))) {
+          parser_advance_line(parser);
         }
         continue;
       } else if(nc == '*') {
         // multi-line
         char lc = c;
         do {
-          state_next(state);
-          state_advance_column(state);
-          nc = state_char(state);
+          parser_next(parser);
+          parser_advance_column(parser);
+          nc = parser_char(parser);
           if(is_newline(nc)) {
-            state_advance_line(state);
+            parser_advance_line(parser);
           }
-        } while(state_inbounds(state) && (lc != '*' && nc != '/'));
+        } while(parser_in_bounds(parser) && (lc != '*' && nc != '/'));
         continue;
       }
     }
 
-    state->token_len = len;
+    parser->token_len = len;
     return TOKEN_UNKNOWN;
   }
 
-  state->token_len = len;
+  parser->token_len = len;
   return TOKEN_EOF;
 }

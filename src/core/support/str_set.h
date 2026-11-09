@@ -13,15 +13,15 @@
  *
  * A NULL key is never in the set, and adding one does nothing.
  */
-typedef struct str_set_t {
+typedef struct StrSet {
   Arena* arena;
   const char** slots;
   size_t capacity;  // 0 or a power of two
   size_t length;
-} str_set_t;
+} StrSet;
 
-void str_set_init(str_set_t*, Arena*);
+void str_set_init(StrSet*, Arena*);
 /* Add a copy of key. Returns true if it wasn't already there. */
-bool str_set_add(str_set_t*, const char* key);
-bool str_set_contains(const str_set_t*, const char* key);
-void str_set_clear(str_set_t*);
+bool str_set_add(StrSet*, const char* key);
+bool str_set_contains(const StrSet*, const char* key);
+void str_set_clear(StrSet*);

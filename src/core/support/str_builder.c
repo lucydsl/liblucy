@@ -13,7 +13,7 @@
 
 static const size_t str_builder_min_size = 32;
 
-struct str_builder {
+struct StrBuilder {
     char   *str;
     size_t  alloced;
     size_t  len;
@@ -21,9 +21,9 @@ struct str_builder {
 
 /* - - - - */
 
-str_builder_t *str_builder_create(void)
+StrBuilder *str_builder_create(void)
 {
-    str_builder_t *sb;
+    StrBuilder *sb;
 
     sb          = xcalloc(1, sizeof(*sb));
     sb->str     = xmalloc(str_builder_min_size);
@@ -34,7 +34,7 @@ str_builder_t *str_builder_create(void)
     return sb;
 }
 
-void str_builder_destroy(str_builder_t *sb)
+void str_builder_destroy(StrBuilder *sb)
 {
     if (sb == NULL)
         return;
@@ -49,7 +49,7 @@ void str_builder_destroy(str_builder_t *sb)
  * param[in,out] sb      Builder.
  * param[in]     add_len The length that needs to be added *not* including a NULL terminator.
  */
-static void str_builder_ensure_space(str_builder_t *sb, size_t add_len)
+static void str_builder_ensure_space(StrBuilder *sb, size_t add_len)
 {
     size_t needed;
 
@@ -74,7 +74,7 @@ static void str_builder_ensure_space(str_builder_t *sb, size_t add_len)
 
 /* - - - - */
 
-void str_builder_add_str(str_builder_t *sb, const char *str, size_t len)
+void str_builder_add_str(StrBuilder *sb, const char *str, size_t len)
 {
     if (sb == NULL || str == NULL || *str == '\0')
         return;
@@ -88,7 +88,7 @@ void str_builder_add_str(str_builder_t *sb, const char *str, size_t len)
     sb->str[sb->len] = '\0';
 }
 
-void str_builder_copy_str(str_builder_t *sb, const char *str, size_t start, size_t end)
+void str_builder_copy_str(StrBuilder *sb, const char *str, size_t start, size_t end)
 {
     size_t len;
     if (sb == NULL || str == NULL || end <= start)
@@ -101,7 +101,7 @@ void str_builder_copy_str(str_builder_t *sb, const char *str, size_t start, size
     sb->str[sb->len] = '\0';
 }
 
-void str_builder_add_char(str_builder_t *sb, char c)
+void str_builder_add_char(StrBuilder *sb, char c)
 {
     if (sb == NULL)
         return;
@@ -111,7 +111,7 @@ void str_builder_add_char(str_builder_t *sb, char c)
     sb->str[sb->len] = '\0';
 }
 
-void str_builder_add_int(str_builder_t *sb, int val)
+void str_builder_add_int(StrBuilder *sb, int val)
 {
     char str[12];
 
@@ -124,14 +124,14 @@ void str_builder_add_int(str_builder_t *sb, int val)
 
 /* - - - - */
 
-void str_builder_clear(str_builder_t *sb)
+void str_builder_clear(StrBuilder *sb)
 {
     if (sb == NULL)
         return;
     str_builder_truncate(sb, 0);
 }
 
-void str_builder_truncate(str_builder_t *sb, size_t len)
+void str_builder_truncate(StrBuilder *sb, size_t len)
 {
     if (sb == NULL || len >= sb->len)
         return;
@@ -140,7 +140,7 @@ void str_builder_truncate(str_builder_t *sb, size_t len)
     sb->str[sb->len] = '\0';
 }
 
-void str_builder_drop(str_builder_t *sb, size_t len)
+void str_builder_drop(StrBuilder *sb, size_t len)
 {
     if (sb == NULL || len == 0)
         return;
@@ -157,21 +157,21 @@ void str_builder_drop(str_builder_t *sb, size_t len)
 
 /* - - - - */
 
-size_t str_builder_len(const str_builder_t *sb)
+size_t str_builder_len(const StrBuilder *sb)
 {
     if (sb == NULL)
         return 0;
     return sb->len;
 }
 
-const char *str_builder_peek(const str_builder_t *sb)
+const char *str_builder_peek(const StrBuilder *sb)
 {
     if (sb == NULL)
         return NULL;
     return sb->str;
 }
 
-char *str_builder_dump(const str_builder_t *sb, size_t *len)
+char *str_builder_dump(const StrBuilder *sb, size_t *len)
 {
     char *out;
 
@@ -185,7 +185,7 @@ char *str_builder_dump(const str_builder_t *sb, size_t *len)
     return out;
 }
 
-char *str_builder_release(str_builder_t *sb, size_t *len)
+char *str_builder_release(StrBuilder *sb, size_t *len)
 {
     char *out;
 
@@ -199,7 +199,7 @@ char *str_builder_release(str_builder_t *sb, size_t *len)
     return out;
 }
 
-char str_builder_char_at(const str_builder_t *sb, long index) {
+char str_builder_char_at(const StrBuilder *sb, long index) {
     /* Callers look behind the end with len - 1 and len - 2, which go
      * negative on a short string. Out of range reads as NUL. */
     if (sb == NULL || index < 0 || (size_t)index >= sb->len)

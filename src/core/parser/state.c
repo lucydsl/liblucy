@@ -3,39 +3,39 @@
 #include <stdio.h>
 #include <string.h>
 
-int parser_consume_state(State* state) {
+int parser_consume_state(Parser* parser) {
   int err = 0;
 
-  StateNode* state_node = node_create_state(state->arena);
+  StateNode* state_node = node_create_state(parser->arena);
   Node* state_node_node = (Node*)state_node;
-  state_node_start_pos(state, state_node_node, 5);
+  parser_node_start_pos(parser, state_node_node, 5);
 
-  Node* parent_node = state->node;
+  Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_MACHINE) {
-    error_msg_with_code_block(state, state_node_node, "Unexpected parent node for state.");
+    parser_error(parser, state_node_node, "Unexpected parent node for state.");
     return 2;
   }
 
-  state_node_set(state, state_node_node);
+  parser_enter_node(parser, state_node_node);
 
-  TokenType token = consume_token(state);
+  TokenType token = parser_next_token(parser);
 
   switch(token) {
     case TOKEN_IDENTIFIER: {
       // Set the name of the state
-      state_node->name_start = state->word_start;
-      state_node->name_end = state->word_end;
+      state_node->name_start = parser->word_start;
+      state_node->name_end = parser->word_end;
 
-      switch(state->modifier) {
+      switch(parser->modifier) {
         case MODIFIER_INITIAL: {
-          state->modifier = MODIFIER_NONE;
+          parser->modifier = MODIFIER_NONE;
           MachineNode* machine_node = (MachineNode*)parent_node;
           machine_node->initial_start = state_node->name_start;
           machine_node->initial_end = state_node->name_end;
           break;
         }
         case MODIFIER_FINAL: {
-          state->modifier = MODIFIER_NONE;
+          parser->modifier = MODIFIER_NONE;
           state_node->final = true;
           break;
         }
@@ -44,49 +44,49 @@ int parser_consume_state(State* state) {
         }
       }
 
-      token = consume_token(state);
+      token = parser_next_token(parser);
       break;
     }
     default: {
       err = 1;
-      error_msg_with_code_block_dec(state, state->token_len, "States must be given a name.");
+      parser_error_back(parser, parser->token_len, "States must be given a name.");
       break;
     }
   }
 
   if(token != TOKEN_BEGIN_BLOCK) {
-    error_unexpected_identifier(state, state_node_node);
+    parser_error_unexpected_identifier(parser, state_node_node);
     return 2;
   }
 
   while(true) {
-    token = consume_token(state);
+    token = parser_next_token(parser);
 
     switch(token) {
       case TOKEN_EOL: continue;
       case TOKEN_END_BLOCK: {
-        state_node_node->end = state->index;
+        state_node_node->end = parser->index;
         goto end;
       };
       case TOKEN_CALL: {
-        state_set_word(state, NULL, 0, 0);
-        _check(parser_consume_transition(state));
+        parser_set_word(parser, NULL, 0, 0);
+        _check(parser_consume_transition(parser));
         break;
       }
       case TOKEN_IDENTIFIER: {
-        Keyword key = keyword_get(state->word);
+        Keyword key = keyword_lookup(parser->word);
 
         switch(key) {
           case KEYWORD_INVOKE: {
-            _check(parser_consume_invoke(state));
+            _check(parser_consume_invoke(parser));
             break;
           }
           case KEYWORD_MACHINE: {
-            _check(parser_consume_machine(state));
+            _check(parser_consume_machine(parser));
             break;
           }
           default: {
-            _check(parser_consume_transition(state));
+            _check(parser_consume_transition(parser));
             break;
           }
         }
@@ -94,18 +94,18 @@ int parser_consume_state(State* state) {
         break;
       }
       case TOKEN_LOCAL: {
-        char* local = state_take_word(state);
-        LocalKind key = local_get(local);
+        char* local = parser_take_word(parser);
+        LocalKind key = local_lookup(local);
         switch(key) {
           case LOCAL_ENTRY:
           case LOCAL_EXIT: {
-            _check(parser_consume_local(state, key));
+            _check(parser_consume_local(parser, key));
             break;
           }
           default: {
             char buffer[256];
             snprintf(buffer, sizeof(buffer), "Unknown local variable (%s)", local);
-            error_msg_with_code_block_dec(state, state->token_len, buffer);
+            parser_error_back(parser, parser->token_len, buffer);
             err = 1;
             break;
           }
@@ -113,14 +113,14 @@ int parser_consume_state(State* state) {
         break;
       }
       default: {
-        error_unexpected_identifier(state, state_node_node);
+        parser_error_unexpected_identifier(parser, state_node_node);
         goto end;
       }
     }
   }
 
   end: {
-    state_node_up(state);
+    parser_leave_node(parser);
     return err;
   }
 }

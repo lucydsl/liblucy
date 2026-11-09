@@ -2,33 +2,33 @@
 
 #include <stdlib.h>
 
-static int consume_inline_action_args(State* state, void* expr, TokenType token, char* arg, int _argi) {
+static int consume_inline_action_args(Parser* parser, void* expr, TokenType token, char* arg, int _argi) {
   ActionExpression* action_expression = (ActionExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
-    IdentifierExpression* ref = node_create_identifierexpression(state->arena);
+    IdentifierExpression* ref = expression_create_identifier(parser->arena);
     ref->name = arg;
     action_expression->ref = (Expression*)ref;
   } else if(token == TOKEN_SYMBOL) {
-    SymbolExpression* ref = node_create_symbolexpression(state->arena);
+    SymbolExpression* ref = expression_create_symbol(parser->arena);
     ref->name = arg;
     action_expression->ref = (Expression*)ref;
 
   } else {
-    error_msg_with_code_block_dec(state, state->token_len, "Unexpected argument to action()");
+    parser_error_back(parser, parser->token_len, "Unexpected argument to action()");
     return 1;
   }
 
   return 0;
 }
 
-int parser_consume_inline_action(State* state, Node* node) {
+int parser_consume_inline_action(Parser* parser, Node* node) {
   int err = 0;
 
-  ActionExpression* action_expression = node_create_actionexpression(state->arena);
+  ActionExpression* action_expression = expression_create_action(parser->arena);
 
-  _check(consume_call_expression(state, "action", action_expression, &consume_inline_action_args));
-  _check(expect_call_argument(state, "action", action_expression->ref, err));
+  _check(parser_consume_call(parser, "action", action_expression, &consume_inline_action_args));
+  _check(parser_expect_call_argument(parser, "action", action_expression->ref, err));
   if(action_expression->ref == NULL) {
     return err;
   }
@@ -36,13 +36,13 @@ int parser_consume_inline_action(State* state, Node* node) {
   switch(node->type) {
     case NODE_TRANSITION: {
       TransitionNode* transition_node = (TransitionNode*)node;
-      TransitionAction* action = node_transition_add_action(state->arena, transition_node, NULL);
+      TransitionAction* action = node_transition_add_action(parser->arena, transition_node, NULL);
       action->expression = (Expression*)action_expression;
       break;
     }
     case NODE_LOCAL: {
       LocalNode* local_node = (LocalNode*)node;
-      TransitionAction* action = create_transition_action(state->arena);
+      TransitionAction* action = node_create_transition_action(parser->arena);
       action->expression = (Expression*)action_expression;
       node_local_add_action(local_node, action);
       break;
@@ -52,7 +52,7 @@ int parser_consume_inline_action(State* state, Node* node) {
     }
   }
 
-  MachineNode* parent_machine_node = find_closest_machine_node(node);
+  MachineNode* parent_machine_node = node_find_machine(node);
   if(action_expression->ref->type == EXPRESSION_SYMBOL && parent_machine_node != NULL) {
     parent_machine_node->flags |= MACHINE_USES_ACTION;
   }
@@ -60,52 +60,52 @@ int parser_consume_inline_action(State* state, Node* node) {
   return err;
 }
 
-int parser_consume_action(State* state) {
+int parser_consume_action(Parser* parser) {
   int err = 0;
 
-  Assignment* assignment = node_create_assignment(state->arena, ASSIGNMENT_ACTION);
+  AssignmentNode* assignment = node_create_assignment(parser->arena, ASSIGNMENT_ACTION);
   Node *node = (Node*)assignment;
-  state_node_set(state, node);
+  parser_enter_node(parser, node);
 
   TokenType token;
-  token = consume_token(state);
+  token = parser_next_token(parser);
 
   if(token != TOKEN_IDENTIFIER) {
-    error_unexpected_identifier(state, node);
+    parser_error_unexpected_identifier(parser, node);
     return 2;
   }
 
-  char* binding_name = state_take_word(state);
+  char* binding_name = parser_take_word(parser);
   assignment->binding_name = binding_name;
 
-  token = consume_token(state);
+  token = parser_next_token(parser);
   if(token != TOKEN_ASSIGNMENT) {
-    error_msg_with_code_block(state, node, "Expected an assignment");
+    parser_error(parser, node, "Expected an assignment");
     return 2;
   }
 
-  token = consume_token(state);
+  token = parser_next_token(parser);
   switch(token) {
     case TOKEN_IDENTIFIER: {
-      char* identifier = state_take_word(state);
-      Keyword key = keyword_get(identifier);
+      char* identifier = parser_take_word(parser);
+      Keyword key = keyword_lookup(identifier);
       switch(key) {
         case KEYWORD_ASSIGN: {
-          AssignExpression *expression = node_create_assignexpression(state->arena);
-          consume_call_expression(state, "assign", expression, &parser_consume_inline_assign_args);
+          AssignExpression *expression = expression_create_assign(parser->arena);
+          parser_consume_call(parser, "assign", expression, &parser_consume_inline_assign_args);
           assignment->value = (Expression*)expression;
-          program_add_flag(state->program, PROGRAM_USES_ASSIGN);
+          program_add_flag(parser->program, PROGRAM_USES_ASSIGN);
           break;
         }
         case KEYWORD_SEND: {
-          SendExpression* expression = node_create_sendexpression(state->arena);
-          consume_call_expression(state, "send", expression, &parser_consume_inline_send_args);
+          SendExpression* expression = expression_create_send(parser->arena);
+          parser_consume_call(parser, "send", expression, &parser_consume_inline_send_args);
           assignment->value = (Expression*)expression;
-          program_add_flag(state->program, PROGRAM_USES_SEND);
+          program_add_flag(parser->program, PROGRAM_USES_SEND);
           break;
         }
         default: {
-          IdentifierExpression* expression = node_create_identifierexpression(state->arena);
+          IdentifierExpression* expression = expression_create_identifier(parser->arena);
           expression->name = identifier;
           assignment->value = (Expression*)expression;
         }
@@ -113,20 +113,20 @@ int parser_consume_action(State* state) {
       break;
     }
     case TOKEN_SYMBOL: {
-      SymbolExpression* expression = node_create_symbolexpression(state->arena);
-      expression->name = state_take_word(state);
+      SymbolExpression* expression = expression_create_symbol(parser->arena);
+      expression->name = parser_take_word(parser);
       assignment->value = (Expression*)expression;
       break;
     }
     default: {
-      error_msg_with_code_block_dec(state, state->token_len, "Expected an identifier");
+      parser_error_back(parser, parser->token_len, "Expected an identifier");
       return 2;
     }
   }
 
   end: {
-    state_add_action(state, assignment->binding_name);
-    state_node_up(state);
+    parser_add_action_name(parser, assignment->binding_name);
+    parser_leave_node(parser);
     return err;
   }
 }

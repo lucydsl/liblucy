@@ -6,27 +6,27 @@
 #include "../support/str_set.h"
 #include "../support/string_list.h"
 
-// ts_printer_t.flags: which XState types the .d.ts imports.
-#define XS_TS_PROGRAM_USES_GUARD (1u << 0)
-#define XS_TS_PROGRAM_USES_ACTION (1u << 1)
-#define XS_TS_PROGRAM_USES_INVOKE (1u << 2)
-#define XS_TS_PROGRAM_USES_DELAY (1u << 3)
-#define XS_TS_PROGRAM_USES_ASSIGN (1u << 4)
+// TSPrinter.flags: which XState types the .d.ts imports.
+#define TS_USES_GUARD (1u << 0)
+#define TS_USES_ACTION (1u << 1)
+#define TS_USES_INVOKE (1u << 2)
+#define TS_USES_DELAY (1u << 3)
+#define TS_USES_ASSIGN (1u << 4)
 
-// ts_printer_t.machine_flags.
-#define XS_TS_MACHINE_DEFAULT (1u << 0)
+// TSPrinter.machine_flags.
+#define TS_MACHINE_DEFAULT (1u << 0)
 
 // The events a guard or action runs for, in order and without repeats.
-typedef struct xs_executor_t {
-  string_list_t events;
-  str_set_t events_s;
-} xs_executor_t;
+typedef struct Executor {
+  StringList events;
+  StrSet events_s;
+} Executor;
 
-typedef struct xs_assign_executor_t {
-  string_list_t events;
-  str_set_t events_s;
+typedef struct AssignExecutor {
+  StringList events;
+  StrSet events_s;
   char* data_prop;
-} xs_assign_executor_t;
+} AssignExecutor;
 
 /*
  * Builds the .d.ts for a compile.
@@ -36,7 +36,7 @@ typedef struct xs_assign_executor_t {
  * the arena it is given; ts_printer_destroy frees the string builders,
  * which are heap-allocated because they grow.
  */
-typedef struct ts_printer_t {
+typedef struct TSPrinter {
   Arena* arena;
   unsigned flags;
   char* source;
@@ -46,36 +46,36 @@ typedef struct ts_printer_t {
   size_t machine_name_end;
   char* xstate_specifier;
   JSBuilder* buffer;
-  str_builder_t* event_names_sb;
-  str_builder_t* data_names_sb;
-  str_builder_t* machine_def_sb;
+  StrBuilder* event_names_sb;
+  StrBuilder* data_names_sb;
+  StrBuilder* machine_def_sb;
 
-  ht* guards;
-  ht* actions;
-  ht* assigns;
-  string_list_t* invokes;
-  string_list_t* actors;
-  string_list_t* delays;
+  StrMap* guards;
+  StrMap* actions;
+  StrMap* assigns;
+  StringList* invokes;
+  StringList* actors;
+  StringList* delays;
 
-  ht* state_entries; // Map<state, List<Events>>
-  ht* entry_actions; // Map<state, List<Actions>>
-} ts_printer_t;
+  StrMap* state_entries; // Map<state, List<Events>>
+  StrMap* entry_actions; // Map<state, List<Actions>>
+} TSPrinter;
 
-ts_printer_t* ts_printer_create(Arena*, char* source);
-void ts_printer_destroy(ts_printer_t*);
+TSPrinter* ts_printer_create(Arena*, char* source);
+void ts_printer_destroy(TSPrinter*);
 /* The finished .d.ts, which the caller must free(). */
-char* ts_printer_dump(ts_printer_t*);
+char* ts_printer_dump(TSPrinter*);
 
-void ts_printer_add_event(ts_printer_t*, char*);
-void ts_printer_add_data(ts_printer_t*, char*);
-void ts_printer_add_assign(ts_printer_t*, char*, char*, char*);
-void ts_printer_add_guard(ts_printer_t*, char*, char*);
-void ts_printer_add_action(ts_printer_t*, char*, char*);
-void ts_printer_add_invoke(ts_printer_t*, char*);
-void ts_printer_add_actor(ts_printer_t*, char*);
-void ts_printer_add_delay(ts_printer_t*, char*);
-void ts_printer_create_machine(ts_printer_t*);
-void ts_printer_add_machine_name(ts_printer_t*, size_t, size_t);
-void ts_printer_add_state_entry(ts_printer_t*, char*, char*);
-void ts_printer_add_entry_action(ts_printer_t*, char*, char*);
-void ts_printer_figure_out_entry_events(ts_printer_t*);
+void ts_printer_add_event(TSPrinter*, char*);
+void ts_printer_add_data(TSPrinter*, char*);
+void ts_printer_add_assign(TSPrinter*, char*, char*, char*);
+void ts_printer_add_guard(TSPrinter*, char*, char*);
+void ts_printer_add_action(TSPrinter*, char*, char*);
+void ts_printer_add_invoke(TSPrinter*, char*);
+void ts_printer_add_actor(TSPrinter*, char*);
+void ts_printer_add_delay(TSPrinter*, char*);
+void ts_printer_create_machine(TSPrinter*);
+void ts_printer_add_machine_name(TSPrinter*, size_t, size_t);
+void ts_printer_add_state_entry(TSPrinter*, char*, char*);
+void ts_printer_add_entry_action(TSPrinter*, char*, char*);
+void ts_printer_figure_out_entry_events(TSPrinter*);

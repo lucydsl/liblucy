@@ -22,11 +22,7 @@ static const struct {
   { "send", KEYWORD_SEND },
 };
 
-bool is_keyword(const char* key) {
-  return keyword_get(key) != KEYWORD_NONE;
-}
-
-Keyword keyword_get(const char* key) {
+Keyword keyword_lookup(const char* key) {
   if(key == NULL) {
     return KEYWORD_NONE;
   }
@@ -38,7 +34,7 @@ Keyword keyword_get(const char* key) {
   return KEYWORD_NONE;
 }
 
-LocalKind local_get(const char* key) {
+LocalKind local_lookup(const char* key) {
   if(key == NULL) {
     return LOCAL_NONE;
   }
@@ -51,7 +47,7 @@ LocalKind local_get(const char* key) {
   return LOCAL_NONE;
 }
 
-const char* local_get_name(LocalKind key) {
+const char* local_name(LocalKind key) {
   if(key == LOCAL_ENTRY) {
     return "@entry";
   } else if(key == LOCAL_EXIT) {

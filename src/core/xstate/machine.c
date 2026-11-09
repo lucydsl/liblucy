@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
+static void add_machine_fn_args(Printer* printer, JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "{ ");
   if(machine_node->flags & MACHINE_USES_ACTION) {
     js_builder_add_arg(jsb, "actions");
@@ -27,29 +27,29 @@ static void add_machine_fn_args(PrintState* state, JSBuilder* jsb, MachineNode* 
   js_builder_add_str(jsb, " } = {}");
 }
 
-void xs_add_machine_binding_name(PrintState* state, JSBuilder* jsb, MachineNode* machine_node) {
+void printer_add_machine_binding_name(Printer* printer, JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "create");
-  js_builder_add_char(jsb, toupper((unsigned char)state->source[machine_node->name_start]));
+  js_builder_add_char(jsb, toupper((unsigned char)printer->source[machine_node->name_start]));
   size_t i = machine_node->name_start + 1;
   while(i < machine_node->name_end) {
-    js_builder_add_char(jsb, state->source[i]);
+    js_builder_add_char(jsb, printer->source[i]);
     i++;
   }
 }
 
-static inline void compile_machine(PrintState* state, JSBuilder* jsb, MachineNode* machine_node, bool is_nested) {
+static inline void compile_machine(Printer* printer, JSBuilder* jsb, MachineNode* machine_node, bool is_nested) {
   if(!is_nested) {
     if(machine_node->name_start == 0) {
       js_builder_add_str(jsb, "\nexport default function(");
-      add_machine_fn_args(state, jsb, machine_node);
+      add_machine_fn_args(printer, jsb, machine_node);
       js_builder_add_str(jsb, ") {\n");
       js_builder_increase_indent(jsb);
     } else {
       js_builder_add_export(jsb);
       js_builder_add_str(jsb, "function ");
-      xs_add_machine_binding_name(state, jsb, machine_node);
+      printer_add_machine_binding_name(printer, jsb, machine_node);
       js_builder_add_str(jsb, "(");
-      add_machine_fn_args(state, jsb, machine_node);
+      add_machine_fn_args(printer, jsb, machine_node);
       js_builder_add_str(jsb, ") {\n");
       js_builder_increase_indent(jsb);
     }
@@ -59,28 +59,28 @@ static inline void compile_machine(PrintState* state, JSBuilder* jsb, MachineNod
 
   if(machine_node->initial_start != 0) {
     js_builder_start_prop(jsb, "initial");
-    js_builder_copy_string(jsb, state->source, machine_node->initial_start, machine_node->initial_end);
+    js_builder_copy_string(jsb, printer->source, machine_node->initial_start, machine_node->initial_end);
   }
   js_builder_shorthand_prop(jsb, "context");
 }
 
-void xs_enter_machine(PrintState* state, JSBuilder* jsb, Node* node) {
+void printer_enter_machine(Printer* printer, JSBuilder* jsb, Node* node) {
   MachineNode *machine_node = (MachineNode*)node;
   Node* parent_node = node->parent;
-  bool is_nested = node_machine_is_nested(node);
-  compile_machine(state, jsb, machine_node, is_nested);
-  if(state->flags & XS_FLAG_DTS) {
-    ts_printer_add_machine_name(state->tsprinter, machine_node->name_start, machine_node->name_end);
+  bool is_nested = node_is_nested_machine(node);
+  compile_machine(printer, jsb, machine_node, is_nested);
+  if(printer->flags & XS_FLAG_DTS) {
+    ts_printer_add_machine_name(printer->ts_printer, machine_node->name_start, machine_node->name_end);
   }
 }
 
-void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
-  bool has_guard = state->guard != NULL;
-  bool has_action = state->action != NULL;
-  bool has_delay = state->delay != NULL;
-  bool has_service = state->service != NULL;
+void printer_exit_machine(Printer* printer, JSBuilder* jsb, Node* node) {
+  bool has_guard = printer->guard_refs != NULL;
+  bool has_action = printer->action_refs != NULL;
+  bool has_delay = printer->delay_refs != NULL;
+  bool has_service = printer->service_refs != NULL;
   bool needs_options = has_guard || has_action || has_delay || has_service;
-  bool is_nested = node_machine_is_nested(node);
+  bool is_nested = node_is_nested_machine(node);
 
   if(!is_nested && needs_options) {
     js_builder_end_object(jsb);
@@ -92,7 +92,7 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
       js_builder_start_prop(jsb, "guards");
       js_builder_start_object(jsb);
 
-      Ref* ref = state->guard;
+      Ref* ref = printer->guard_refs;
       while(ref != NULL) {
         js_builder_start_prop(jsb, ref->key);
 
@@ -128,7 +128,7 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
       js_builder_start_prop(jsb, "actions");
       js_builder_start_object(jsb);
 
-      Ref* ref = state->action;
+      Ref* ref = printer->action_refs;
       while(ref != NULL) {
         js_builder_start_prop(jsb, ref->key);
 
@@ -138,7 +138,7 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
           case EXPRESSION_ASSIGN: {
             AssignExpression* assign = (AssignExpression*)expression;
 
-            xs_start_assign_call(jsb, assign);
+            printer_start_assign_call(jsb, assign);
 
             // assign(key) has no value. It used to crash here; print what
             // an inline assign(key) prints instead.
@@ -152,7 +152,7 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
               }
               case EXPRESSION_SPAWN: {
                 SpawnExpression* spawn_expression = (SpawnExpression*)assign->value;
-                xs_add_spawn_call(state, jsb, spawn_expression);
+                printer_add_spawn_call(printer, jsb, spawn_expression);
                 break;
               }
               case EXPRESSION_SYMBOL: {
@@ -166,12 +166,12 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
               }
             }
 
-            xs_end_assign_call(jsb);
+            printer_end_assign_call(jsb);
             break;
           }
           case EXPRESSION_SEND: {
             SendExpression* send_expression = (SendExpression*)expression;
-            xs_add_send_call(jsb, send_expression);
+            printer_add_send_call(jsb, send_expression);
             break;
           }
           case EXPRESSION_IDENTIFIER: {
@@ -201,7 +201,7 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
       js_builder_start_prop(jsb, "delays");
       js_builder_start_object(jsb);
 
-      Ref* ref = state->delay;
+      Ref* ref = printer->delay_refs;
       while(ref != NULL) {
         DelayExpression* expression = (DelayExpression*)ref->value;
         if(expression->ref->type == EXPRESSION_IDENTIFIER) {
@@ -225,7 +225,7 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
       js_builder_start_prop(jsb, "services");
       js_builder_start_object(jsb);
 
-      Ref* ref = state->service;
+      Ref* ref = printer->service_refs;
       while(ref != NULL) {
         switch(ref->value->type) {
           case EXPRESSION_INVOKE: {
@@ -270,14 +270,14 @@ void xs_exit_machine(PrintState* state, JSBuilder* jsb, Node* node) {
     js_builder_decrease_indent(jsb);
   }
 
-  if(state->flags & XS_FLAG_DTS) {
-    ts_printer_figure_out_entry_events(state->tsprinter);
-    ts_printer_create_machine(state->tsprinter);
+  if(printer->flags & XS_FLAG_DTS) {
+    ts_printer_figure_out_entry_events(printer->ts_printer);
+    ts_printer_create_machine(printer->ts_printer);
   }
 
-  str_set_clear(&state->guard_names);
-  str_set_clear(&state->action_names);
-  str_set_clear(&state->delay_names);
-  str_set_clear(&state->service_names);
-  xs_clear_state_refs(state);
+  str_set_clear(&printer->guard_names);
+  str_set_clear(&printer->action_names);
+  str_set_clear(&printer->delay_names);
+  str_set_clear(&printer->service_names);
+  printer_clear_refs(printer);
 }

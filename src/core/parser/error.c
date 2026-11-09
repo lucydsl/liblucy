@@ -36,10 +36,10 @@ static int num_places(long n) {
   return places;
 }
 
-static void error_file_info(State* state, pos_t* pos) {
+static void error_file_info(Parser* parser, Position* pos) {
   long line = pos->line + 1;
   long col = pos->column;
-  fprintf(stderr, BOLDWHITE "%s" RESET ":%li:%li\n", state->filename, line, col);
+  fprintf(stderr, BOLDWHITE "%s" RESET ":%li:%li\n", parser->filename, line, col);
 }
 
 void error_message(const char* msg) {
@@ -52,7 +52,7 @@ static void print_spaces(long count) {
   }
 }
 
-static void print_code_line(str_builder_t *sb, long line, int max_spaces) {
+static void print_code_line(StrBuilder *sb, long line, int max_spaces) {
   int line_spaces = num_places(line);
   int num_spaces = max_spaces - line_spaces + 1;
 
@@ -61,9 +61,9 @@ static void print_code_line(str_builder_t *sb, long line, int max_spaces) {
   fprintf(stderr, "│ %s", str_builder_peek(sb));
 }
 
-static void error_annotate(State* state, pos_t* pos) {
-  char* source = state->source;
-  size_t source_len = state->source_len;
+static void error_annotate(Parser* parser, Position* pos) {
+  char* source = parser->source;
+  size_t source_len = parser->source_len;
 
   long problem_line = pos->line;
   long problem_col =  pos->column;
@@ -72,7 +72,7 @@ static void error_annotate(State* state, pos_t* pos) {
   long end_line = problem_line + 2;
   int max_num_places = num_places(end_line);
 
-  str_builder_t *sb = str_builder_create();
+  StrBuilder *sb = str_builder_create();
 
   bool in_block = false;
   size_t i = 0;
@@ -121,31 +121,31 @@ static void error_annotate(State* state, pos_t* pos) {
   str_builder_destroy(sb);
 }
 
-void error_msg_with_code_block(State* state, Node* node, const char* msg) {
-  pos_t pos = {
-    .line = (long)state->line + 1,
-    .column = (long)state->column
+void parser_error(Parser* parser, Node* node, const char* msg) {
+  Position pos = {
+    .line = (long)parser->line + 1,
+    .column = (long)parser->column
   };
 
-  error_file_info(state, &pos);
+  error_file_info(parser, &pos);
   error_message(msg);
-  error_annotate(state, &pos);
+  error_annotate(parser, &pos);
   fprintf(stderr, "\n");
 }
 
-void error_msg_with_code_block_pos(State* state, pos_t* pos, const char* msg) {
-  error_file_info(state, pos);
+void parser_error_at(Parser* parser, Position* pos, const char* msg) {
+  error_file_info(parser, pos);
   error_message(msg);
-  error_annotate(state, pos);
+  error_annotate(parser, pos);
   fprintf(stderr, "\n");
 }
 
-void error_msg_with_code_block_dec(State* state, size_t dec, const char* msg) {
-  pos_t pos;
-  state_find_position(state, &pos, dec);
-  error_msg_with_code_block_pos(state, &pos, msg);
+void parser_error_back(Parser* parser, size_t dec, const char* msg) {
+  Position pos;
+  parser_find_position(parser, &pos, dec);
+  parser_error_at(parser, &pos, msg);
 }
 
-void error_unexpected_identifier(State* state, Node* node) {
-  error_msg_with_code_block(state, node, "Unexpected identifier");
+void parser_error_unexpected_identifier(Parser* parser, Node* node) {
+  parser_error(parser, node, "Unexpected identifier");
 }

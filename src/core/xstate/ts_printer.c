@@ -8,7 +8,7 @@
 #include "../support/str_builder.h"
 #include "../support/str_set.h"
 
-static void add_str_union(str_builder_t* sb, char* value) {
+static void add_str_union(StrBuilder* sb, char* value) {
   long len = (long)str_builder_len(sb);
   char c = str_builder_char_at(sb, len - 1);
   if(c == '\'') {
@@ -20,41 +20,41 @@ static void add_str_union(str_builder_t* sb, char* value) {
   str_builder_add_char(sb, '\'');
 }
 
-static xs_executor_t* executor_create(Arena* arena) {
-  xs_executor_t* executor = ARENA_NEW(arena, xs_executor_t);
+static Executor* executor_create(Arena* arena) {
+  Executor* executor = ARENA_NEW(arena, Executor);
   string_list_init(&executor->events, arena);
   str_set_init(&executor->events_s, arena);
   return executor;
 }
 
-static void executor_add(xs_executor_t* executor, char* event_name) {
+static void executor_add(Executor* executor, char* event_name) {
   if(str_set_add(&executor->events_s, event_name)) {
     string_list_append(&executor->events, event_name);
   }
 }
 
-static xs_assign_executor_t* assign_executor_create(Arena* arena) {
-  xs_assign_executor_t* executor = ARENA_NEW(arena, xs_assign_executor_t);
+static AssignExecutor* assign_executor_create(Arena* arena) {
+  AssignExecutor* executor = ARENA_NEW(arena, AssignExecutor);
   string_list_init(&executor->events, arena);
   str_set_init(&executor->events_s, arena);
   return executor;
 }
 
-static void assign_executor_add(xs_assign_executor_t* executor, char* event_name) {
+static void assign_executor_add(AssignExecutor* executor, char* event_name) {
   if(str_set_add(&executor->events_s, event_name)) {
     string_list_append(&executor->events, event_name);
   }
 }
 
-static string_list_t* list_create(Arena* arena) {
-  string_list_t* list = ARENA_NEW(arena, string_list_t);
+static StringList* list_create(Arena* arena) {
+  StringList* list = ARENA_NEW(arena, StringList);
   string_list_init(list, arena);
   return list;
 }
 
-ts_printer_t* ts_printer_create(Arena* arena, char* source) {
+TSPrinter* ts_printer_create(Arena* arena, char* source) {
   // Zeroed: every list and table starts out NULL, meaning unused.
-  ts_printer_t* printer = ARENA_NEW(arena, ts_printer_t);
+  TSPrinter* printer = ARENA_NEW(arena, TSPrinter);
   printer->arena = arena;
   printer->source = source;
   printer->buffer = js_builder_create();
@@ -62,7 +62,7 @@ ts_printer_t* ts_printer_create(Arena* arena, char* source) {
   return printer;
 }
 
-void ts_printer_destroy(ts_printer_t* printer) {
+void ts_printer_destroy(TSPrinter* printer) {
   if(printer == NULL) {
     return;
   }
@@ -72,30 +72,30 @@ void ts_printer_destroy(ts_printer_t* printer) {
   str_builder_destroy(printer->data_names_sb);
 }
 
-static void build_import_clause(ts_printer_t* printer, str_builder_t* buffer) {
-  string_list_t identifiers;
+static void build_import_clause(TSPrinter* printer, StrBuilder* buffer) {
+  StringList identifiers;
   string_list_init(&identifiers, printer->arena);
 
-  if(printer->flags & XS_TS_PROGRAM_USES_ACTION) {
+  if(printer->flags & TS_USES_ACTION) {
     string_list_append(&identifiers, "Action");
   }
-  if(printer->flags & XS_TS_PROGRAM_USES_DELAY) {
+  if(printer->flags & TS_USES_DELAY) {
     string_list_append(&identifiers, "DelayConfig");
   }
-  if(printer->flags & XS_TS_PROGRAM_USES_GUARD) {
+  if(printer->flags & TS_USES_GUARD) {
     string_list_append(&identifiers, "ConditionPredicate");
   }
-  if(printer->flags & XS_TS_PROGRAM_USES_INVOKE) {
+  if(printer->flags & TS_USES_INVOKE) {
     string_list_append(&identifiers, "InvokeCreator");
   }
-  if(printer->flags & XS_TS_PROGRAM_USES_ASSIGN) {
+  if(printer->flags & TS_USES_ASSIGN) {
     string_list_append(&identifiers, "PartialAssigner");
   }
   string_list_append(&identifiers, "StateMachine");
   str_builder_add_str(buffer, "import { ", 0);
 
   int i = 0;
-  string_list_iterator_t it = string_list_iterator(&identifiers);
+  StringListIterator it = string_list_iterator(&identifiers);
   while(string_list_next(&it)) {
     if(i > 0) {
       str_builder_add_str(buffer, ", ", 0);
@@ -109,10 +109,10 @@ static void build_import_clause(ts_printer_t* printer, str_builder_t* buffer) {
   str_builder_add_str(buffer, "';\n", 0);
 }
 
-static char* build_extract_clause(string_list_t* event_list) {
-  str_builder_t* sb = str_builder_create();
+static char* build_extract_clause(StringList* event_list) {
+  StrBuilder* sb = str_builder_create();
   str_builder_add_str(sb, "Extract<TEvent, { type: ", 0);
-  string_list_iterator_t ir = string_list_iterator(event_list);
+  StringListIterator ir = string_list_iterator(event_list);
   while(string_list_next(&ir)) {
     if(ir.index > 0) {
       str_builder_add_str(sb, " | ", 0);
@@ -126,7 +126,7 @@ static char* build_extract_clause(string_list_t* event_list) {
   return str_builder_release(sb, NULL);
 }
 
-static void build_machine_name(ts_printer_t* printer, JSBuilder* buffer) {
+static void build_machine_name(TSPrinter* printer, JSBuilder* buffer) {
   if(printer->machine_name_start == 0) {
     js_builder_add_str(buffer, "Machine");
   } else {
@@ -135,7 +135,7 @@ static void build_machine_name(ts_printer_t* printer, JSBuilder* buffer) {
   }
 }
 
-static void print_machine_definitions(ts_printer_t* printer) {
+static void print_machine_definitions(TSPrinter* printer) {
   JSBuilder* buffer = printer->buffer;
 
   if(printer->event_names_sb != NULL) {
@@ -185,12 +185,12 @@ static void print_machine_definitions(ts_printer_t* printer) {
     js_builder_start_object(buffer);
 
     // Keep track of actions already added.
-    str_set_t actions_added;
+    StrSet actions_added;
     str_set_init(&actions_added, printer->arena);
 
     if(printer-> actions != NULL) {
-      hti it = ht_iterator(printer->actions);
-      while (ht_next(&it)) {
+      StrMapIterator it = str_map_iterator(printer->actions);
+      while (str_map_next(&it)) {
         char* action_name = (char*)it.key;
         js_builder_start_prop(buffer, action_name);
         js_builder_add_str(buffer, "Action<\n");
@@ -198,7 +198,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
         js_builder_add_indent(buffer);
         js_builder_add_str(buffer, "TContext,\n");
         js_builder_add_indent(buffer);
-        xs_executor_t* executor = (xs_executor_t*)it.value;
+        Executor* executor = (Executor*)it.value;
         if(executor->events.length > 0) {
           char* extract_clause = build_extract_clause(&executor->events);
           js_builder_add_str(buffer, "TEvent extends ");
@@ -219,10 +219,10 @@ static void print_machine_definitions(ts_printer_t* printer) {
     }
 
     if(printer->entry_actions != NULL) {
-      hti it = ht_iterator(printer->entry_actions);
-      while (ht_next(&it)) {
-        string_list_t* actions = (string_list_t*)it.value;
-        string_list_iterator_t itea = string_list_iterator(actions);
+      StrMapIterator it = str_map_iterator(printer->entry_actions);
+      while (str_map_next(&it)) {
+        StringList* actions = (StringList*)it.value;
+        StringListIterator itea = string_list_iterator(actions);
         while(string_list_next(&itea)) {
           char* action_name = itea.node->value;
 
@@ -245,8 +245,8 @@ static void print_machine_definitions(ts_printer_t* printer) {
     // (context: TContext, event: TEvent, meta: AssignMeta<TContext, TEvent>) => TContext[TKey];
     js_builder_start_prop(buffer, "assigns");
     js_builder_start_object(buffer);
-    hti it = ht_iterator(printer->assigns);
-    while (ht_next(&it)) {
+    StrMapIterator it = str_map_iterator(printer->assigns);
+    while (str_map_next(&it)) {
       char* cb_name = (char*)it.key;
       js_builder_start_prop(buffer, cb_name);
       js_builder_add_str(buffer, "PartialAssigner<\n");
@@ -254,7 +254,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
       js_builder_add_indent(buffer);
       js_builder_add_str(buffer, "TContext,\n");
       js_builder_add_indent(buffer);
-      xs_assign_executor_t* executor = (xs_assign_executor_t*)it.value;
+      AssignExecutor* executor = (AssignExecutor*)it.value;
       if(executor->events.length > 0) {
         char* extract_clause = build_extract_clause(&executor->events);
         js_builder_add_str(buffer, "TEvent extends ");
@@ -278,7 +278,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
   if(printer->delays != NULL) {
     js_builder_start_prop(buffer, "delays");
     js_builder_start_object(buffer);
-    string_list_iterator_t it = string_list_iterator(printer->delays);
+    StringListIterator it = string_list_iterator(printer->delays);
     while(string_list_next(&it)) {
       js_builder_start_prop(buffer, it.node->value);
       js_builder_add_str(buffer, "DelayConfig<TContext, TEvent>");
@@ -288,8 +288,8 @@ static void print_machine_definitions(ts_printer_t* printer) {
   if(printer->guards != NULL) {
     js_builder_start_prop(buffer, "guards");
     js_builder_start_object(buffer);
-    hti it = ht_iterator(printer->guards);
-    while (ht_next(&it)) {
+    StrMapIterator it = str_map_iterator(printer->guards);
+    while (str_map_next(&it)) {
       /**
        * Guard<
        *   TContext,
@@ -304,7 +304,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
       js_builder_add_indent(buffer);
       js_builder_add_str(buffer, "TContext,\n");
       js_builder_add_indent(buffer);
-      xs_executor_t* executor = (xs_executor_t*)it.value;
+      Executor* executor = (Executor*)it.value;
       if(executor->events.length > 0) {
         char* extract_clause = build_extract_clause(&executor->events);
         js_builder_add_str(buffer, "TEvent extends ");
@@ -326,7 +326,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
     js_builder_start_prop(buffer, "services");
     js_builder_start_object(buffer);
     if(printer->invokes != NULL) {
-      string_list_iterator_t ir = string_list_iterator(printer->invokes);
+      StringListIterator ir = string_list_iterator(printer->invokes);
       while(string_list_next(&ir)) {
         char* invoke_name = ir.node->value;
         js_builder_start_prop(buffer, invoke_name);
@@ -334,7 +334,7 @@ static void print_machine_definitions(ts_printer_t* printer) {
       }
     }
     if(printer->actors != NULL) {
-      string_list_iterator_t ir = string_list_iterator(printer->actors);
+      StringListIterator ir = string_list_iterator(printer->actors);
       while(string_list_next(&ir)) {
         char* actor_name = ir.node->value;
         js_builder_start_prop(buffer, actor_name);
@@ -350,8 +350,8 @@ static void print_machine_definitions(ts_printer_t* printer) {
   js_builder_add_str(buffer, str_builder_peek(printer->machine_def_sb));
 }
 
-char* ts_printer_dump(ts_printer_t* printer) {
-  str_builder_t* buffer = str_builder_create();
+char* ts_printer_dump(TSPrinter* printer) {
+  StrBuilder* buffer = str_builder_create();
   build_import_clause(printer, buffer);
   print_machine_definitions(printer);
   str_builder_add_str(buffer, js_builder_peek(printer->buffer), 0);
@@ -359,7 +359,7 @@ char* ts_printer_dump(ts_printer_t* printer) {
   return str_builder_release(buffer, NULL);
 }
 
-static void write_machine_name(ts_printer_t* printer, str_builder_t* sb) {
+static void write_machine_name(TSPrinter* printer, StrBuilder* sb) {
   if(printer->machine_name_start == 0) {
     str_builder_add_str(sb, "Machine", 0);
   } else {
@@ -368,7 +368,7 @@ static void write_machine_name(ts_printer_t* printer, str_builder_t* sb) {
   }
 }
 
-void ts_printer_add_event(ts_printer_t* printer, char* event_name) {
+void ts_printer_add_event(TSPrinter* printer, char* event_name) {
   if(printer->event_names_sb == NULL) {
     printer->event_names_sb = str_builder_create();
     str_builder_add_str(printer->event_names_sb, "type ", 0);
@@ -379,7 +379,7 @@ void ts_printer_add_event(ts_printer_t* printer, char* event_name) {
   add_str_union(printer->event_names_sb, event_name);
 }
 
-void ts_printer_add_data(ts_printer_t* printer, char* data_prop) {
+void ts_printer_add_data(TSPrinter* printer, char* data_prop) {
   if(printer->data_names_sb == NULL) {
     printer->data_names_sb = str_builder_create();
     str_builder_add_str(printer->data_names_sb, "type ", 0);
@@ -390,16 +390,16 @@ void ts_printer_add_data(ts_printer_t* printer, char* data_prop) {
   add_str_union(printer->data_names_sb, data_prop);
 }
 
-void ts_printer_add_assign(ts_printer_t* printer, char* data_prop, char* cb_name, char* event_name) {
+void ts_printer_add_assign(TSPrinter* printer, char* data_prop, char* cb_name, char* event_name) {
   // TODO the cb_name should be the key
   if(printer->assigns == NULL) {
-    printer->assigns = ht_create(printer->arena);
+    printer->assigns = str_map_create(printer->arena);
   }
 
-  xs_assign_executor_t* assign = (xs_assign_executor_t*)ht_get(printer->assigns, cb_name);
+  AssignExecutor* assign = (AssignExecutor*)str_map_get(printer->assigns, cb_name);
   if(assign == NULL) {
     assign = assign_executor_create(printer->arena);
-    ht_set(printer->assigns, cb_name, assign);
+    str_map_set(printer->assigns, cb_name, assign);
   }
 
   // Set the prop
@@ -410,30 +410,30 @@ void ts_printer_add_assign(ts_printer_t* printer, char* data_prop, char* cb_name
     assign_executor_add(assign, event_name);
   }
 
-  printer->flags |= XS_TS_PROGRAM_USES_ASSIGN;
+  printer->flags |= TS_USES_ASSIGN;
 }
 
-void ts_printer_add_guard(ts_printer_t* printer, char* guard_name, char* event_name) {
+void ts_printer_add_guard(TSPrinter* printer, char* guard_name, char* event_name) {
   if(printer->guards == NULL) {
-    printer->guards = ht_create(printer->arena);
+    printer->guards = str_map_create(printer->arena);
   }
-  xs_executor_t* guard = (xs_executor_t*)ht_get(printer->guards, guard_name);
+  Executor* guard = (Executor*)str_map_get(printer->guards, guard_name);
   if(guard == NULL) {
     guard = executor_create(printer->arena);
-    ht_set(printer->guards, guard_name, guard);
+    str_map_set(printer->guards, guard_name, guard);
   }
   executor_add(guard, event_name);
-  printer->flags |= XS_TS_PROGRAM_USES_GUARD;
+  printer->flags |= TS_USES_GUARD;
 }
 
-void ts_printer_add_action(ts_printer_t* printer, char* action_name, char* event_name) {
+void ts_printer_add_action(TSPrinter* printer, char* action_name, char* event_name) {
   if(printer->actions == NULL) {
-    printer->actions = ht_create(printer->arena);
+    printer->actions = str_map_create(printer->arena);
   }
-  xs_executor_t* action = (xs_executor_t*)ht_get(printer->actions, action_name);
+  Executor* action = (Executor*)str_map_get(printer->actions, action_name);
   if(action == NULL) {
     action = executor_create(printer->arena);
-    ht_set(printer->actions, action_name, action);
+    str_map_set(printer->actions, action_name, action);
   }
 
   // Add an executor for this event.
@@ -441,36 +441,36 @@ void ts_printer_add_action(ts_printer_t* printer, char* action_name, char* event
     executor_add(action, event_name);
   }
 
-  printer->flags |= XS_TS_PROGRAM_USES_ACTION;
+  printer->flags |= TS_USES_ACTION;
 }
 
-void ts_printer_add_invoke(ts_printer_t* printer, char* invoke_name) {
+void ts_printer_add_invoke(TSPrinter* printer, char* invoke_name) {
   if(printer->invokes == NULL) {
     printer->invokes = list_create(printer->arena);
   }
   string_list_append(printer->invokes, invoke_name);
-  printer->flags |= XS_TS_PROGRAM_USES_INVOKE;
+  printer->flags |= TS_USES_INVOKE;
 }
 
-void ts_printer_add_actor(ts_printer_t* printer, char* name) {
+void ts_printer_add_actor(TSPrinter* printer, char* name) {
   if(printer->actors == NULL) {
     printer->actors = list_create(printer->arena);
   }
   string_list_append(printer->actors, name);
 }
 
-void ts_printer_add_delay(ts_printer_t* printer, char* name) {
+void ts_printer_add_delay(TSPrinter* printer, char* name) {
   if(printer->delays == NULL) {
     printer->delays = list_create(printer->arena);
   }
   string_list_append(printer->delays, name);
-  printer->flags |= XS_TS_PROGRAM_USES_DELAY;
+  printer->flags |= TS_USES_DELAY;
 }
 
 // function createMachine<TContext extends LucyKnownContext<KnownContextKeys>, TEvent extends { type: EventNames } = any>()
-void ts_printer_create_machine(ts_printer_t* printer) {
-  str_builder_t* sb = printer->machine_def_sb;
-  if(printer->machine_flags & XS_TS_MACHINE_DEFAULT) {
+void ts_printer_create_machine(TSPrinter* printer) {
+  StrBuilder* sb = printer->machine_def_sb;
+  if(printer->machine_flags & TS_MACHINE_DEFAULT) {
     str_builder_add_str(sb, "export default ", 0);
   }
 
@@ -495,58 +495,58 @@ void ts_printer_create_machine(ts_printer_t* printer) {
   str_builder_add_str(sb, "Options<TContext, TEvent>): StateMachine<TContext, any, TEvent>;", 0);
 }
 
-void ts_printer_add_machine_name(ts_printer_t* printer, size_t name_start, size_t name_end) {
+void ts_printer_add_machine_name(TSPrinter* printer, size_t name_start, size_t name_end) {
   if(name_start == 0) {
-    printer->machine_flags |= XS_TS_MACHINE_DEFAULT;
+    printer->machine_flags |= TS_MACHINE_DEFAULT;
   } else {
     printer->machine_name_start = name_start;
     printer->machine_name_end = name_end;
   }
 }
 
-void ts_printer_add_state_entry(ts_printer_t* printer, char* event_name, char* state_name) {
+void ts_printer_add_state_entry(TSPrinter* printer, char* event_name, char* state_name) {
   if(printer->state_entries == NULL) {
-    printer->state_entries = ht_create(printer->arena);
+    printer->state_entries = str_map_create(printer->arena);
   }
-  string_list_t* event_list = (string_list_t*)ht_get(printer->state_entries, state_name);
+  StringList* event_list = (StringList*)str_map_get(printer->state_entries, state_name);
   if(event_list == NULL) {
     event_list = list_create(printer->arena);
-    ht_set(printer->state_entries, state_name, event_list);
+    str_map_set(printer->state_entries, state_name, event_list);
   }
 
   string_list_append(event_list, event_name);
 }
 
-void ts_printer_add_entry_action(ts_printer_t* printer, char* state_name, char* action_name) {
+void ts_printer_add_entry_action(TSPrinter* printer, char* state_name, char* action_name) {
   // Map<state_name, List<ActionName>>
   if(printer->entry_actions == NULL) {
-    printer->entry_actions = ht_create(printer->arena);
+    printer->entry_actions = str_map_create(printer->arena);
   }
 
-  string_list_t* actions = (string_list_t*)ht_get(printer->entry_actions, state_name);
+  StringList* actions = (StringList*)str_map_get(printer->entry_actions, state_name);
   if(actions == NULL) {
     actions = list_create(printer->arena);
-    ht_set(printer->entry_actions, state_name, actions);
+    str_map_set(printer->entry_actions, state_name, actions);
   }
 
   string_list_append(actions, action_name);
 }
 
-void ts_printer_figure_out_entry_events(ts_printer_t* printer) {
-  //ht* state_entries; // Map<state_name, List<EventName>>
-  //ht* entry_actions; // Map<state_name, List<ActionName>>
+void ts_printer_figure_out_entry_events(TSPrinter* printer) {
+  //StrMap* state_entries; // Map<state_name, List<EventName>>
+  //StrMap* entry_actions; // Map<state_name, List<ActionName>>
 
   if(printer->state_entries != NULL && printer->entry_actions != NULL) {
-    hti it = ht_iterator(printer->state_entries);
-    while (ht_next(&it)) {
+    StrMapIterator it = str_map_iterator(printer->state_entries);
+    while (str_map_next(&it)) {
       const char* state_name = it.key;
-      string_list_t* event_list = (string_list_t*)it.value;
+      StringList* event_list = (StringList*)it.value;
 
-      string_list_t* state_entry_actions = ht_get(printer->entry_actions, state_name);
+      StringList* state_entry_actions = str_map_get(printer->entry_actions, state_name);
       if(state_entry_actions != NULL) {
-        string_list_iterator_t itea = string_list_iterator(state_entry_actions);
+        StringListIterator itea = string_list_iterator(state_entry_actions);
         while(string_list_next(&itea)) {
-          string_list_iterator_t iti = string_list_iterator(event_list);
+          StringListIterator iti = string_list_iterator(event_list);
           char* action_name = itea.node->value;
           while(string_list_next(&iti)) {
             char* event_name = iti.node->value;

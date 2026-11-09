@@ -3,23 +3,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int parser_consume_local(State* state, LocalKind key) {
+int parser_consume_local(Parser* parser, LocalKind key) {
   int err = 0;
 
-  LocalNode* local_node = node_create_local(state->arena);
+  LocalNode* local_node = node_create_local(parser->arena);
   Node* node = (Node*)local_node;
   local_node->key = key;
-  state_node_start_pos(state, node, state->token_len);
+  parser_node_start_pos(parser, node, parser->token_len);
 
-  Node* parent_node = state->node;
+  Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_STATE) {
     char buffer[256];
-    snprintf(buffer, sizeof(buffer), "Unexpected parent of %s", local_get_name(key));
-    error_msg_with_code_block_dec(state, state->token_len, buffer);
+    snprintf(buffer, sizeof(buffer), "Unexpected parent of %s", local_name(key));
+    parser_error_back(parser, parser->token_len, buffer);
     err = 1;
   }
 
-  state_node_set(state, node);
+  parser_enter_node(parser, node);
 
   // Only a state has entry and exit slots; writing them into another
   // kind of node would write past its end.
@@ -34,65 +34,65 @@ int parser_consume_local(State* state, LocalKind key) {
 
   TokenType token;
   while(true) {
-    token = consume_token(state);
+    token = parser_next_token(parser);
 
     if(token == TOKEN_EOL) {
       break;
     }
 
     if(token != TOKEN_CALL) {
-      error_msg_with_code_block_dec(state, state->token_len, "Expected a => here.");
+      parser_error_back(parser, parser->token_len, "Expected a => here.");
       err = 1;
     }
 
-    token = consume_token(state);
+    token = parser_next_token(parser);
 
     if(token != TOKEN_IDENTIFIER) {
-      error_msg_with_code_block_dec(state, state->token_len, "Expected an action.");
+      parser_error_back(parser, parser->token_len, "Expected an action.");
       err = 2;
       goto end;
     }
 
-    char* identifier = state_take_word(state);
+    char* identifier = parser_take_word(parser);
     // Not "key": that would hide the @entry/@exit key, which the guard
-    // error below needs (it printed local_get_name(KEYWORD_GUARD), a NULL).
-    Keyword keyword = keyword_get(identifier);
+    // error below needs (it printed local_name(KEYWORD_GUARD), a NULL).
+    Keyword keyword = keyword_lookup(identifier);
     switch(keyword) {
       case KEYWORD_ACTION: {
-        _check(parser_consume_inline_action(state, node));
+        _check(parser_consume_inline_action(parser, node));
         break;
       }
       case KEYWORD_ASSIGN: {
-        _check(parser_consume_inline_assign(state, node));
+        _check(parser_consume_inline_assign(parser, node));
         break;
       }
       case KEYWORD_SEND: {
-        _check(parser_consume_inline_send(state, node));
+        _check(parser_consume_inline_send(parser, node));
         break;
       }
       case KEYWORD_GUARD: {
         err = 1;
         char buffer[256];
-        snprintf(buffer, sizeof(buffer), "Guards are not allowed in %s", local_get_name(key));
-        error_msg_with_code_block_dec(state, state->token_len, buffer);
+        snprintf(buffer, sizeof(buffer), "Guards are not allowed in %s", local_name(key));
+        parser_error_back(parser, parser->token_len, buffer);
         break;
       }
       // Not a keyword
       case KEYWORD_NONE: {
-        if(state_has_action(state, identifier)) {
-          TransitionAction* action = create_transition_action(state->arena);
+        if(parser_has_action_name(parser, identifier)) {
+          TransitionAction* action = node_create_transition_action(parser->arena);
           action->name = identifier;
           node_local_add_action(local_node, action);
         } else {
           err = 1;
           char buffer[256];
           snprintf(buffer, sizeof(buffer), "Unknown action [%s]. Did you mean to declare this action at the top of the machine?", identifier);
-          error_msg_with_code_block_dec(state, state->token_len, buffer);
+          parser_error_back(parser, parser->token_len, buffer);
         }
         break;
       }
       default: {
-        error_msg_with_code_block_dec(state, state->token_len, "Unexpected keyword in action assignment.");
+        parser_error_back(parser, parser->token_len, "Unexpected keyword in action assignment.");
         err = 1;
         break;
       }
@@ -102,12 +102,12 @@ int parser_consume_local(State* state, LocalKind key) {
   // `@entry` on its own has no actions, and the printer crashed on the
   // empty list.
   if(err == 0 && local_node->action == NULL) {
-    error_msg_with_code_block_dec(state, state->token_len, "Expected a => here.");
+    parser_error_back(parser, parser->token_len, "Expected a => here.");
     err = 1;
   }
 
   end: {
-    state_node_up(state);
+    parser_leave_node(parser);
     return err;
   }
 }

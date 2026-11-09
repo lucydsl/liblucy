@@ -3,28 +3,28 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-int consume_call_expression(State* state, const char* fn_name, void* expr, consume_call_expr_args on_args) {
+int parser_consume_call(Parser* parser, const char* fn_name, void* expr, CallArgHandler on_args) {
   int err = 0;
-  TokenType token = consume_token(state);
+  TokenType token = parser_next_token(parser);
 
   bool in_call = false;
   if(token != TOKEN_BEGIN_CALL) {
     if(token == TOKEN_IDENTIFIER) {
       char buffer[256];
-      snprintf(buffer, sizeof(buffer), "%s must be called like a function. Expected %s(%s)", fn_name, fn_name, state->word);
-      error_msg_with_code_block_dec(state, state->word_len, buffer);
+      snprintf(buffer, sizeof(buffer), "%s must be called like a function. Expected %s(%s)", fn_name, fn_name, parser->word);
+      parser_error_back(parser, parser->word_len, buffer);
     } else if(token == TOKEN_CALL) {
       char buffer[256];
       snprintf(buffer, sizeof(buffer), "%s must be called like a function.", fn_name);
-      error_msg_with_code_block_dec(state, state->token_len, buffer);
+      parser_error_back(parser, parser->token_len, buffer);
     } else {
       // What should this be?
-      error_msg_with_code_block(state, NULL, "Expected a (");
+      parser_error(parser, NULL, "Expected a (");
     }
     err = 1;
   } else {
     in_call = true;
-    token = consume_token(state);
+    token = parser_next_token(parser);
   }
 
   char* identifier = NULL;
@@ -36,20 +36,20 @@ int consume_call_expression(State* state, const char* fn_name, void* expr, consu
       case TOKEN_INTEGER:
       case TOKEN_SYMBOL:
       case TOKEN_TIMEFRAME: {
-        identifier = state_take_word(state);
-        _check(on_args(state, expr, token, identifier, argi));
+        identifier = parser_take_word(parser);
+        _check(on_args(parser, expr, token, identifier, argi));
         break;
       }
       default: {
         if(in_call) {
-          error_msg_with_code_block_dec(state, state->token_len, "Unknown function argument.");
+          parser_error_back(parser, parser->token_len, "Unknown function argument.");
           err = 2;
           goto end;
         }
         goto end_args;
       }
     }
-    token = consume_token(state);
+    token = parser_next_token(parser);
     argi++;
   }
 
@@ -60,11 +60,11 @@ int consume_call_expression(State* state, const char* fn_name, void* expr, consu
         char buffer[256];
         char* key = identifier == NULL ? "" : identifier;
         snprintf(buffer, sizeof(buffer), "Inline assigns must be called like a function. Expected assign(%s)", key);
-        error_msg_with_code_block_dec(state, state->token_len, buffer);
+        parser_error_back(parser, parser->token_len, buffer);
       }
 
       // Rewind back out, so the next thing consumes this token.
-      state_rewind(state, state->token_len);
+      parser_rewind(parser, parser->token_len);
 
       err = 1;
     }
@@ -75,14 +75,14 @@ int consume_call_expression(State* state, const char* fn_name, void* expr, consu
   }
 }
 
-int expect_call_argument(State* state, const char* fn_name, const void* arg, int err) {
+int parser_expect_call_argument(Parser* parser, const char* fn_name, const void* arg, int err) {
   if(arg != NULL) {
     return err;
   }
   if(err == 0) {
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "%s() needs an argument.", fn_name);
-    error_msg_with_code_block_dec(state, state->token_len, buffer);
+    parser_error_back(parser, parser->token_len, buffer);
     return 1;
   }
   return err;

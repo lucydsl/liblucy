@@ -6,52 +6,52 @@
 
 #include "../support/arena.h"
 
-Node* node_create_type(Arena* arena, NodeType type, size_t size) {
+Node* node_create(Arena* arena, NodeType type, size_t size) {
   Node *node = arena_alloc(arena, size);
   node->type = type;
   return node;
 }
 
 TransitionNode* node_create_transition(Arena* arena) {
-  TransitionNode* tn = (TransitionNode*)node_create_type(arena, NODE_TRANSITION, sizeof(TransitionNode));
+  TransitionNode* tn = (TransitionNode*)node_create(arena, NODE_TRANSITION, sizeof(TransitionNode));
   tn->type = TRANSITION_EVENT;
   return tn;
 }
 
-TransitionAction* create_transition_action(Arena* arena) {
+TransitionAction* node_create_transition_action(Arena* arena) {
   return ARENA_NEW(arena, TransitionAction);
 }
 
 MachineNode* node_create_machine(Arena* arena) {
-  return (MachineNode*)node_create_type(arena, NODE_MACHINE, sizeof(MachineNode));
+  return (MachineNode*)node_create(arena, NODE_MACHINE, sizeof(MachineNode));
 }
 
 StateNode* node_create_state(Arena* arena) {
-  return (StateNode*)node_create_type(arena, NODE_STATE, sizeof(StateNode));
+  return (StateNode*)node_create(arena, NODE_STATE, sizeof(StateNode));
 }
 
 LocalNode* node_create_local(Arena* arena) {
-  return (LocalNode*)node_create_type(arena, NODE_LOCAL, sizeof(LocalNode));
+  return (LocalNode*)node_create(arena, NODE_LOCAL, sizeof(LocalNode));
 }
 
-ImportNode* node_create_import_statement(Arena* arena) {
-  return (ImportNode*)node_create_type(arena, NODE_IMPORT, sizeof(ImportNode));
+ImportNode* node_create_import(Arena* arena) {
+  return (ImportNode*)node_create(arena, NODE_IMPORT, sizeof(ImportNode));
 }
 
-ImportSpecifier* node_create_import_specifier(Arena* arena, char* imported) {
-  ImportSpecifier* specifier = (ImportSpecifier*)node_create_type(arena, NODE_IMPORT_SPECIFIER, sizeof(ImportSpecifier));
+ImportSpecifierNode* node_create_import_specifier(Arena* arena, char* imported) {
+  ImportSpecifierNode* specifier = (ImportSpecifierNode*)node_create(arena, NODE_IMPORT_SPECIFIER, sizeof(ImportSpecifierNode));
   specifier->imported = imported;
   return specifier;
 }
 
-Assignment* node_create_assignment(Arena* arena, AssignmentKind type) {
-  Assignment* assignment = (Assignment*)node_create_type(arena, NODE_ASSIGNMENT, sizeof(Assignment));
+AssignmentNode* node_create_assignment(Arena* arena, AssignmentKind type) {
+  AssignmentNode* assignment = (AssignmentNode*)node_create(arena, NODE_ASSIGNMENT, sizeof(AssignmentNode));
   assignment->binding_type = type;
   return assignment;
 }
 
 InvokeNode* node_create_invoke(Arena* arena) {
-  return (InvokeNode*)node_create_type(arena, NODE_INVOKE, sizeof(InvokeNode));
+  return (InvokeNode*)node_create(arena, NODE_INVOKE, sizeof(InvokeNode));
 }
 
 TransitionGuard* node_transition_add_guard(Arena* arena, TransitionNode* transition_node, char* name) {
@@ -71,7 +71,7 @@ TransitionGuard* node_transition_add_guard(Arena* arena, TransitionNode* transit
 }
 
 TransitionAction* node_transition_add_action(Arena* arena, TransitionNode* transition_node, char* name) {
-  TransitionAction* action = create_transition_action(arena);
+  TransitionAction* action = node_create_transition_action(arena);
   action->name = name;
 
   if(transition_node->action == NULL) {
@@ -98,7 +98,7 @@ void node_local_add_action(LocalNode* local_node, TransitionAction* action) {
   }
 }
 
-TransitionDelay* node_transition_add_delay(Arena* arena, TransitionNode* transition_node, char* ref, DelayExpression* expression) {
+TransitionDelay* node_transition_set_delay(Arena* arena, TransitionNode* transition_node, char* ref, DelayExpression* expression) {
   TransitionDelay* delay = ARENA_NEW(arena, TransitionDelay);
   delay->ref = ref;
   delay->expression = expression;
@@ -106,13 +106,13 @@ TransitionDelay* node_transition_add_delay(Arena* arena, TransitionNode* transit
   return delay;
 }
 
-bool node_machine_is_nested(Node* node) {
+bool node_is_nested_machine(Node* node) {
   return node->type == NODE_MACHINE &&
     node->parent != NULL &&
     node->parent->type == NODE_STATE;
 }
 
-void node_append(Node* parent, Node* child) {
+void node_append_child(Node* parent, Node* child) {
   if(parent == NULL) {
     return;
   }
@@ -122,11 +122,11 @@ void node_append(Node* parent, Node* child) {
   if(parent->child == NULL) {
     parent->child = child;
   } else {
-    node_after_last(parent->child, child);
+    node_append_sibling(parent->child, child);
   }
 }
 
-void node_after_last(Node* ref, Node* node) {
+void node_append_sibling(Node* ref, Node* node) {
   Node* sibling = ref;
   while(sibling->next != NULL) {
     sibling = sibling->next;
@@ -134,7 +134,7 @@ void node_after_last(Node* ref, Node* node) {
   sibling->next = node;
 }
 
-Node* find_closest_node_of_type(Node* node, NodeType type) {
+Node* node_find_ancestor(Node* node, NodeType type) {
   Node* cur = node;
   while(cur != NULL && cur->type != type) {
     cur = cur->parent;
@@ -142,8 +142,8 @@ Node* find_closest_node_of_type(Node* node, NodeType type) {
   return cur;
 }
 
-MachineNode* find_closest_machine_node(Node* node) {
-  Node* found = find_closest_node_of_type(node, NODE_MACHINE);
+MachineNode* node_find_machine(Node* node) {
+  Node* found = node_find_ancestor(node, NODE_MACHINE);
   if(found != NULL) {
     return (MachineNode*)found;
   }
