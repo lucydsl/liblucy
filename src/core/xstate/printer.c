@@ -3,7 +3,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 // Forget the guard, action and delay refs at the end of a machine. They

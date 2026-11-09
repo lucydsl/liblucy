@@ -1,6 +1,5 @@
 #include "internal.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {

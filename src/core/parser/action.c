@@ -1,6 +1,5 @@
 #include "internal.h"
 
-#include <stdlib.h>
 
 static ParseStatus consume_inline_action_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   (void)index;

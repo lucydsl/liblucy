@@ -118,27 +118,45 @@ typedef enum TokenType {
   TOKEN_MEMBER_EXPRESSION, // the first word of a.b
 } TokenType;
 
-bool parser_in_bounds(Parser*);
-char parser_char(Parser*);
-char parser_peek(Parser*);
+/* Whether the cursor is still inside the source. */
+bool parser_in_bounds(const Parser*);
+/* The character at the cursor, or NUL past the end. */
+char parser_char(const Parser*);
+/* The character after it, or NUL past the end. */
+char parser_peek(const Parser*);
+/* Move the cursor to the next character and return it. The first call
+ * stays on the first character. */
 char parser_next(Parser*);
-void parser_rewind(Parser*, size_t);
-void parser_find_position(Parser*, Position*, size_t);
-
-void parser_init(Parser*, Arena*, Program*, const char* source, const char* filename, DiagnosticList*);
+/* Move the cursor back count characters, keeping line and column right. */
+void parser_rewind(Parser*, size_t count);
+/* The line and column of the character count characters back. */
+void parser_find_position(const Parser*, Position*, size_t count);
 void parser_advance_line(Parser*);
 void parser_advance_column(Parser*);
-void parser_set_word(Parser*, const char*, size_t, size_t);
+/* Set the current word, an arena string from start to end in the source. */
+void parser_set_word(Parser*, const char* word, size_t start, size_t end);
+/* The current word, which the parser forgets. */
 const char* parser_take_word(Parser*);
+/* Read the next token. A word's text is then the current word. */
+TokenType parser_next_token(Parser*);
+
+/* parser.c: the parser's state, and the entry point. */
+
+/* Set up a parser for source. Nothing needs tearing down after. */
+void parser_init(Parser*, Arena*, Program*, const char* source, const char* filename, DiagnosticList*);
+/*
+ * Add node as the last child of the current node (or of the program at the
+ * top level) and make it the current node. parser_leave_node goes back to
+ * its parent.
+ */
 void parser_enter_node(Parser*, Node*);
 void parser_leave_node(Parser*);
 
+/* The names of the guards and actions declared so far. */
 void parser_add_guard_name(Parser*, const char*);
 void parser_add_action_name(Parser*, const char*);
-bool parser_has_guard_name(Parser*, const char*);
-bool parser_has_action_name(Parser*, const char*);
-
-TokenType parser_next_token(Parser*);
+bool parser_has_guard_name(const Parser*, const char*);
+bool parser_has_action_name(const Parser*, const char*);
 
 /* call.c: calls such as guard(x). */
 

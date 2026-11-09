@@ -1,7 +1,5 @@
 #include "internal.h"
 
-#include <stdio.h>
-#include <string.h>
 
 ParseStatus parser_consume_state(Parser* parser) {
   ParseStatus status = PARSE_OK;

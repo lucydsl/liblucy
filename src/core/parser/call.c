@@ -1,7 +1,6 @@
 #include "internal.h"
 
 #include <stdbool.h>
-#include <stdio.h>
 
 ParseStatus parser_consume_call(Parser* parser, const char* fn_name, void* expr, CallArgHandler on_args) {
   ParseStatus status = PARSE_OK;
