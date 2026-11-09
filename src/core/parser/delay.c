@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenType token, char* arg, size_t _index) {
+static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+  (void)index;
   DelayExpression* delay_expression = (DelayExpression*)expr;
 
   int time = 0;
@@ -68,7 +69,7 @@ ParseStatus parser_consume_inline_delay(Parser* parser, TransitionNode* transiti
 
   }
 
-  node_transition_set_delay(parser->arena, transition_node, NULL, expression);
+  node_transition_set_delay(parser->arena, transition_node, expression);
   if(expression-> ref != NULL && expression->ref->type == EXPRESSION_SYMBOL) {
     MachineNode* machine_node = node_find_machine((Node*)state_node);
     machine_node->flags |= MACHINE_USES_DELAY;

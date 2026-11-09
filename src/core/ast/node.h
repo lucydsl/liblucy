@@ -61,9 +61,6 @@ typedef enum LocalKind {
 
 typedef struct Node {
   NodeType type;
-  size_t start;
-  size_t end;
-  size_t line;
   struct Node* parent;
   struct Node* child;
   struct Node* next;
@@ -109,7 +106,6 @@ typedef struct TransitionAction {
 } TransitionAction;
 
 typedef struct TransitionDelay {
-  char* ref;
   struct DelayExpression* expression;
 } TransitionDelay;
 
@@ -137,7 +133,6 @@ typedef struct ImportSpecifierNode {
   Node node;
 
   char* imported;
-  char* local;
 } ImportSpecifierNode;
 
 typedef struct ImportNode {
@@ -259,7 +254,7 @@ void node_append_sibling(Node*, Node*);
 
 TransitionGuard* node_transition_add_guard(Arena*, TransitionNode*, char*);
 TransitionAction* node_transition_add_action(Arena*, TransitionNode*, char*);
-TransitionDelay* node_transition_set_delay(Arena*, TransitionNode*, char*, DelayExpression*);
+TransitionDelay* node_transition_set_delay(Arena*, TransitionNode*, DelayExpression*);
 void node_local_add_action(LocalNode*, TransitionAction*);
 
 Node* node_find_ancestor(Node*, NodeType);

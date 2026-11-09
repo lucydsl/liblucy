@@ -9,7 +9,6 @@ ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
   LocalNode* local_node = node_create_local(parser->arena);
   Node* node = (Node*)local_node;
   local_node->key = key;
-  parser_node_start_pos(parser, node, parser->token_len);
 
   Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_STATE) {

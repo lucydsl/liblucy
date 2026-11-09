@@ -133,17 +133,6 @@ void str_builder_add_format(StrBuilder *sb, const char *format, ...)
     va_end(args);
 }
 
-void str_builder_add_int(StrBuilder *sb, int val)
-{
-    char str[12];
-
-    if (sb == NULL)
-        return;
-
-    snprintf(str, sizeof(str), "%d", val);
-    str_builder_add_str(sb, str, 0);
-}
-
 /* - - - - */
 
 void str_builder_clear(StrBuilder *sb)
@@ -160,21 +149,6 @@ void str_builder_truncate(StrBuilder *sb, size_t len)
 
     sb->len = len;
     sb->str[sb->len] = '\0';
-}
-
-void str_builder_drop(StrBuilder *sb, size_t len)
-{
-    if (sb == NULL || len == 0)
-        return;
-
-    if (len >= sb->len) {
-        str_builder_clear(sb);
-        return;
-    }
-
-    sb->len -= len;
-    /* +1 to move the NULL. */
-    memmove(sb->str, sb->str+len, sb->len+1);
 }
 
 /* - - - - */

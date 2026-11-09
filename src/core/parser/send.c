@@ -1,6 +1,8 @@
 #include "internal.h"
 
-ParseStatus parser_consume_inline_send_args(Parser* parser, void* expr, TokenType _token, char* arg, size_t index) {
+ParseStatus parser_consume_inline_send_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+  (void)parser;
+  (void)token;
   SendExpression* send_expression = (SendExpression*)expr;
 
   if(index == 0) {

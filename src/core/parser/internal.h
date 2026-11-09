@@ -130,10 +130,8 @@ void parser_advance_line(Parser*);
 void parser_advance_column(Parser*);
 void parser_set_word(Parser*, char*, size_t, size_t);
 char* parser_take_word(Parser*);
-void parser_reset_word(Parser*);
 void parser_enter_node(Parser*, Node*);
 void parser_leave_node(Parser*);
-void parser_node_start_pos(Parser*, Node*, size_t);
 
 void parser_add_guard_name(Parser*, char*);
 void parser_add_action_name(Parser*, char*);

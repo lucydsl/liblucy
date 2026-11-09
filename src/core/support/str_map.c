@@ -167,10 +167,6 @@ const char* str_map_set(StrMap* table, const char* key, void* value) {
                         &table->length, table->arena);
 }
 
-size_t str_map_length(StrMap* table) {
-    return table->length;
-}
-
 StrMapIterator str_map_iterator(StrMap* table) {
     StrMapIterator it;
     it.table = table;

@@ -22,6 +22,3 @@ char* xstrdup(const char* str);
 /* a + b and a * b, aborting on overflow. */
 size_t size_add(size_t a, size_t b);
 size_t size_mul(size_t a, size_t b);
-
-/* Report an impossible allocation and abort. */
-void mem_fail(const char* what);

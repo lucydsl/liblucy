@@ -47,11 +47,6 @@ void js_builder_copy_str(JSBuilder* jsb, const char* str, size_t start, size_t e
   str_builder_copy_str(jsb->text, str, start, end);
 }
 
-void js_builder_safe_key(JSBuilder* jsb, char* str) {
-  // TODO make sure this string is a valid key
-  js_builder_add_str(jsb, str);
-}
-
 void js_builder_add_string(JSBuilder* jsb, char* value) {
   js_builder_add_str(jsb, "'");
   js_builder_add_str(jsb, value);
@@ -168,11 +163,6 @@ void js_builder_add_export(JSBuilder* jsb) {
     js_builder_add_str(jsb, "\n");
   }
   js_builder_add_str(jsb, "\nexport ");
-}
-
-void js_builder_add_const(JSBuilder* jsb, char* identifier) {
-  js_builder_add_str(jsb, "const ");
-  js_builder_add_str(jsb, identifier);
 }
 
 void js_builder_add_arg(JSBuilder* jsb, char* identifier) {

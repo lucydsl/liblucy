@@ -2,7 +2,8 @@
 
 #include <stdlib.h>
 
-static ParseStatus consume_inline_action_args(Parser* parser, void* expr, TokenType token, char* arg, size_t _index) {
+static ParseStatus consume_inline_action_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+  (void)index;
   ActionExpression* action_expression = (ActionExpression*)expr;
 
   if(token == TOKEN_IDENTIFIER) {
@@ -133,9 +134,7 @@ ParseStatus parser_consume_action(Parser* parser) {
     }
   }
 
-  end: {
-    parser_add_action_name(parser, assignment->binding_name);
-    parser_leave_node(parser);
-    return status;
-  }
+  parser_add_action_name(parser, assignment->binding_name);
+  parser_leave_node(parser);
+  return status;
 }

@@ -5,7 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-void mem_fail(const char* what) {
+// Report an impossible allocation and abort.
+static void mem_fail(const char* what) {
   fprintf(stderr, "liblucy: %s\n", what);
   abort();
 }

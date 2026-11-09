@@ -103,7 +103,7 @@ XStateOutput xstate_print(Arena* arena, Program* program, char* source,
           break;
         }
         case NODE_ASSIGNMENT: {
-          printer_enter_assignment(&printer, jsb, node);
+          printer_enter_assignment(&printer, node);
           break;
         }
         case NODE_INVOKE: {

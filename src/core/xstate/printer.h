@@ -88,7 +88,7 @@ void printer_exit_state(Printer*, JSBuilder*, Node*);
 
 /* assignment.c */
 
-void printer_enter_assignment(Printer*, JSBuilder*, Node*);
+void printer_enter_assignment(Printer*, Node*);
 
 /* import.c */
 

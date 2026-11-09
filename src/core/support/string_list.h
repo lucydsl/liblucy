@@ -34,7 +34,3 @@ void string_list_init(StringList*, Arena*);
 void string_list_append(StringList*, const char*);
 StringListIterator string_list_iterator(StringList*);
 bool string_list_next(StringListIterator*);
-
-static inline bool string_list_empty(StringList* list) {
-  return list->head == NULL;
-}

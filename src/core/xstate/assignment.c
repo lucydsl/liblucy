@@ -1,6 +1,6 @@
 #include "printer.h"
 
-void printer_enter_assignment(Printer* printer, JSBuilder* jsb, Node* node) {
+void printer_enter_assignment(Printer* printer, Node* node) {
   AssignmentNode* assignment = (AssignmentNode*)node;
 
   switch(assignment->binding_type) {

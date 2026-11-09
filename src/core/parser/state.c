@@ -8,7 +8,6 @@ ParseStatus parser_consume_state(Parser* parser) {
 
   StateNode* state_node = node_create_state(parser->arena);
   Node* state_node_node = (Node*)state_node;
-  parser_node_start_pos(parser, state_node_node, 5);
 
   Node* parent_node = parser->node;
   if(parent_node == NULL || parent_node->type != NODE_MACHINE) {
@@ -65,7 +64,6 @@ ParseStatus parser_consume_state(Parser* parser) {
     switch(token) {
       case TOKEN_EOL: continue;
       case TOKEN_END_BLOCK: {
-        state_node_node->end = parser->index;
         goto end;
       };
       case TOKEN_CALL: {

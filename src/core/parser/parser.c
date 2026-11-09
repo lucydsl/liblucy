@@ -4,7 +4,6 @@
 
 static ParseStatus consume_program(Parser* parser) {
   ParseStatus status = PARSE_OK;
-  Program* program = parser->program;
 
   TokenType token;
 
