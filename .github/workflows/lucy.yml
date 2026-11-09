@@ -27,7 +27,7 @@ jobs:
 
     - name: make test
       run: |
-        make all
+        make WERROR=1 all
         make test
 
   sanitize:
@@ -38,4 +38,4 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: make test-sanitize
-      run: make test-sanitize
+      run: make WERROR=1 test-sanitize

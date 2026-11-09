@@ -26,9 +26,10 @@
 
 ## Conventions
 
-The code is C17 (`-std=c17`), built with the strict set of warnings in the
-Makefile. The core uses only ISO C, so the same sources build natively and
-with Emscripten. `lucyc` also uses POSIX.
+The code is C17 (`-std=c17`) and builds without warnings under the strict
+set in the Makefile, with GCC and with Emscripten's Clang; CI builds with
+`WERROR=1`, which makes them errors. The core uses only ISO C, so the same
+sources build natively and with Emscripten. `lucyc` also uses POSIX.
 
 ### Naming
 

@@ -246,7 +246,7 @@ static void consume_timeframe(Parser* parser) {
 
 /* Public API */
 TokenType parser_next_token(Parser* parser) {
-  int len = 0;
+  size_t len = 0;
   while(parser_in_bounds(parser)) {
     parser_next(parser);
     parser_advance_column(parser);
@@ -354,6 +354,8 @@ TokenType parser_next_token(Parser* parser) {
         continue;
       } else if(nc == '*') {
         // multi-line
+        // Known bug: lc is never updated, so the comment ends at its first
+        // '/' rather than at "*/".
         char lc = c;
         do {
           parser_next(parser);

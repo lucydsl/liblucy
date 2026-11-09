@@ -28,7 +28,7 @@ static void add_machine_fn_args(JSBuilder* jsb, MachineNode* machine_node) {
 
 void printer_add_machine_binding_name(Printer* printer, JSBuilder* jsb, MachineNode* machine_node) {
   js_builder_add_str(jsb, "create");
-  js_builder_add_char(jsb, toupper((unsigned char)printer->source[machine_node->name.start]));
+  js_builder_add_char(jsb, (char)toupper((unsigned char)printer->source[machine_node->name.start]));
   size_t i = machine_node->name.start + 1;
   while(i < machine_node->name.end) {
     js_builder_add_char(jsb, printer->source[i]);

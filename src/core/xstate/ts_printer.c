@@ -128,7 +128,7 @@ static void build_machine_name(TSPrinter* printer, JSBuilder* buffer) {
   if(!printer->has_machine_name) {
     js_builder_add_str(buffer, "Machine");
   } else {
-    js_builder_add_char(buffer, toupper((unsigned char)printer->source[printer->machine_name.start]));
+    js_builder_add_char(buffer, (char)toupper((unsigned char)printer->source[printer->machine_name.start]));
     js_builder_copy_str(buffer, printer->source, printer->machine_name.start + 1, printer->machine_name.end);
   }
 }
@@ -361,7 +361,7 @@ static void write_machine_name(TSPrinter* printer, StrBuilder* sb) {
   if(!printer->has_machine_name) {
     str_builder_add_str(sb, "Machine");
   } else {
-    str_builder_add_char(sb, toupper((unsigned char)printer->source[printer->machine_name.start]));
+    str_builder_add_char(sb, (char)toupper((unsigned char)printer->source[printer->machine_name.start]));
     // Known bug: this copies the name from its first letter, not the one
     // after, so "light" comes out as "Llight". build_machine_name gets it
     // right.
