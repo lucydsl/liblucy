@@ -9,7 +9,10 @@ static int consume_use_specifiers(ImportNode* import_node, State* state) {
   int err = 0;
   int token;
 
-  ImportSpecifier *specifier;
+  // The specifier read but not yet added. Only add one once: `{ a,, b }`
+  // used to append a twice, which made the list loop, and `{ }` appended
+  // an uninitialised pointer.
+  ImportSpecifier *specifier = NULL;
   while(true) {
     token = consume_token(state);
     
@@ -26,14 +29,19 @@ static int consume_use_specifiers(ImportNode* import_node, State* state) {
         break;
       }
       case TOKEN_END_BLOCK: {
-        node_append((Node*)import_node, (Node*)specifier);
+        if(specifier != NULL) {
+          node_append((Node*)import_node, (Node*)specifier);
+        }
         goto end;
       }
       case TOKEN_EOL: {
         break;
       }
       case TOKEN_COMMA: {
-        node_append((Node*)import_node, (Node*)specifier);
+        if(specifier != NULL) {
+          node_append((Node*)import_node, (Node*)specifier);
+          specifier = NULL;
+        }
         break;
       }
       default: {
@@ -54,8 +62,10 @@ int parser_consume_use(State* state) {
 
   if(current_node != NULL) {
     error_msg_with_code_block(state, current_node, "Import statement must be at the top of the file.");
-    err = 1;
-    goto end;
+    // Return rather than go to end: no node has been pushed yet, so
+    // state_node_up would pop the enclosing machine, and the next state
+    // would find no parent.
+    return 1;
   }
 
   ImportNode *import_node = node_create_import_statement(state->arena);

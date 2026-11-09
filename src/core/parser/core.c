@@ -24,6 +24,15 @@ static void consume_while(State* state, consume_condition cond) {
   size_t start = state->index;
   size_t len = 0;
 
+  // Only a ':' at the very end of the source gets here with nothing left
+  // to read. Give it an empty word rather than stepping past the end.
+  if(!state_inbounds(state)) {
+    state_set_word(state, arena_strdup(state->arena, ""), start, start);
+    state->word_len = 0;
+    state->token_len = 0;
+    return;
+  }
+
   do {
     len++;
 
@@ -59,7 +68,7 @@ static char* consume_string(State* state) {
 
 
     c = state_char(state);
-  } while(c != quote && c != '\n');
+  } while(c != quote && c != '\n' && state_inbounds(state));
 
   // The word is the string with its quotes, closing quote included even if
   // the string ran into the end of the line instead.
@@ -294,4 +303,17 @@ int consume_call_expression(State* state, const char* fn_name, void* expr, consu
   end: {
     return err;
   }
+}
+
+int expect_call_argument(State* state, const char* fn_name, const void* arg, int err) {
+  if(arg != NULL) {
+    return err;
+  }
+  if(err == 0) {
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "%s() needs an argument.", fn_name);
+    error_msg_with_code_block_dec(state, state->token_len, buffer);
+    return 1;
+  }
+  return err;
 }

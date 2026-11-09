@@ -34,17 +34,16 @@ int parser_consume_inline_action(State* state, Node* node) {
   ActionExpression* action_expression = node_create_actionexpression(state->arena);
 
   _check(consume_call_expression(state, "action", action_expression, &consume_inline_action_args));
+  _check(expect_call_argument(state, "action", action_expression->ref, err));
+  if(action_expression->ref == NULL) {
+    return err;
+  }
 
   switch(node->type) {
     case NODE_TRANSITION_TYPE: {
       TransitionNode* transition_node = (TransitionNode*)node;
       TransitionAction* action = node_transition_add_action(state->arena, transition_node, NULL);
       action->expression = (Expression*)action_expression;
-
-      if(action_expression->ref->type == EXPRESSION_SYMBOL) {
-        MachineNode* parent_machine_node = find_closest_machine_node((Node*)transition_node);
-        parent_machine_node->flags |= MACHINE_USES_ACTION;
-      }
       break;
     }
     case NODE_LOCAL_TYPE: {
@@ -56,8 +55,8 @@ int parser_consume_inline_action(State* state, Node* node) {
     }
   }
 
-  if(action_expression->ref->type == EXPRESSION_SYMBOL) {
-    MachineNode* parent_machine_node = find_closest_machine_node(node);
+  MachineNode* parent_machine_node = find_closest_machine_node(node);
+  if(action_expression->ref->type == EXPRESSION_SYMBOL && parent_machine_node != NULL) {
     parent_machine_node->flags |= MACHINE_USES_ACTION;
   }
 

@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "../error.h"
 #include "../node.h"
 #include "../state.h"
@@ -14,7 +15,14 @@ static int consume_inline_delay_args(State* state, void* expr, int token, char* 
 
   switch(token) {
     case TOKEN_INTEGER: {
-      time = atoi(arg);
+      Timeframe tf = timeframe_parse(arg, strlen(arg));
+
+      if(tf.error != NULL) {
+        error_msg_with_code_block(state, NULL, tf.error);
+        return 2;
+      }
+
+      time = tf.time;
       break;
     }
     case TOKEN_TIMEFRAME: {

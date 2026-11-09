@@ -37,7 +37,7 @@ int parser_consume_invoke(State* state) {
   state_node_start_pos(state, node, 6); // "invoke"
 
   Node* parent_node = state->node;
-  if(parent_node->type != NODE_STATE_TYPE) {
+  if(parent_node == NULL || parent_node->type != NODE_STATE_TYPE) {
     error_msg_with_code_block(state, node, "Unexpected parent for invoke.");
     return 2;
   }
@@ -47,8 +47,11 @@ int parser_consume_invoke(State* state) {
 
   invoke_node->expr = node_create_invokeexpression(state->arena);
   _check(consume_call_expression(state, "invoke", invoke_node->expr, &consume_invoke_args));
-  if(invoke_node->expr->ref->type == EXPRESSION_SYMBOL) {
-    MachineNode* machine_node = find_closest_machine_node(parent_node);
+  // Without an argument keep going, so the block after it is still parsed.
+  _check(expect_call_argument(state, "invoke", invoke_node->expr->ref, err));
+  MachineNode* machine_node = find_closest_machine_node(parent_node);
+  if(invoke_node->expr->ref != NULL &&
+    invoke_node->expr->ref->type == EXPRESSION_SYMBOL && machine_node != NULL) {
     machine_node->flags |= MACHINE_USES_SERVICE;
   }
 

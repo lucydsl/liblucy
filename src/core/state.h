@@ -39,7 +39,6 @@ typedef struct State {
   Program* program;
   Node* node;
   Node* parent_node;
-  MachineNode* current_machine_node;
 } State;
 
 typedef struct pos_t {

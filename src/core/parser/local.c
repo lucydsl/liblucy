@@ -20,7 +20,7 @@ int parser_consume_local(State* state, unsigned short key) {
   state_node_start_pos(state, node, state->token_len);
 
   Node* parent_node = state->node;
-  if(parent_node->type != NODE_STATE_TYPE) {
+  if(parent_node == NULL || parent_node->type != NODE_STATE_TYPE) {
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "Unexpected parent of %s", local_get_name(key));
     error_msg_with_code_block_dec(state, state->token_len, buffer);
@@ -29,11 +29,15 @@ int parser_consume_local(State* state, unsigned short key) {
 
   state_node_set(state, node);
 
-  StateNode* parent_state_node = (StateNode*)parent_node;
-  if(key == LOCAL_ENTRY) {
-    parent_state_node->entry = local_node;
-  } else {
-    parent_state_node->exit = local_node;
+  // Only a state has entry and exit slots; writing them into another
+  // kind of node would write past its end.
+  if(parent_node != NULL && parent_node->type == NODE_STATE_TYPE) {
+    StateNode* parent_state_node = (StateNode*)parent_node;
+    if(key == LOCAL_ENTRY) {
+      parent_state_node->entry = local_node;
+    } else {
+      parent_state_node->exit = local_node;
+    }
   }
 
   int token;
@@ -58,8 +62,10 @@ int parser_consume_local(State* state, unsigned short key) {
     }
 
     char* identifier = state_take_word(state);
-    unsigned short key = keyword_get(identifier);
-    switch(key) {
+    // Not "key": that would hide the @entry/@exit key, which the guard
+    // error below needs (it printed local_get_name(KW_GUARD), a NULL).
+    unsigned short keyword = keyword_get(identifier);
+    switch(keyword) {
       case KW_ACTION: {
         _check(parser_consume_inline_action(state, node));
         break;
@@ -99,6 +105,13 @@ int parser_consume_local(State* state, unsigned short key) {
         break;
       }
     }
+  }
+
+  // `@entry` on its own has no actions, and the printer crashed on the
+  // empty list.
+  if(err == 0 && local_node->action == NULL) {
+    error_msg_with_code_block_dec(state, state->token_len, "Expected a => here.");
+    err = 1;
   }
 
   end: {

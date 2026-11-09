@@ -54,14 +54,22 @@ static void link_event_transition(Node* parent_node, TransitionNode* transition_
   }
 
   if(child_transition_node != NULL) {
+    // Transitions for the same event are chained through link, starting
+    // from the first one. Only link into that first chain: the later
+    // transitions are in it already, and linking from them too would make
+    // the chain loop back on itself (with three or more, it did, and the
+    // printer never finished).
+    bool linked_already = false;
     do {
       char* name = get_event_name(child_transition_node);
-      if(strcmp(name, event_name) == 0) {
+      if(!linked_already && name != NULL && event_name != NULL &&
+        strcmp(name, event_name) == 0) {
         TransitionNode* linked = child_transition_node;
         while(linked->link != NULL) {
           linked = linked->link;
         }
         linked->link = transition_node;
+        linked_already = true;
       }
 
       if(child_transition_node->next == NULL) {
@@ -110,6 +118,7 @@ static int consume_on(State* state, TransitionNode* transition_node) {
   OnExpression* expression = node_create_onexpression(state->arena);
   _check(consume_call_expression(state, "on", expression, &consume_on_args));
   transition_node->event = (Expression*)expression;
+  _check(expect_call_argument(state, "on", expression->name, err));
 
   return err;
 }
@@ -144,6 +153,10 @@ int parser_consume_transition(State* state) {
   TransitionNode* transition_node = node_create_transition(state->arena);
 
   Node* current_node = state->node;
+  if(current_node == NULL) {
+    error_msg_with_code_block(state, (Node*)transition_node, "Unexpected parent node to a transition.");
+    return 2;
+  }
   size_t current_node_type = current_node->type;
 
   char* event = state_take_word(state);
@@ -306,7 +319,16 @@ int parser_consume_transition(State* state) {
         goto end;
       }
     }
-  }  
+  }
+
+  // A transition needs at least one of a destination, a guard or an
+  // action. Without any (an event name alone on a line, or `delay(1s)`)
+  // the printer had no destination to print and crashed.
+  if(err == 0 && transition_node->dest == NULL &&
+    transition_node->guard == NULL && transition_node->action == NULL) {
+    error_msg_with_code_block_dec(state, state->token_len, "Expected a destination state for this event.");
+    err = 1;
+  }
 
   end: {
     state_node_up(state);

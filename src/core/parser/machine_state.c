@@ -20,7 +20,7 @@ int parser_consume_state(State* state) {
   state_node_start_pos(state, state_node_node, 5);
 
   Node* parent_node = state->node;
-  if(parent_node->type != NODE_MACHINE_TYPE) {
+  if(parent_node == NULL || parent_node->type != NODE_MACHINE_TYPE) {
     error_msg_with_code_block(state, state_node_node, "Unexpected parent node for state.");
     return 2;
   }
