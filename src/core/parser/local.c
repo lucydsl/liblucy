@@ -50,7 +50,7 @@ ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
       goto end;
     }
 
-    char* identifier = parser_take_word(parser);
+    const char* identifier = parser_take_word(parser);
     // Not "key": that would hide the @entry/@exit key, which the guard
     // error below needs (it printed local_name(KEYWORD_GUARD), a NULL).
     Keyword keyword = keyword_lookup(identifier);

@@ -11,7 +11,7 @@
  */
 
 typedef struct StringListNode {
-  char* value;
+  const char* value;
   struct StringListNode* next;
 } StringListNode;
 

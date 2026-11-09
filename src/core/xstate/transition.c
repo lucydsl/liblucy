@@ -20,7 +20,7 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
     }
     inner = inner->next;
   }
-  js_builder_start_prop(jsb, (char*)actions_property);
+  js_builder_start_prop(jsb, actions_property);
   js_builder_start_array(jsb, use_multiline);
 
   while(true) {
@@ -150,7 +150,7 @@ void printer_compile_transition_action(Printer* printer, JSBuilder* jsb,
   js_builder_end_array(jsb, use_multiline);
 }
 
-void printer_compile_transition_key(Printer* printer, JSBuilder* jsb, TransitionNode* transition_node, char* event_name) {
+void printer_compile_transition_key(Printer* printer, JSBuilder* jsb, TransitionNode* transition_node, const char* event_name) {
   TransitionType type = transition_node->type;
 
   Node* parent_node = transition_node->node.parent;
@@ -210,7 +210,7 @@ void printer_compile_transition_key(Printer* printer, JSBuilder* jsb, Transition
 static inline void compile_guard_expression(Printer* printer, JSBuilder* jsb, GuardExpression* guard_expression) {
   Expression* ref = guard_expression->ref;
   if(ref->type == EXPRESSION_IDENTIFIER) {
-    char* value = ((IdentifierExpression*)ref)->name;
+    const char* value = ((IdentifierExpression*)ref)->name;
     js_builder_add_str(jsb, value);
   } else if(ref->type == EXPRESSION_SYMBOL) {
     SymbolExpression* symbol_expression = (SymbolExpression*)ref;
@@ -226,7 +226,7 @@ static inline void compile_guard_expression(Printer* printer, JSBuilder* jsb, Gu
 
 // The destination as text. Member expressions are joined into an arena
 // string; plain names are returned as they are.
-static char* serialize_destination(Printer* printer, TransitionNode* transition_node) {
+static const char* serialize_destination(Printer* printer, TransitionNode* transition_node) {
   Expression* dest = transition_node->dest;
   switch(dest->type) {
     case EXPRESSION_IDENTIFIER: {
@@ -323,7 +323,7 @@ void printer_compile_inner_transition(Printer* printer, JSBuilder* jsb, Transiti
 }
 
 void printer_compile_event_transition(Printer* printer, JSBuilder* jsb, TransitionNode* transition_node) {
-  char* event_name = transition_node->event->type == EXPRESSION_ON ?
+  const char* event_name = transition_node->event->type == EXPRESSION_ON ?
     ((OnExpression*)transition_node->event)->name :
     ((IdentifierExpression*)transition_node->event)->name;
 

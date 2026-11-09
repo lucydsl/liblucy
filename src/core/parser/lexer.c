@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void parser_init(Parser* parser, Arena* arena, Program* program, char* source, char* filename, DiagnosticList* diagnostics) {
+void parser_init(Parser* parser, Arena* arena, Program* program, const char* source, const char* filename, DiagnosticList* diagnostics) {
   // Zero everything first: the parser reads modifier and the word
   // fields before it ever sets them.
   memset(parser, 0, sizeof(*parser));
@@ -20,14 +20,14 @@ void parser_init(Parser* parser, Arena* arena, Program* program, char* source, c
   str_set_init(&parser->action_names, arena);
 }
 
-void parser_set_word(Parser* parser, char* word, size_t start, size_t end) {
+void parser_set_word(Parser* parser, const char* word, size_t start, size_t end) {
   parser->word = word;
   parser->word_start = start;
   parser->word_end = end;
 }
 
-char* parser_take_word(Parser* parser) {
-  char* word = parser->word;
+const char* parser_take_word(Parser* parser) {
+  const char* word = parser->word;
   parser->word = NULL;
   return word;
 }
@@ -41,7 +41,7 @@ void parser_advance_line(Parser* parser) {
   parser->column = 0;
 }
 
-int parser_in_bounds(Parser* parser) {
+bool parser_in_bounds(Parser* parser) {
   return parser->index < parser->source_len;
 }
 
@@ -142,19 +142,19 @@ void parser_leave_node(Parser* parser) {
   }
 }
 
-void parser_add_guard_name(Parser* parser, char* name) {
+void parser_add_guard_name(Parser* parser, const char* name) {
   str_set_add(&parser->guard_names, name);
 }
 
-bool parser_has_guard_name(Parser* parser, char* name) {
+bool parser_has_guard_name(Parser* parser, const char* name) {
   return str_set_contains(&parser->guard_names, name);
 }
 
-void parser_add_action_name(Parser* parser, char* name) {
+void parser_add_action_name(Parser* parser, const char* name) {
   str_set_add(&parser->action_names, name);
 }
 
-bool parser_has_action_name(Parser* parser, char* name) {
+bool parser_has_action_name(Parser* parser, const char* name) {
   return str_set_contains(&parser->action_names, name);
 }
 
@@ -163,11 +163,11 @@ static bool is_identifier_char(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
-static inline int is_newline(char c) {
+static inline bool is_newline(char c) {
   return c == '\n';
 }
 
-static inline int is_whitespace(char c) {
+static inline bool is_whitespace(char c) {
   return c == ' ';
 }
 

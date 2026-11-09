@@ -99,7 +99,7 @@ ParseStatus parser_consume_state(Parser* parser) {
         break;
       }
       case TOKEN_LOCAL: {
-        char* local = parser_take_word(parser);
+        const char* local = parser_take_word(parser);
         LocalKind key = local_lookup(local);
         switch(key) {
           case LOCAL_ENTRY:

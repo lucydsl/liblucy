@@ -16,4 +16,4 @@ typedef struct ParseResult {
  * allocated from arena and are valid until it is destroyed, whether or not
  * the parse succeeded. Errors are added to diagnostics.
  */
-ParseResult parse(Arena* arena, char* source, char* filename, DiagnosticList* diagnostics);
+ParseResult parse(Arena* arena, const char* source, const char* filename, DiagnosticList* diagnostics);

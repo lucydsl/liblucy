@@ -26,7 +26,7 @@ typedef struct Executor {
 typedef struct AssignExecutor {
   StringList events;
   StrSet events_s;
-  char* data_prop;
+  const char* data_prop;
 } AssignExecutor;
 
 /*
@@ -40,14 +40,14 @@ typedef struct AssignExecutor {
 typedef struct TSPrinter {
   Arena* arena;
   unsigned flags;
-  char* source;
+  const char* source;
 
   unsigned machine_flags;
   // The name of the last named machine. Known bug: it is kept for the
   // machines after it, named or not.
   bool has_machine_name;
   SourceSpan machine_name;
-  char* xstate_specifier;
+  const char* xstate_specifier;
   JSBuilder* buffer;
   StrBuilder* event_names_sb;
   StrBuilder* data_names_sb;
@@ -64,22 +64,22 @@ typedef struct TSPrinter {
   StrMap* entry_actions; // Map<state, List<Actions>>
 } TSPrinter;
 
-TSPrinter* ts_printer_create(Arena*, char* source);
+TSPrinter* ts_printer_create(Arena*, const char* source);
 void ts_printer_destroy(TSPrinter*);
 /* The finished .d.ts, which the caller must free(). */
 char* ts_printer_dump(TSPrinter*);
 
-void ts_printer_add_event(TSPrinter*, char*);
-void ts_printer_add_data(TSPrinter*, char*);
-void ts_printer_add_assign(TSPrinter*, char*, char*, char*);
-void ts_printer_add_guard(TSPrinter*, char*, char*);
-void ts_printer_add_action(TSPrinter*, char*, char*);
-void ts_printer_add_invoke(TSPrinter*, char*);
-void ts_printer_add_actor(TSPrinter*, char*);
-void ts_printer_add_delay(TSPrinter*, char*);
+void ts_printer_add_event(TSPrinter*, const char*);
+void ts_printer_add_data(TSPrinter*, const char*);
+void ts_printer_add_assign(TSPrinter*, const char*, const char*, const char*);
+void ts_printer_add_guard(TSPrinter*, const char*, const char*);
+void ts_printer_add_action(TSPrinter*, const char*, const char*);
+void ts_printer_add_invoke(TSPrinter*, const char*);
+void ts_printer_add_actor(TSPrinter*, const char*);
+void ts_printer_add_delay(TSPrinter*, const char*);
 void ts_printer_create_machine(TSPrinter*);
 void ts_printer_add_machine_name(TSPrinter*, SourceSpan);
 void ts_printer_add_default_machine(TSPrinter*);
-void ts_printer_add_state_entry(TSPrinter*, char*, char*);
-void ts_printer_add_entry_action(TSPrinter*, char*, char*);
+void ts_printer_add_state_entry(TSPrinter*, const char*, const char*);
+void ts_printer_add_entry_action(TSPrinter*, const char*, const char*);
 void ts_printer_figure_out_entry_events(TSPrinter*);

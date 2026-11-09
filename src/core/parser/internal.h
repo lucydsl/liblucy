@@ -59,8 +59,8 @@ typedef enum Modifier {
  */
 typedef struct Parser {
   Arena* arena;
-  char* source;
-  char* filename;
+  const char* source;
+  const char* filename;
   size_t source_len;
   size_t index;
   size_t line;
@@ -71,7 +71,7 @@ typedef struct Parser {
   size_t word_start;
   size_t word_end;
   // The current word, an arena string. parser_take_word hands it to a node.
-  char* word;
+  const char* word;
   size_t word_len;
   size_t token_len;
 
@@ -118,25 +118,25 @@ typedef enum TokenType {
   TOKEN_MEMBER_EXPRESSION, // the first word of a.b
 } TokenType;
 
-int parser_in_bounds(Parser*);
+bool parser_in_bounds(Parser*);
 char parser_char(Parser*);
 char parser_peek(Parser*);
 char parser_next(Parser*);
 void parser_rewind(Parser*, size_t);
 void parser_find_position(Parser*, Position*, size_t);
 
-void parser_init(Parser*, Arena*, Program*, char* source, char* filename, DiagnosticList*);
+void parser_init(Parser*, Arena*, Program*, const char* source, const char* filename, DiagnosticList*);
 void parser_advance_line(Parser*);
 void parser_advance_column(Parser*);
-void parser_set_word(Parser*, char*, size_t, size_t);
-char* parser_take_word(Parser*);
+void parser_set_word(Parser*, const char*, size_t, size_t);
+const char* parser_take_word(Parser*);
 void parser_enter_node(Parser*, Node*);
 void parser_leave_node(Parser*);
 
-void parser_add_guard_name(Parser*, char*);
-void parser_add_action_name(Parser*, char*);
-bool parser_has_guard_name(Parser*, char*);
-bool parser_has_action_name(Parser*, char*);
+void parser_add_guard_name(Parser*, const char*);
+void parser_add_action_name(Parser*, const char*);
+bool parser_has_guard_name(Parser*, const char*);
+bool parser_has_action_name(Parser*, const char*);
 
 TokenType parser_next_token(Parser*);
 
@@ -148,7 +148,7 @@ TokenType parser_next_token(Parser*);
  * passed, for the handler to fill in; index counts the arguments and
  * commas so far.
  */
-typedef ParseStatus (*CallArgHandler)(Parser*, void* expr, TokenType, char* arg, size_t index);
+typedef ParseStatus (*CallArgHandler)(Parser*, void* expr, TokenType, const char* arg, size_t index);
 
 /*
  * Parse a call's argument list, `(a, b)`, after its name (fn_name, for
@@ -233,9 +233,9 @@ ParseStatus parser_consume_action(Parser*);
 ParseStatus parser_consume_inline_action(Parser*, Node*);
 ParseStatus parser_consume_guard(Parser*);
 ParseStatus parser_consume_inline_guard(Parser*, TransitionNode*);
-ParseStatus parser_consume_inline_assign_args(Parser*, void*, TokenType, char*, size_t);
+ParseStatus parser_consume_inline_assign_args(Parser*, void*, TokenType, const char*, size_t);
 ParseStatus parser_consume_inline_assign(Parser*, Node*);
-ParseStatus parser_consume_inline_send_args(Parser*, void*, TokenType, char*, size_t);
+ParseStatus parser_consume_inline_send_args(Parser*, void*, TokenType, const char*, size_t);
 ParseStatus parser_consume_inline_send(Parser*, Node*);
 ParseStatus parser_consume_inline_spawn(Parser*, AssignExpression*);
 ParseStatus parser_consume_inline_delay(Parser*, TransitionNode*, StateNode*);

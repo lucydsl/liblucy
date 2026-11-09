@@ -39,7 +39,7 @@ void printer_clear_refs(Printer* printer) {
 
 // Add key to the end of the list at *refs, unless names says it is in it
 // already.
-static void add_ref(Printer* printer, Ref** refs, StrSet* names, char* key, Expression* value) {
+static void add_ref(Printer* printer, Ref** refs, StrSet* names, const char* key, Expression* value) {
   if(str_set_contains(names, key)) {
     return;
   }
@@ -56,19 +56,19 @@ static void add_ref(Printer* printer, Ref** refs, StrSet* names, char* key, Expr
   str_set_add(names, key);
 }
 
-void printer_add_action_ref(Printer* printer, char* key, Expression* value) {
+void printer_add_action_ref(Printer* printer, const char* key, Expression* value) {
   add_ref(printer, &printer->action_refs, &printer->action_names, key, value);
 }
 
-void printer_add_guard_ref(Printer* printer, char* key, Expression* value) {
+void printer_add_guard_ref(Printer* printer, const char* key, Expression* value) {
   add_ref(printer, &printer->guard_refs, &printer->guard_names, key, value);
 }
 
-void printer_add_delay_ref(Printer* printer, char* key, Expression* value) {
+void printer_add_delay_ref(Printer* printer, const char* key, Expression* value) {
   add_ref(printer, &printer->delay_refs, &printer->delay_names, key, value);
 }
 
-void printer_add_service_ref(Printer* printer, char* key, Expression* value) {
+void printer_add_service_ref(Printer* printer, const char* key, Expression* value) {
   add_ref(printer, &printer->service_refs, &printer->service_names, key, value);
 }
 
@@ -83,7 +83,7 @@ void printer_end_assign_call(JSBuilder* jsb) {
   js_builder_end_call(jsb);
 }
 
-bool printer_add_top_level_machine_name(Printer* printer, JSBuilder* jsb, char* matching_name) {
+bool printer_add_top_level_machine_name(Printer* printer, JSBuilder* jsb, const char* matching_name) {
   size_t matching_len = strlen(matching_name);
   Node* cur = printer->program->body;
   while(cur != NULL) {
@@ -107,7 +107,7 @@ void printer_add_spawn_call(Printer* printer, JSBuilder* jsb, SpawnExpression* s
   js_builder_add_str(jsb, "() => ");
   js_builder_start_call(jsb, "spawn");
   Expression* target = spawn_expression->target;
-  char* name = NULL;
+  const char* name = NULL;
   if(target->type == EXPRESSION_IDENTIFIER) {
     name = ((IdentifierExpression*)target)->name;
     if(!printer_add_top_level_machine_name(printer, jsb, name)) {

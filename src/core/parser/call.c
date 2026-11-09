@@ -23,7 +23,7 @@ ParseStatus parser_consume_call(Parser* parser, const char* fn_name, void* expr,
     token = parser_next_token(parser);
   }
 
-  char* identifier = NULL;
+  const char* identifier = NULL;
   size_t index = 0;
   while(token != TOKEN_END_CALL) {
     switch(token) {

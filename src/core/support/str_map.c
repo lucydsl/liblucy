@@ -125,7 +125,7 @@ static const char* set_entry(StrMapEntry* entries, size_t capacity,
     if (plength != NULL) {
         (*plength)++;
     }
-    entries[index].key = (char*)key;
+    entries[index].key = key;
     entries[index].value = value;
     return key;
 }

@@ -9,7 +9,7 @@ static inline void maybe_add_machine_uses_assign(AssignExpression* assign_expres
 }
 
 /* Public API */
-ParseStatus parser_consume_inline_assign_args(Parser* parser, void* expr, TokenType token, char* arg, size_t index) {
+ParseStatus parser_consume_inline_assign_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   ParseStatus status = PARSE_OK;
   AssignExpression* assign_expression = (AssignExpression*)expr;
 

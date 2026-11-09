@@ -38,7 +38,7 @@ ImportNode* node_create_import(Arena* arena) {
   return (ImportNode*)node_create(arena, NODE_IMPORT, sizeof(ImportNode));
 }
 
-ImportSpecifierNode* node_create_import_specifier(Arena* arena, char* imported) {
+ImportSpecifierNode* node_create_import_specifier(Arena* arena, const char* imported) {
   ImportSpecifierNode* specifier = (ImportSpecifierNode*)node_create(arena, NODE_IMPORT_SPECIFIER, sizeof(ImportSpecifierNode));
   specifier->imported = imported;
   return specifier;
@@ -54,7 +54,7 @@ InvokeNode* node_create_invoke(Arena* arena) {
   return (InvokeNode*)node_create(arena, NODE_INVOKE, sizeof(InvokeNode));
 }
 
-TransitionGuard* node_transition_add_guard(Arena* arena, TransitionNode* transition_node, char* name) {
+TransitionGuard* node_transition_add_guard(Arena* arena, TransitionNode* transition_node, const char* name) {
   TransitionGuard* guard = ARENA_NEW(arena, TransitionGuard);
   guard->name = name;
 
@@ -70,7 +70,7 @@ TransitionGuard* node_transition_add_guard(Arena* arena, TransitionNode* transit
   return guard;
 }
 
-TransitionAction* node_transition_add_action(Arena* arena, TransitionNode* transition_node, char* name) {
+TransitionAction* node_transition_add_action(Arena* arena, TransitionNode* transition_node, const char* name) {
   TransitionAction* action = node_create_transition_action(arena);
   action->name = name;
 
