@@ -3,9 +3,9 @@
 ## Layout
 
 - `bin/main.c`: `lucyc`, the command-line compiler.
-- `wasm/main.c`: the wasm module's own entry points: `main`, and the
-  function that prints a compile's diagnostics for `liblucy.mjs`.
-- `core/`: the compiler itself, built into both.
+- `core/`: the compiler itself, built into `lucyc` and into the wasm
+  module, `dist/lucy.wasm`, which exports the API in `lucy.h` (see
+  `WASM_EXPORTS` in the Makefile) to `liblucy.mjs`.
   - `lucy.h`: the library's API, which `lucyc` and the wasm module call.
     `lucy.c` implements it: it parses the source and prints the result.
   - `diagnostic.h`: the list of errors and warnings a compile reports, and
@@ -36,9 +36,14 @@
 ## Conventions
 
 The code is C17 (`-std=c17`) and builds without warnings under the strict
-set in the Makefile, with GCC and with Emscripten's Clang; CI builds with
+set in the Makefile, with GCC and with wasi-sdk's Clang; CI builds with
 `WERROR=1`, which makes them errors. The core uses only ISO C, so the same
-sources build natively and with Emscripten. `lucyc` also uses POSIX.
+sources build natively and for wasm. `lucyc` also uses POSIX.
+
+The wasm module links wasi-libc but must import nothing from WASI, so the
+core can't use stdio there: nothing may print, and `assert` compiles away
+(the wasm build defines `NDEBUG`). `make test-wasm` fails if the module gains an
+import.
 
 The layout of the code (two-space indents, `if(` with no space,
 `char* name` with the `*` on the type, braces on the same line) is in
@@ -102,8 +107,9 @@ rather than return NULL. Each header says who owns what it returns.
 
 - The library never prints. The parser and the printer add errors and
   warnings to the result's diagnostics (`diagnostic.h`), and `lucyc` and
-  `wasm/main.c` print them. The one exception is the allocators in
-  `support/mem.h`, which print a line before they abort.
+  `liblucy.mjs` print them. The one exception is the allocators in
+  `support/mem.h`, which print a line before they abort (in wasm they
+  trap instead).
 - Parse functions return a `ParseStatus`: `PARSE_OK`, `PARSE_ERROR` (an
   error was reported, but parsing can go on and find more) or `PARSE_FATAL`
   (stop now). Combine the status of a nested parse with `parse_merge`, and
