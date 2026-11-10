@@ -5,10 +5,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Report an impossible allocation and abort.
+// Report an impossible allocation and abort. The wasm module has no
+// stdio to print to (it imports nothing from WASI), so there it traps,
+// which the JavaScript calling it sees as a RuntimeError.
 static void mem_fail(const char* what) {
+#ifdef __wasm__
+  (void)what;
+  __builtin_trap();
+#else
   fprintf(stderr, "liblucy: %s\n", what);
   abort();
+#endif
 }
 
 void* xmalloc(size_t size) {
