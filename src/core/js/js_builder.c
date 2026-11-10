@@ -29,6 +29,9 @@ void js_builder_add_indent(JSBuilder* jsb) {
 }
 
 // The indentation, then format with args, then a newline.
+static void add_line(JSBuilder* jsb, const char* format, va_list args)
+  STR_BUILDER_PRINTF(2, 0);
+
 static void add_line(JSBuilder* jsb, const char* format, va_list args) {
   js_builder_add_indent(jsb);
   va_list copy;

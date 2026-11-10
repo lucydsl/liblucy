@@ -85,19 +85,24 @@ format:
 	clang-format -i $(shell find src test -name '*.[ch]')
 .PHONY: format
 
+# The snapshot tests check the output's text; the behavioural tests
+# (test/behavior/) compile each feature, import the module and run it.
 test-native:
 	@scripts/test_snapshots
 	@scripts/test_unit
+	@scripts/test_behavior.mjs
 .PHONY: test-native
 
 test-wasm:
 	@LUCYC=scripts/lucyc.mjs scripts/test_snapshots
 	@scripts/test_reuse.mjs
+	@LUCYC=scripts/lucyc.mjs scripts/test_behavior.mjs
 .PHONY: test-wasm
 
 test-wasm-release:
 	@LUCYC=scripts/lucyc.mjs NODE_ENV=production scripts/test_snapshots
 	@NODE_ENV=production scripts/test_reuse.mjs
+	@LUCYC=scripts/lucyc.mjs NODE_ENV=production scripts/test_behavior.mjs
 .PHONY: test-wasm-release
 
 # The snapshot and unit tests through a sanitizer build of lucyc, then
