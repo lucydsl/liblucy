@@ -177,6 +177,12 @@ const char* printer_handler_name(Printer*, JSState* owner, const char* event);
 
 /* action.c */
 
+/*
+ * The expression an action stands for: the value of its `action name =`
+ * binding when it is a named action, else its own expression. NULL, after
+ * a warning, for a name with no binding.
+ */
+Expression* printer_action_expression(Printer*, TransitionAction*);
 /* An action as a statement. */
 void printer_print_action(Printer*, TransitionAction*);
 /* Whether an action's statement uses the event. */

@@ -2,10 +2,7 @@
 
 #include <stdbool.h>
 
-// The expression an action stands for: the value of its `action name =`
-// binding when it is a named action, else its own expression. NULL, after
-// a warning, for a name with no binding.
-static Expression* action_expression(Printer* printer, TransitionAction* action) {
+Expression* printer_action_expression(Printer* printer, TransitionAction* action) {
   if(action->name == NULL) {
     return action->expression;
   }
@@ -76,7 +73,7 @@ static void print_call(Printer* printer, Expression* ref, const char* bag) {
 }
 
 void printer_print_action(Printer* printer, TransitionAction* action) {
-  Expression* expression = action_expression(printer, action);
+  Expression* expression = printer_action_expression(printer, action);
   if(expression == NULL) {
     return;
   }
@@ -106,7 +103,7 @@ void printer_print_action(Printer* printer, TransitionAction* action) {
 }
 
 bool printer_action_takes_event(Printer* printer, TransitionAction* action) {
-  Expression* expression = action_expression(printer, action);
+  Expression* expression = printer_action_expression(printer, action);
   if(expression == NULL) {
     return false;
   }
@@ -129,7 +126,7 @@ bool printer_actions_take_event(Printer* printer, TransitionAction* action) {
 }
 
 AssignExpression* printer_action_spawn(Printer* printer, TransitionAction* action) {
-  Expression* expression = action_expression(printer, action);
+  Expression* expression = printer_action_expression(printer, action);
   if(expression == NULL || expression->type != EXPRESSION_ASSIGN) {
     return NULL;
   }
