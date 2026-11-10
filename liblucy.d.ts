@@ -1,12 +1,10 @@
 declare namespace LibLucy {
-  interface CompileXStateOptions {
-    /** Import XState from https://cdn.skypack.dev/xstate instead of 'xstate'. */
-    useRemote?: boolean;
+  interface CompileOptions {
     /** Also produce TypeScript declarations (.d.ts) for the module. Experimental. */
     dts?: boolean;
   }
 
-  interface CompileXStateResult {
+  interface CompileResult {
     /** The compiled JavaScript module. */
     js: string;
     /** The module's TypeScript declarations, when the `dts` option is set. */
@@ -26,23 +24,25 @@ declare namespace LibLucy {
     text: string;
   }
 
-  /** What compileXstate throws when the source doesn't compile. */
+  /** What compile throws when the source doesn't compile. */
   interface CompileError extends Error {
     message: 'Compiler error';
     /** The errors and warnings, in the order the compiler reported them. */
     diagnostics: Diagnostic[];
   }
 
-  /** Resolves when the module is loaded and compileXstate can be called. */
+  /** Resolves when the module is loaded and compile can be called. */
   export const ready: Promise<void>;
 
   /**
-   * Compile Lucy source to a JavaScript module of XState machines.
+   * Compile Lucy source to a JavaScript module of plain state machines: one
+   * exported factory per machine, which returns a machine with `state`,
+   * `context`, `send`, `subscribe`, `start` and `stop`.
    *
    * Throws a CompileError if the source doesn't compile, after printing
    * the errors to the console.
    */
-  export function compileXstate(source: string, filename: string, options?: CompileXStateOptions): CompileXStateResult;
+  export function compile(source: string, filename: string, options?: CompileOptions): CompileResult;
 }
 
 export = LibLucy;

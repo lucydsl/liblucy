@@ -1,6 +1,6 @@
 // Compiles every file it is given, several rounds over, in one process,
-// with each combination of the remote-imports and .d.ts options, and
-// checks that every round gives the same result as the first.
+// with and without the .d.ts option, and checks that every round gives
+// the same result as the first.
 //
 // One process stands in for a long-lived wasm instance: `make
 // test-sanitize` builds this with AddressSanitizer, UndefinedBehavior-
@@ -19,7 +19,7 @@
 
 #include "../../src/core/lucy.h"
 
-#define OPTION_SETS 4
+#define OPTION_SETS 2
 
 typedef struct Source {
   const char* name;
@@ -213,11 +213,10 @@ int main(int argc, char** argv) {
       }
       const char* filename = sources[i].name;
       for(int set = 0; set < OPTION_SETS; set++) {
-        bool use_remote = set & 1;
-        bool include_dts = set & 2;
+        bool include_dts = set == 1;
         LucyResult* result = reuse ? reused : lucy_result_create();
-        lucy_result_set_options(result, use_remote, include_dts);
-        lucy_compile_xstate(result, sources[i].text, filename);
+        lucy_result_set_options(result, include_dts);
+        lucy_compile(result, sources[i].text, filename);
 
         Output* expected = &outputs[i * OPTION_SETS + set];
         if(round == 0) {
@@ -226,8 +225,8 @@ int main(int argc, char** argv) {
           expected->dts = copy(lucy_result_dts(result));
         } else if(lucy_result_success(result) != expected->success ||
                   !same(lucy_result_js(result), expected->js) || !same(lucy_result_dts(result), expected->dts)) {
-          printf("FAILED - %s (remote %d, dts %d) changed in round %d\n",
-            filename, use_remote, include_dts, round + 1);
+          printf("FAILED - %s (dts %d) changed in round %d\n",
+            filename, include_dts, round + 1);
           failed = 1;
         }
 

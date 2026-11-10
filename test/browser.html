@@ -27,13 +27,13 @@ initial state disabled {
 </div>
 
 <script type="module">
-  import { compileXstate, ready } from '../main-browser-dev.js';
+  import { compile, ready } from '../main-browser-dev.js';
 
   async function run() {
     await ready;
 
     const input = before.value;
-    const { js } = compileXstate(input, 'input.lucy');
+    const { js } = compile(input, 'input.lucy');
 
     output.textContent = js;
   }

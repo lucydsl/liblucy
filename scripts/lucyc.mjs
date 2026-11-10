@@ -9,16 +9,11 @@ const env = process.env.NODE_ENV || 'development';
 let outFile = null;
 let print = 'js';
 const options = {
-  useRemote: false,
   dts: false
 };
 
 while(filename && filename.startsWith('--')) {
   switch(filename) {
-    case '--remote-imports': {
-      options.useRemote = true;
-      break;
-    }
     case '--out-file': {
       outFile = process.argv[++index];
       break;
@@ -50,22 +45,21 @@ async function run() {
     import(`../main-node-${rel}.mjs`)
   ]);
   await liblucy.ready;
-  // compileXstate is only set once ready resolves.
-  const { compileXstate } = liblucy;
+  // compile is only set once ready resolves.
+  const { compile } = liblucy;
 
   try {
-    const result = compileXstate(contents, filename, options);
+    const result = compile(contents, filename, options);
 
     if(outFile) {
       await writeFile(outFile, result.js, 'utf-8');
     } else {
+      // The output ends in a newline already.
       if(options.dts && print === 'dts') {
         process.stdout.write(result.dts);
       } else {
         process.stdout.write(result.js);
       }
-
-      process.stdout.write("\n");
     }
   } catch (err) {
     if(process.env.LUCY_DEBUG) console.error(err);

@@ -1,27 +1,68 @@
-import { createMachine } from 'xstate';
 import { logger } from './util';
 
 export function createOne({ context = {} } = {}) {
-  return createMachine({
-    context,
-    states: {
-      idle: {
-        on: {
-          go: {
-            actions: ['log']
-          }
-        }
+  const listeners = new Set();
+  const states = {
+    idle: {
+      go(event) {
+        logger(machine.context, event);
       }
     }
-  }, {
-    actions: {
-      log: logger
+  };
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
     }
-  });
+  }
+  const machine = {
+    state: 'idle',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      const handler = states[machine.state][event.type];
+      if(handler) {
+        handler(event);
+        notify();
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      listeners.clear();
+    }
+  };
+  return machine;
 }
 
 export function createTwo({ context = {} } = {}) {
-  return createMachine({
-    context
-  });
+  const listeners = new Set();
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
+    }
+  }
+  const machine = {
+    context,
+    send() {},
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      listeners.clear();
+    }
+  };
+  return machine;
 }

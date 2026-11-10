@@ -1,43 +1,59 @@
-import { createMachine } from 'xstate';
 import { isValidCard, isInvalidCard, moneyWithdrawn } from './util';
 
-export default function({ context = {} } = {}) {
-  return createMachine({
-    initial: 'idle',
-    context,
-    states: {
-      idle: {
-        on: {
-          next: [
-            {
-              target: 'purchase',
-              cond: isValidCard
-            }, 
-            {
-              target: 'error',
-              cond: isInvalidCard
-            }
-          ]
+export default function createMachine({ context = {} } = {}) {
+  const listeners = new Set();
+  const states = {
+    idle: {
+      next(event) {
+        if(isValidCard(machine.context, event)) {
+          enterPurchase(event);
+        } else if(isInvalidCard(machine.context, event)) {
+          machine.state = 'error';
+          machine.done = true;
         }
-      },
-      purchase: {
-        always: [
-          {
-            target: 'purchased',
-            cond: 'isMoneyWithdrawn'
-          }
-        ]
-      },
-      purchased: {
-        type: 'final'
-      },
-      error: {
-        type: 'final'
       }
+    },
+    purchase: {},
+    purchased: {},
+    error: {}
+  };
+  function enterPurchase(event) {
+    machine.state = 'purchase';
+    if(moneyWithdrawn(machine.context, event)) {
+      machine.state = 'purchased';
+      machine.done = true;
     }
-  }, {
-    guards: {
-      isMoneyWithdrawn: moneyWithdrawn
+  }
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
     }
-  });
+  }
+  const machine = {
+    state: 'idle',
+    context,
+    done: false,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      const handler = states[machine.state][event.type];
+      if(handler) {
+        handler(event);
+        notify();
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      listeners.clear();
+    }
+  };
+  return machine;
 }

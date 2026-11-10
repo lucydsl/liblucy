@@ -1,62 +1,104 @@
-import { createMachine, assign, send, spawn } from 'xstate';
-
 export function createOther({ context = {} } = {}) {
-  return createMachine({
-    context,
-    states: {
-      only: {
-        on: {
-          run: 'only'
-        }
+  const listeners = new Set();
+  const states = {
+    only: {
+      run() {
+        machine.state = 'only';
       }
     }
-  });
+  };
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
+    }
+  }
+  const machine = {
+    state: 'only',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      const handler = states[machine.state][event.type];
+      if(handler) {
+        handler(event);
+        notify();
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      listeners.clear();
+    }
+  };
+  return machine;
 }
-export default function({ context = {} } = {}) {
-  return createMachine({
-    context,
-    states: {
-      idle: {
-        on: {
-          event: {
-            target: 'idle',
-            actions: [
-              assign({
-                first: () => spawn(createOther, 'other')
-              })
-            ]
-          },
-          another: {
-            target: 'idle',
-            actions: ['makeThing']
-          }
-        }
+
+export default function createMachine({ context = {} } = {}) {
+  const listeners = new Set();
+  const states = {
+    idle: {
+      event() {
+        machine.context = { ...machine.context, first: createOther().start() };
+        machine.state = 'idle';
       },
-      end: {
-        on: {
-          click: {
-            target: 'end',
-            actions: [
-              send((ctx, ev) => ({ type: 'run', data: ev.data }), {
-                to: (context) => context.first
-              })
-            ]
-          },
-          dblclick: {
-            target: 'end',
-            actions: ['sendThing']
-          }
-        }
+      another() {
+        machine.context = { ...machine.context, second: createOther().start() };
+        machine.state = 'idle';
+      }
+    },
+    end: {
+      click(event) {
+        machine.context.first.send({ type: 'run', data: event.data });
+        machine.state = 'end';
+      },
+      dblclick(event) {
+        machine.context.second.send({ type: 'run', data: event.data });
+        machine.state = 'end';
       }
     }
-  }, {
-    actions: {
-      makeThing: assign({
-        second: () => spawn(createOther, 'other')
-      }),
-      sendThing: send((ctx, ev) => ({ type: 'run', data: ev.data }), {
-        to: (context) => context.second
-      })
+  };
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
     }
-  });
+  }
+  const machine = {
+    state: 'idle',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      const handler = states[machine.state][event.type];
+      if(handler) {
+        handler(event);
+        notify();
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      if(machine.context.first) {
+        machine.context.first.stop();
+      }
+      if(machine.context.second) {
+        machine.context.second.stop();
+      }
+      listeners.clear();
+    }
+  };
+  return machine;
 }

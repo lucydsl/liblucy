@@ -1,8 +1,8 @@
 import createModule from './dist/liblucy-debug-node.mjs';
 import init from './liblucy.mjs';
 
-export let compileXstate;
+export let compile;
 
 export let ready = init(createModule).then(exports => {
-  compileXstate = exports.compileXstate;
+  compile = exports.compile;
 });

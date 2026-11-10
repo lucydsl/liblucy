@@ -7,10 +7,9 @@
 #include "parser/parser.h"
 #include "support/arena.h"
 #include "support/mem.h"
-#include "xstate/xstate.h"
+#include "js/js.h"
 
 struct LucyResult {
-  bool use_remote_imports;
   bool include_dts;
 
   // The last compile's output, malloc'd and owned by the result.
@@ -31,7 +30,7 @@ static void clear_output(LucyResult* result) {
 }
 
 LucyResult* lucy_result_create(void) {
-  // Zeroed: no output, and both options off.
+  // Zeroed: no output, and the .d.ts option off.
   LucyResult* result = xcalloc(1, sizeof(LucyResult));
   diagnostic_list_init(&result->diagnostics);
   return result;
@@ -45,13 +44,12 @@ void lucy_result_destroy(LucyResult* result) {
   free(result);
 }
 
-void lucy_result_set_options(LucyResult* result, bool use_remote_imports, bool include_dts) {
+void lucy_result_set_options(LucyResult* result, bool include_dts) {
   clear_output(result);
-  result->use_remote_imports = use_remote_imports;
   result->include_dts = include_dts;
 }
 
-void lucy_compile_xstate(LucyResult* result, const char* source, const char* filename) {
+void lucy_compile(LucyResult* result, const char* source, const char* filename) {
   // Output from an earlier compile into the same result is replaced.
   clear_output(result);
 
@@ -67,8 +65,8 @@ void lucy_compile_xstate(LucyResult* result, const char* source, const char* fil
   ParseResult parsed = parse(&arena, source, filename,
     &result->diagnostics);
   if(parsed.success) {
-    XStateOutput output = xstate_print(&arena, parsed.program, source,
-      result->use_remote_imports, result->include_dts, &result->diagnostics);
+    JSOutput output = js_print(&arena, parsed.program, source,
+      result->include_dts, &result->diagnostics);
     result->success = true;
     result->js = output.js;
     result->dts = output.dts;
