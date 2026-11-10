@@ -16,7 +16,7 @@ export default async function(createModule) {
   const _resultCreate = Module._lucy_result_create;
   const _resultDestroy = Module._lucy_result_destroy;
   const _resultSetOptions = Module._lucy_result_set_options;
-  const _compileXstate = Module._lucy_compile_xstate;
+  const _compile = Module._lucy_compile;
   const _resultSuccess = Module._lucy_result_success;
   const _resultJS = Module._lucy_result_js;
   const _resultDTS = Module._lucy_result_dts;
@@ -65,25 +65,22 @@ export default async function(createModule) {
   }
 
   /**
-   * Compile Lucy source to a module of XState machines.
+   * Compile Lucy source to a module of plain JavaScript state machines.
    * @param source {String} the input Lucy source.
    * @param filename {String} the name of the Lucy file.
-   * @param options {{ useRemote?: boolean, dts?: boolean }}
+   * @param options {{ dts?: boolean }}
    * @returns {{ js: string, dts?: string }} The compiled JavaScript module,
    *   and its TypeScript declarations if options.dts is set.
    * @throws {Error} 'Compiler error' if the source doesn't compile, with the
    *   errors and warnings in its diagnostics property.
    */
-  function compileXstate(source, filename, options = {
-    useRemote: false
-  }) {
+  function compile(source, filename, options = {}) {
     if(!source || !filename) {
       throw new Error('Source and filename are both required.');
     }
 
     // Read the options before allocating anything, so that bad options
     // can't throw with memory still allocated.
-    const useRemote = options.useRemote;
     const dts = options.dts;
 
     const srcPtr = stringToHeap(source);
@@ -95,8 +92,8 @@ export default async function(createModule) {
       throw err;
     }
     const resPtr = _resultCreate();
-    _resultSetOptions(resPtr, useRemote, dts);
-    _compileXstate(resPtr, srcPtr, fnPtr);
+    _resultSetOptions(resPtr, dts);
+    _compile(resPtr, srcPtr, fnPtr);
     _free(fnPtr);
     _free(srcPtr);
 
@@ -130,6 +127,6 @@ export default async function(createModule) {
   }
 
   return {
-    compileXstate
+    compile
   };
 }

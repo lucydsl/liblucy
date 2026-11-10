@@ -1,12 +1,12 @@
 #pragma once
 
 /*
- * liblucy's API: compile Lucy source to an XState JavaScript module and,
- * optionally, TypeScript declarations (.d.ts) for it.
+ * liblucy's API: compile Lucy source to a module of plain JavaScript state
+ * machines and, optionally, TypeScript declarations (.d.ts) for it.
  *
  *   LucyResult* result = lucy_result_create();
- *   lucy_result_set_options(result, false, true);
- *   lucy_compile_xstate(result, source, "machine.lucy");
+ *   lucy_result_set_options(result, true);
+ *   lucy_compile(result, source, "machine.lucy");
  *   for(size_t i = 0; i < lucy_result_diagnostic_count(result); i++) {
  *     fputs(lucy_diagnostic_text(lucy_result_diagnostic(result, i)), stderr);
  *   }
@@ -32,7 +32,7 @@
 
 typedef struct LucyResult LucyResult;
 
-/* An empty result, with both options off. Free it with lucy_result_destroy. */
+/* An empty result, with the .d.ts option off. Free it with lucy_result_destroy. */
 LucyResult* lucy_result_create(void);
 
 /* Free a result and everything it holds. NULL does nothing. */
@@ -40,17 +40,16 @@ void lucy_result_destroy(LucyResult* result);
 
 /*
  * Set the options for the next compiles, and clear the result's output.
- * use_remote_imports imports XState from a CDN URL instead of "xstate";
  * include_dts makes the compile produce a .d.ts as well.
  */
-void lucy_result_set_options(LucyResult* result, bool use_remote_imports, bool include_dts);
+void lucy_result_set_options(LucyResult* result, bool include_dts);
 
 /*
  * Compile source, a NUL-terminated Lucy program read from filename, into
  * result. The source and filename are only read during the call. A NULL
  * source or filename is a failed compile.
  */
-void lucy_compile_xstate(LucyResult* result, const char* source, const char* filename);
+void lucy_compile(LucyResult* result, const char* source, const char* filename);
 
 /* Whether the last compile succeeded. */
 bool lucy_result_success(const LucyResult* result);

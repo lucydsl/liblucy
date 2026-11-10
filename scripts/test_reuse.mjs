@@ -13,7 +13,7 @@ const { default: createModule } = await import(`../dist/liblucy-${build}-node.mj
 // Failing compiles print their errors. Keep the expected ones out of the
 // test output.
 let quiet = false;
-const { compileXstate } = await init(() => createModule({
+const { compile } = await init(() => createModule({
   printErr(message) {
     if(!quiet) console.error(message);
   }
@@ -38,8 +38,8 @@ function compileSnapshots(round) {
     const expected = readFileSync(expectedFile, 'utf-8');
     let actual;
     try {
-      const result = compileXstate(readFileSync(filename, 'utf-8'), filename, { dts });
-      actual = (dts ? result.dts : result.js) + '\n';
+      const result = compile(readFileSync(filename, 'utf-8'), filename, { dts });
+      actual = dts ? result.dts : result.js;
     } catch(err) {
       actual = String(err);
     }
@@ -55,8 +55,8 @@ compileSnapshots(1);
 // overflowed, and the heap was a fixed 16 MB, which this outgrew.
 const longName = 'a'.repeat(5000000);
 try {
-  const result = compileXstate(`state ${longName} {\n  go => b\n}\n`, 'long.lucy');
-  if(!result.js.includes(`\n      ${longName}: {\n`)) {
+  const result = compile(`state ${longName} {\n  go => ${longName}\n}\n`, 'long.lucy');
+  if(!result.js.includes(`\n    ${longName}: {\n`)) {
     fail('long identifier: wrong output');
   }
 } catch(err) {
@@ -72,7 +72,7 @@ function nest(depth, inner = '') {
 quiet = true;
 for(const [depth, inner, ok] of [[64, '', true], [64, '  bogus\n', false], [65, '', false], [5000, '', false]]) {
   try {
-    compileXstate(nest(depth, inner), 'nested.lucy');
+    compile(nest(depth, inner), 'nested.lucy');
     if(!ok) fail(`${depth} nested machines compiled`);
   } catch(err) {
     if(ok || err.message !== 'Compiler error') {
@@ -88,7 +88,7 @@ for(let i = 0; i < 50; i++) {
   for(const name of errorTests) {
     const filename = `${dir}/${name}/input.lucy`;
     try {
-      compileXstate(readFileSync(filename, 'utf-8'), filename);
+      compile(readFileSync(filename, 'utf-8'), filename);
       fail(`${filename} compiled`);
     } catch(err) {
       if(err.message !== 'Compiler error') {

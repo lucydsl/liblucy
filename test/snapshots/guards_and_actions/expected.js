@@ -1,36 +1,50 @@
-import { createMachine, assign } from 'xstate';
 import { incrementCount, decrementCount, lessThanTen, greaterThanZero } from './actions.js';
 
-export default function({ context = {} } = {}) {
-  return createMachine({
-    initial: 'active',
-    context,
-    states: {
-      active: {
-        on: {
-          inc: {
-            cond: 'isNotMax',
-            actions: ['increment']
-          },
-          dec: {
-            cond: 'isNotMin',
-            actions: ['decrement']
-          }
+export default function createMachine({ context = {} } = {}) {
+  const listeners = new Set();
+  const states = {
+    active: {
+      inc(event) {
+        if(lessThanTen(machine.context, event)) {
+          machine.context = { ...machine.context, count: incrementCount(machine.context, event) };
+        }
+      },
+      dec(event) {
+        if(greaterThanZero(machine.context, event)) {
+          machine.context = { ...machine.context, count: decrementCount(machine.context, event) };
         }
       }
     }
-  }, {
-    guards: {
-      isNotMax: lessThanTen,
-      isNotMin: greaterThanZero
-    },
-    actions: {
-      increment: assign({
-        count: incrementCount
-      }),
-      decrement: assign({
-        count: decrementCount
-      })
+  };
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
     }
-  });
+  }
+  const machine = {
+    state: 'active',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      const handler = states[machine.state][event.type];
+      if(handler) {
+        handler(event);
+        notify();
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      listeners.clear();
+    }
+  };
+  return machine;
 }

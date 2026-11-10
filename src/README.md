@@ -22,10 +22,16 @@
     `keyword.c` and `timeframe.c` read keywords and delays. The other files
     each parse one construct (`machine.c`, `state.c`, `transition.c`,
     `call.c` for calls like `guard(x)`, ...).
-  - `xstate/`: prints a `Program` as XState JavaScript. `xstate.h` is its
-    interface; `printer.h` is shared by the files that print each construct.
-    `ts_printer.c` prints the TypeScript declarations, and `js_builder.c`
-    builds indented JavaScript text.
+  - `js/`: prints a `Program` as a module of plain JavaScript state
+    machines. `js.h` is its interface; `printer.h` is shared by the
+    printer's files. `model.c` builds the printer's model of the program (a
+    `JSMachine` per machine and a `JSState` per state, with the names the
+    output uses and flags saying which enter and exit functions each state
+    needs), and the other files print from it: `machine.c` a machine's
+    factory function, `state.c` the table of states and the per-state
+    functions, `transition.c` transitions, `action.c` actions and guards,
+    `import.c` the `use` lines, and `dts.c` the TypeScript declarations.
+    `js_builder.c` builds indented JavaScript text a line at a time.
 
 ## Conventions
 
@@ -80,7 +86,7 @@ The layout of the code (two-space indents, `if(` with no space,
 - Every `.c` file includes its own header first, so the compiler checks the
   header against the definitions, then system headers, then the project's,
   each group in order. A module whose files share one header (`parser/`,
-  `xstate/printer.h`) counts that as each file's own header.
+  `js/printer.h`) counts that as each file's own header.
 - Functions used in only one file are `static`. Every function has a
   prototype, and one that takes no arguments says `(void)`.
 

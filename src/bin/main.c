@@ -38,7 +38,6 @@ typedef enum PrintTarget {
 
 // The command line's options. The strings point into argv.
 typedef struct Options {
-  bool remote_imports;
   bool include_dts;
   const char* out_file;
   const char* out_dir;
@@ -54,7 +53,6 @@ static void usage(const char* program_name) {
   fprintf(stderr, BOLDWHITE "Options:\n" RESET);
   fprintf(stderr, "%s--out-file <file>     Specify a file to output to.\n", U_INDENT);
   fprintf(stderr, "%s--out-dir <dir>       Specify a directory to output to.\n", U_INDENT);
-  fprintf(stderr, "%s--remote-imports      Specify remote import URLs.\n", U_INDENT);
   fprintf(stderr, "%s--experimental-dts    Include TypeScript defintion (.d.ts) files.\n"
                   "%s                       (when using --out-file or --out-dir).\n",
     U_INDENT, U_INDENT);
@@ -175,8 +173,8 @@ static int compile_file(const char* filename, const char* out_file, const Option
   }
 
   LucyResult* result = lucy_result_create();
-  lucy_result_set_options(result, options->remote_imports, options->include_dts);
-  lucy_compile_xstate(result, source, filename);
+  lucy_result_set_options(result, options->include_dts);
+  lucy_compile(result, source, filename);
   print_diagnostics(result);
   // The result has its own copies of everything it needs.
   free(source);
@@ -200,11 +198,12 @@ static int compile_file(const char* filename, const char* out_file, const Option
       }
     } else {
       // Without --experimental-dts there is no .d.ts to print, so print
-      // the JavaScript, as scripts/lucyc.mjs does.
+      // the JavaScript, as scripts/lucyc.mjs does. The output ends in a
+      // newline already.
       if(options->print_target == PRINT_TARGET_DTS && lucy_result_dts(result) != NULL) {
-        printf("%s\n", lucy_result_dts(result));
+        fputs(lucy_result_dts(result), stdout);
       } else {
-        printf("%s\n", lucy_result_js(result));
+        fputs(lucy_result_js(result), stdout);
       }
     }
   } else {
@@ -297,7 +296,6 @@ static int compile_dir(const char* rootdir, const char* dirname, const Options* 
 
 // getopt_long's codes for the long options.
 enum {
-  OPTION_REMOTE_IMPORTS,
   OPTION_OUT_FILE,
   OPTION_OUT_DIR,
   OPTION_EXPERIMENTAL_DTS,
@@ -305,7 +303,6 @@ enum {
 };
 
 static const struct option long_options[] = {
-  { "remote-imports", no_argument, NULL, OPTION_REMOTE_IMPORTS },
   { "experimental-dts", no_argument, NULL, OPTION_EXPERIMENTAL_DTS },
   { "out-file", required_argument, NULL, OPTION_OUT_FILE },
   { "out-dir", required_argument, NULL, OPTION_OUT_DIR },
@@ -319,7 +316,6 @@ static const struct option long_options[] = {
 int main(int argc, char* argv[]) {
   const char* program_name = argv[0];
   Options options = {
-    .remote_imports = false,
     .include_dts = false,
     .out_file = NULL,
     .out_dir = NULL,
@@ -329,10 +325,6 @@ int main(int argc, char* argv[]) {
   int opt;
   while((opt = getopt_long(argc, argv, "hv", long_options, NULL)) != -1) {
     switch(opt) {
-      case OPTION_REMOTE_IMPORTS: {
-        options.remote_imports = true;
-        break;
-      }
       case OPTION_EXPERIMENTAL_DTS: {
         options.include_dts = true;
         break;

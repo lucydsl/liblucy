@@ -1,27 +1,50 @@
-import { createMachine } from 'xstate';
-
-export default function({ context = {}, guards } = {}) {
-  return createMachine({
-    initial: 'one',
+export default function createMachine({ context = {}, guards } = {}) {
+  const listeners = new Set();
+  const states = {
+    one: {},
+    two: {}
+  };
+  function enterOne(event) {
+    machine.state = 'one';
+    if(guards.canGo(machine.context, event)) {
+      machine.state = 'two';
+      machine.done = true;
+    } else {
+      machine.state = 'two';
+      machine.done = true;
+    }
+  }
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
+    }
+  }
+  const machine = {
+    state: 'one',
     context,
-    states: {
-      one: {
-        always: [
-          {
-            target: 'two',
-            cond: 'canGo'
-          }, {
-            target: 'two'
-          }
-        ]
-      },
-      two: {
-        type: 'final'
+    done: false,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
       }
+      const handler = states[machine.state][event.type];
+      if(handler) {
+        handler(event);
+        notify();
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      enterOne({ type: 'start' });
+      notify();
+      return machine;
+    },
+    stop() {
+      listeners.clear();
     }
-  }, {
-    guards: {
-      canGo: guards.canGo
-    }
-  });
+  };
+  return machine;
 }

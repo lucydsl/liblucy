@@ -41,7 +41,5 @@ ParseStatus parser_consume_inline_send(Parser* parser, Node* node) {
     }
   }
 
-  parser->program->flags |= PROGRAM_USES_SEND;
-
   return status;
 }
