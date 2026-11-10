@@ -17,10 +17,15 @@ jobs:
       uses: actions/setup-node@v7
       with:
         node-version: ${{ matrix.node-version }}
-    - uses: mymindstorm/setup-emsdk@v16
+    # The wasm build's toolchain. scripts/get_wasi_sdk pins the release and
+    # its checksum, so the cache is keyed on that script.
+    - name: Cache wasi-sdk
+      uses: actions/cache@v6
       with:
-        # Keep in sync with the version in readme.md.
-        version: 7.0.0
+        path: ~/.cache/wasi-sdk
+        key: wasi-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get_wasi_sdk') }}
+    - name: Get wasi-sdk
+      run: scripts/get_wasi_sdk
 
     - name: Install colordiff
       run: sudo apt-get install colordiff
