@@ -1,16 +1,20 @@
-import { PartialAssigner, StateMachine } from 'xstate';
+export type MachineState = 'first' | 'second';
+export type MachineContextKey = 'prop';
 
-type MachineKnownContextKeys = 'prop';
-
-export interface CreateMachineOptions<TContext extends Record<MachineKnownContextKeys, any>, TEvent> {
-  context: TContext,
+export interface CreateMachineOptions<TContext extends Record<MachineContextKey, any>, TEvent extends { type: string }> {
+  context?: TContext;
   assigns: {
-    val: PartialAssigner<
-      TContext,
-      TEvent,
-      'prop'
-    >
-  }
+    val: (context: TContext, event: TEvent) => TContext['prop'];
+  };
 }
 
-export default function createMachine<TContext extends Record<MachineKnownContextKeys, any>, TEvent>(options: CreateMachineOptions<TContext, TEvent>): StateMachine<TContext, any, TEvent>;
+export interface Machine<TContext extends Record<MachineContextKey, any>, TEvent extends { type: string }> {
+  state: MachineState;
+  context: TContext;
+  send(event: TEvent | TEvent['type']): void;
+  subscribe(listener: (machine: Machine<TContext, TEvent>) => void): () => void;
+  start(): Machine<TContext, TEvent>;
+  stop(): void;
+}
+
+export default function createMachine<TContext extends Record<MachineContextKey, any> = Record<MachineContextKey, any>, TEvent extends { type: string } = { type: string }>(options: CreateMachineOptions<TContext, TEvent>): Machine<TContext, TEvent>;
