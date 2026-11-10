@@ -457,6 +457,41 @@ static void set_invoke_kinds(Printer* printer, JSState* states) {
   }
 }
 
+// The names the output uses for its own things, which an import can't
+// share.
+static const char* const reserved_names[] = {
+  "listeners", "states", "machine", "notify", "event", "handler", "listener",
+  "promise", "data", "error", "child", "actions", "assigns", "context",
+  "delays", "guards", "services", NULL
+};
+
+// Warn about `use` imports whose names the output needs for itself.
+static void check_imports(Printer* printer) {
+  for(Node* node = printer->program->body; node != NULL; node = node->next) {
+    if(node->type != NODE_IMPORT) {
+      continue;
+    }
+    for(Node* child = node->child; child != NULL; child = child->next) {
+      const char* name = ((ImportSpecifierNode*)child)->imported;
+      bool reserved = false;
+      for(size_t i = 0; reserved_names[i] != NULL; i++) {
+        if(strcmp(name, reserved_names[i]) == 0) {
+          reserved = true;
+        }
+      }
+      for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
+        if(strcmp(name, machine->factory) == 0) {
+          reserved = true;
+        }
+      }
+      if(reserved) {
+        printer_warnf(printer, LUCY_STREAM_STDOUT,
+          "The import [%s] has a name the compiled module uses itself, so the module will not work.\n", name);
+      }
+    }
+  }
+}
+
 void printer_build_model(Printer* printer) {
   printer->bindings = str_map_create(printer->arena);
   collect_bindings(printer, printer->program->body);
@@ -486,6 +521,7 @@ void printer_build_model(Printer* printer) {
     tail = &machine->next;
   }
 
+  check_imports(printer);
   for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     set_invoke_kinds(printer, machine->states);
     check_targets(printer, machine->states);
