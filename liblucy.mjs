@@ -123,8 +123,8 @@ export function createCompiler(instance, {
     let diagnostics = null;
     try {
       result = wasm.lucy_result_create();
-      // dts goes through ToInt32, as it always has: true is 1, and
-      // anything that isn't a number is 0.
+      // dts becomes an i32 as it always has (true is 1, undefined 0), while
+      // whether out.dts is set follows its truthiness, as before.
       wasm.lucy_result_set_options(result, dts);
       wasm.lucy_compile(result, srcPtr, fnPtr);
 
