@@ -4,7 +4,6 @@ const { readFile, writeFile } = fsPromises;
 
 let index = 2;
 let [,, filename] = process.argv;
-const env = process.env.NODE_ENV || 'development';
 
 let outFile = null;
 let print = 'js';
@@ -36,13 +35,12 @@ if(!filename) {
 }
 
 async function run() {
-  const rel = env === 'production' ? 'prod' : 'dev';
   const [
     contents,
     liblucy
   ] = await Promise.all([
     readFile(filename, 'utf-8'),
-    import(`../main-node-${rel}.mjs`)
+    import('../main-node.mjs')
   ]);
   await liblucy.ready;
   // compile is only set once ready resolves.

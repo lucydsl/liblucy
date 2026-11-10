@@ -1,7 +1,6 @@
 #!/bin/bash
 
 LUCYC="${LUCYC:-bin/lucyc}"
-NODE_ENV="${NODE_ENV:-development}"
 ret=0
 COLORDIFF=colordiff
 command -v colordiff &> /dev/null || COLORDIFF=cat
@@ -49,7 +48,7 @@ run_test() {
     local output="${d}expected.js"
   fi
 
-  NODE_ENV=$NODE_ENV $LUCYC $dtsflag $input >> $tmp 2>&1
+  $LUCYC $dtsflag $input >> $tmp 2>&1
 
   if [ "$upd" -eq 1 ]; then
     mv $tmp $output

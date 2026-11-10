@@ -1,0 +1,65 @@
+#!/bin/bash
+# Downloads the wasi-sdk release that the wasm build uses into a cache
+# directory outside the repo, checks its checksum, and prints where it is.
+# With --dir it only prints where it would be, without downloading.
+#
+#   make WASI_SDK=$(scripts/get_wasi_sdk) dist/lucy.wasm
+#
+# The Makefile finds the SDK there by itself, so this only needs running
+# once. CI runs it too, and caches the directory.
+#
+# Pinned to wasi-sdk 33: from 34 on, wasi-libc's printf locks the FILE it
+# writes to even in single-threaded builds, which pulls in a WASI import
+# (clock_time_get) that the module must not need. To try a newer release,
+# change the version and checksums, and check that `make test-wasm` still
+# finds no imports.
+set -euo pipefail
+
+VERSION=33
+CACHE="${WASI_SDK_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/wasi-sdk}"
+
+case "$(uname -m)" in
+  x86_64 | amd64) arch=x86_64 ;;
+  aarch64 | arm64) arch=arm64 ;;
+  *) echo "get_wasi_sdk: no wasi-sdk build for $(uname -m)" >&2; exit 1 ;;
+esac
+case "$(uname -s)" in
+  Linux) os=linux ;;
+  Darwin) os=macos ;;
+  *) echo "get_wasi_sdk: no wasi-sdk build for $(uname -s)" >&2; exit 1 ;;
+esac
+
+name="wasi-sdk-$VERSION.0-$arch-$os"
+dir="$CACHE/$name"
+
+if [ "${1:-}" = "--dir" ]; then
+  echo "$dir"
+  exit 0
+fi
+
+if [ -x "$dir/bin/clang" ]; then
+  echo "$dir"
+  exit 0
+fi
+
+case "$name" in
+  wasi-sdk-33.0-x86_64-linux) sha256=0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce ;;
+  wasi-sdk-33.0-arm64-linux) sha256=4f98ee738c7abb45c81a94d1461fc53cc569d1cd01498951c8184d841a027844 ;;
+  wasi-sdk-33.0-x86_64-macos) sha256=18f3f201ba9734e6a4455b0b6410690395a55e9ffa9f6f5066f66083a94b93b3 ;;
+  wasi-sdk-33.0-arm64-macos) sha256=85c997a2665ead91673b5bb88b7d0df3fc8900df3bfa244f720d478187bbdc78 ;;
+esac
+
+url="https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$VERSION/$name.tar.gz"
+echo "get_wasi_sdk: downloading $url" >&2
+mkdir -p "$CACHE"
+tmp=$(mktemp -d "$CACHE/download.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+curl -sSfL -o "$tmp/sdk.tar.gz" "$url"
+if command -v sha256sum > /dev/null; then
+  echo "$sha256  $tmp/sdk.tar.gz" | sha256sum -c --quiet -
+else
+  echo "$sha256  $tmp/sdk.tar.gz" | shasum -a 256 -c --quiet -
+fi
+tar xzf "$tmp/sdk.tar.gz" -C "$tmp"
+mv "$tmp/$name" "$dir"
+echo "$dir"

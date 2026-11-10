@@ -16,7 +16,7 @@
  *   lucy_result_destroy(result);
  *
  * lucyc (src/bin/main.c) uses this, and the wasm module exports these same
- * functions to liblucy.mjs (see EXPORTED_FUNCTIONS in the Makefile).
+ * functions to liblucy.mjs (see WASM_EXPORTS in the Makefile).
  *
  * A result can be used for many compiles, one after another; each compile
  * replaces the last one's output. Everything a result returns belongs to

@@ -32,10 +32,11 @@ See the [contributing page](https://lucylang.org/docs/contributing/) for informa
 BSD-2-Clause
 ## Building
 
-The wasm build needs [Emscripten](https://emscripten.org/) 7.0.0 (the version CI uses). If you don't want to install it, the official container works:
+The wasm module, `dist/lucy.wasm`, is built with clang from [wasi-sdk](https://github.com/WebAssembly/wasi-sdk), statically linking wasi-libc. It imports nothing, and `liblucy.mjs` drives it through the standard WebAssembly API, with `main-node.mjs` and `main-browser.js` loading it. `scripts/get_wasi_sdk` downloads the pinned wasi-sdk release into `~/.cache/wasi-sdk`, where the Makefile looks for it (set `WASI_SDK` to use another copy):
 
 ```sh
-podman run --rm -v "$PWD":/src -w /src docker.io/emscripten/emsdk:7.0.0 make all
+scripts/get_wasi_sdk
+make all
 ```
 
 The native compiler, `bin/lucyc`, only needs a C17 compiler: `make bin/lucyc`. Run the tests with `make test`. The code builds without warnings under the strict set in the Makefile; `make WERROR=1 ...` makes them errors, as CI does.
