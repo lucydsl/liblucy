@@ -31,7 +31,7 @@ declare namespace LibLucy {
     diagnostics: Diagnostic[];
   }
 
-  /** Resolves when the module is loaded and compile can be called. */
+  /** Resolves when dist/lucy.wasm is loaded and compile can be called. */
   export const ready: Promise<void>;
 
   /**
@@ -39,8 +39,10 @@ declare namespace LibLucy {
    * exported factory per machine, which returns a machine with `state`,
    * `context`, `send`, `subscribe`, `start` and `stop`.
    *
+   * Prints the compile's errors and warnings to the console as lucyc does:
+   * errors with console.error, warnings with console.log, one call each.
    * Throws a CompileError if the source doesn't compile, after printing
-   * the errors to the console.
+   * them.
    */
   export function compile(source: string, filename: string, options?: CompileOptions): CompileResult;
 }
