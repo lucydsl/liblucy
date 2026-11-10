@@ -4,20 +4,26 @@
 // freed wrongly between compiles. Between the two rounds it compiles inputs
 // that used to break the instance for every compile after them.
 import { readdirSync, readFileSync, existsSync } from 'fs';
-import init from '../liblucy.mjs';
+import { createCompiler } from '../liblucy.mjs';
 
-const env = process.env.NODE_ENV || 'development';
-const build = env === 'production' ? 'release' : 'debug';
-const { default: createModule } = await import(`../dist/liblucy-${build}-node.mjs`);
+// The module has to work with no imports at all, which a libc function
+// that calls into WASI would break.
+const wasmModule = new WebAssembly.Module(readFileSync('dist/lucy.wasm'));
+const imports = WebAssembly.Module.imports(wasmModule);
+if(imports.length) {
+  console.log(`FAILED - dist/lucy.wasm imports ${imports.map(i => `${i.module}.${i.name}`).join(', ')}`);
+  process.exit(1);
+}
+const instance = new WebAssembly.Instance(wasmModule, {});
 
 // Failing compiles print their errors. Keep the expected ones out of the
 // test output.
 let quiet = false;
-const { compile } = await init(() => createModule({
+const compile = createCompiler(instance, {
   printErr(message) {
     if(!quiet) console.error(message);
   }
-}));
+});
 
 const dir = 'test/snapshots';
 const names = readdirSync(dir).filter(name => !existsSync(`${dir}/${name}/.skip`));

@@ -1,67 +1,94 @@
-//import createModule from './dist/liblucy-debug.mjs';
+// The JavaScript side of dist/lucy.wasm: compile() on top of the C API in
+// src/core/lucy.h. main-node.mjs and main-browser.js load the module and
+// pass its instance here.
+//
+// The module imports nothing and exports its memory, malloc and free, and
+// the lucy_* functions. Strings cross as NUL-terminated UTF-8 in that
+// memory. It grows when malloc needs more, which replaces memory.buffer,
+// so views of it are made fresh after every call into the module.
 
-export default async function(createModule) {
-  const moduleReady = createModule();
-  const Module = await moduleReady;
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
-  const {
-    lengthBytesUTF8,
-    stringToUTF8,
-    UTF8ToString
-  } = Module;
+/**
+ * @param instance {WebAssembly.Instance} an instance of dist/lucy.wasm.
+ * @param options {{ print?: (text: string) => void, printErr?: (text: string) => void }}
+ *   where compile prints diagnostics: lucyc's stdout and stderr, by
+ *   default console.log and console.error.
+ * @returns the compile function.
+ */
+export function createCompiler(instance, {
+  print = console.log,
+  printErr = console.error
+} = {}) {
+  const wasm = instance.exports;
+  // A reactor module's constructors run in _initialize, once, before any
+  // other call. lucy.wasm has none today, but that could change.
+  wasm._initialize?.();
 
-  // The C API, from src/core/lucy.h.
-  const _malloc = Module._malloc;
-  const _free = Module._free;
-  const _resultCreate = Module._lucy_result_create;
-  const _resultDestroy = Module._lucy_result_destroy;
-  const _resultSetOptions = Module._lucy_result_set_options;
-  const _compile = Module._lucy_compile;
-  const _resultSuccess = Module._lucy_result_success;
-  const _resultJS = Module._lucy_result_js;
-  const _resultDTS = Module._lucy_result_dts;
-  const _diagnosticCount = Module._lucy_result_diagnostic_count;
-  const _diagnostic = Module._lucy_result_diagnostic;
-  const _diagnosticSeverity = Module._lucy_diagnostic_severity;
-  const _diagnosticMessage = Module._lucy_diagnostic_message;
-  const _diagnosticLine = Module._lucy_diagnostic_line;
-  const _diagnosticColumn = Module._lucy_diagnostic_column;
-  const _diagnosticText = Module._lucy_diagnostic_text;
-  // From src/wasm/main.c.
-  const _printDiagnostics = Module._wasm_print_diagnostics;
+  // The module's memory as bytes. Make a new view after every call into the
+  // module: if the memory grew, the old one is empty.
+  function bytes() {
+    return new Uint8Array(wasm.memory.buffer);
+  }
 
-  // A NUL-terminated UTF-8 copy of str on the wasm heap, which the caller
-  // must _free. These used to go on the stack, which is 64 KB, at four
-  // bytes a character, so a source of more than about 16K characters
-  // overflowed it and broke the module for every later compile.
-  function stringToHeap(str) {
-    const size = lengthBytesUTF8(str) + 1;
-    const ptr = _malloc(size);
-    // The heap can grow, and when it can't grow enough malloc returns 0
-    // rather than aborting. Writing the string there would overwrite the
-    // start of memory.
+  // A NUL-terminated UTF-8 copy of str in the module's memory, which the
+  // caller must free.
+  function writeString(str) {
+    const encoded = encoder.encode(str);
+    // Pointers come back as signed 32-bit numbers; >>> 0 keeps one above
+    // 2 GB positive.
+    const ptr = wasm.malloc(encoded.length + 1) >>> 0;
+    // malloc returns 0 when the memory can't grow enough. Writing the
+    // string there would overwrite the start of memory.
     if(ptr === 0) {
       throw new Error('Out of memory');
     }
-    stringToUTF8(str, ptr, size);
+    const heap = bytes();
+    heap.set(encoded, ptr);
+    heap[ptr + encoded.length] = 0;
     return ptr;
   }
 
+  // The NUL-terminated string at ptr. NULL reads as ''.
+  function readString(ptr) {
+    ptr >>>= 0;
+    if(ptr === 0) {
+      return '';
+    }
+    const heap = bytes();
+    return decoder.decode(heap.subarray(ptr, heap.indexOf(0, ptr)));
+  }
+
   // The result's errors and warnings, as plain objects.
-  function readDiagnostics(resPtr) {
+  function readDiagnostics(result) {
     const diagnostics = [];
-    const count = _diagnosticCount(resPtr);
+    const count = wasm.lucy_result_diagnostic_count(result) >>> 0;
     for(let i = 0; i < count; i++) {
-      const ptr = _diagnostic(resPtr, i);
+      const diagnostic = wasm.lucy_result_diagnostic(result, i);
       diagnostics.push({
-        severity: _diagnosticSeverity(ptr) === 0 ? 'error' : 'warning',
-        message: UTF8ToString(_diagnosticMessage(ptr)),
-        line: _diagnosticLine(ptr),
-        column: _diagnosticColumn(ptr),
-        text: UTF8ToString(_diagnosticText(ptr))
+        severity: wasm.lucy_diagnostic_severity(diagnostic) === 0 ? 'error' : 'warning',
+        message: readString(wasm.lucy_diagnostic_message(diagnostic)),
+        line: wasm.lucy_diagnostic_line(diagnostic),
+        column: wasm.lucy_diagnostic_column(diagnostic),
+        text: readString(wasm.lucy_diagnostic_text(diagnostic))
       });
     }
     return diagnostics;
+  }
+
+  // Print the result's errors and warnings as lucyc does: errors to
+  // printErr, and the warnings lucyc prints to stdout to print. The text
+  // ends in a newline, which console.log and console.error add themselves.
+  function printDiagnostics(result) {
+    const count = wasm.lucy_result_diagnostic_count(result) >>> 0;
+    for(let i = 0; i < count; i++) {
+      const diagnostic = wasm.lucy_result_diagnostic(result, i);
+      const text = readString(wasm.lucy_diagnostic_text(diagnostic));
+      // 1 is LUCY_STREAM_STDOUT.
+      const write = wasm.lucy_diagnostic_stream(diagnostic) === 1 ? print : printErr;
+      write(text.endsWith('\n') ? text.slice(0, -1) : text);
+    }
   }
 
   /**
@@ -83,40 +110,43 @@ export default async function(createModule) {
     // can't throw with memory still allocated.
     const dts = options.dts;
 
-    const srcPtr = stringToHeap(source);
+    const srcPtr = writeString(source);
     let fnPtr;
     try {
-      fnPtr = stringToHeap(filename);
+      fnPtr = writeString(filename);
     } catch(err) {
-      _free(srcPtr);
+      wasm.free(srcPtr);
       throw err;
     }
-    const resPtr = _resultCreate();
-    _resultSetOptions(resPtr, dts);
-    _compile(resPtr, srcPtr, fnPtr);
-    _free(fnPtr);
-    _free(srcPtr);
-
-    // The compiler doesn't print. This prints its errors and warnings to
-    // stdout and stderr, which reach Module.print and Module.printErr just
-    // as they did when the compiler printed them itself.
-    _printDiagnostics(resPtr);
-
+    let result = 0;
     let out = null;
     let diagnostics = null;
-    if(_resultSuccess(resPtr)) {
-      out = {};
-      out.js = UTF8ToString(_resultJS(resPtr));
-      if(dts) {
-        out.dts = UTF8ToString(_resultDTS(resPtr));
-      }
-    } else {
-      diagnostics = readDiagnostics(resPtr);
-    }
+    try {
+      result = wasm.lucy_result_create();
+      // dts goes through ToInt32, as it always has: true is 1, and
+      // anything that isn't a number is 0.
+      wasm.lucy_result_set_options(result, dts);
+      wasm.lucy_compile(result, srcPtr, fnPtr);
 
-    // Destroy the result whether or not the compile succeeded. A failed
-    // compile used to skip this and leak it.
-    _resultDestroy(resPtr);
+      // The compiler doesn't print; this prints what lucyc would.
+      printDiagnostics(result);
+
+      if(wasm.lucy_result_success(result)) {
+        out = {};
+        out.js = readString(wasm.lucy_result_js(result));
+        if(dts) {
+          out.dts = readString(wasm.lucy_result_dts(result));
+        }
+      } else {
+        diagnostics = readDiagnostics(result);
+      }
+    } finally {
+      // Free everything, even if the module trapped. Destroying NULL does
+      // nothing.
+      wasm.lucy_result_destroy(result);
+      wasm.free(fnPtr);
+      wasm.free(srcPtr);
+    }
 
     if(out === null) {
       const err = new Error('Compiler error');
@@ -126,7 +156,5 @@ export default async function(createModule) {
     return out;
   }
 
-  return {
-    compile
-  };
+  return compile;
 }
