@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/matthewp/liblucy.git"
+    "url": "git+https://github.com/lucydsl/liblucy.git"
   },
   "keywords": [
     "Lucy",
@@ -31,7 +31,7 @@
   "author": "Matthew Phillips <matthew@matthewphillips.info>",
   "license": "BSD-2-Clause",
   "bugs": {
-    "url": "https://github.com/matthewp/liblucy/issues"
+    "url": "https://github.com/lucydsl/liblucy/issues"
   },
-  "homepage": "https://github.com/matthewp/liblucy#readme"
+  "homepage": "https://github.com/lucydsl/liblucy#readme"
 }
