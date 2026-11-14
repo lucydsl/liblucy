@@ -20,8 +20,9 @@ JSOutput js_print(Arena* arena, Program* program, const char* source,
   bool printed = false;
   for(Node* node = program->body; node != NULL; node = node->next) {
     if(node->type == NODE_IMPORT) {
-      printer_print_import(&printer, (ImportNode*)node);
-      printed = true;
+      if(printer_print_import(&printer, (ImportNode*)node)) {
+        printed = true;
+      }
     }
   }
   for(JSMachine* machine = printer.machines; machine != NULL; machine = machine->next) {

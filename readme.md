@@ -23,6 +23,35 @@ machine.stop();
 - `send(event)` takes a type or an `{ type, data }` object and runs the transition at once. `subscribe(listener)` calls the listener with the machine after each change and returns an unsubscribe function. `start()` enters the initial state (entry actions, timers, invokes) and returns the machine; `stop()` clears timers, drops pending invokes, stops invoked and spawned children, and clears the listeners.
 - `--experimental-dts` writes a `.d.ts` that types each factory's options and the machine it returns.
 
+## Typed events
+
+A machine can declare its events, and the type of the data each carries:
+
+```lucy
+use './types' { User }
+
+machine session {
+  event login(User)
+  event rename(string)
+  event logout
+
+  initial state anonymous {
+    login => assign(user) => active
+  }
+
+  state active {
+    rename => assign(name)
+    logout => anonymous
+  }
+}
+```
+
+- A type is a single name: one imported with `use`, or one TypeScript already knows (`string`, `number`, `MouseEvent`). Give any other type (`string[]`, a union) a name in a `.ts` file and import it. A name used as an event's type is imported as a type only: the JavaScript leaves it out and the `.d.ts` has `import type`.
+- The type is that of the event's `data`: `machine.send({ type: 'login', data: user })`.
+- Events are declared in a top-level `machine { }` block, for that machine and the machines nested in its states. An event has one type, whichever state handles it.
+- The declarations change nothing in the JavaScript. The compiler warns about a transition on an event the machine doesn't declare, a declared event no state handles, `assign(key)` on an event declared without data, and `send(child, event)` to a machine spawned from the same file that doesn't declare `event`. A machine that declares no events is not checked.
+- In the `.d.ts`, the machine's events become `SessionEvents` (by name, so `SessionEvents['login']` types the event parameter of an imported guard or action) and their union `SessionEvent`. `send` takes a `SessionEvent`, or the name alone for an event without data. What the options supply is typed with the events it is used on, and the `context` passed in has to be able to hold the data that `assign(key)` stores.
+
 ## Contributing
 
 See the [contributing page](https://lucy.spooky.click/docs/contributing/) for information on how to build liblucy and the workflow for making changes.

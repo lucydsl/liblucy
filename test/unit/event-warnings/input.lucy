@@ -1,0 +1,23 @@
+machine kid {
+  event ping(number)
+  event unused
+
+  initial state only {
+    ping => only
+    pong => only
+  }
+}
+
+machine parent {
+  action spawnKid = assign(child, spawn(kid))
+  action store = assign(last)
+
+  event go(number)
+  event stop
+
+  initial state idle {
+    @entry => spawnKid
+    go => send(child, ping) => send(child, nope) => idle
+    stop => store => idle
+  }
+}

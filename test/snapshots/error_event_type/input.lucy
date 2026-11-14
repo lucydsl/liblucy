@@ -1,0 +1,12 @@
+machine list {
+  event add(string[])
+  event remove string
+  event clear()
+  event add(number)
+  event add(string)
+  event
+
+  initial state idle {
+    add => idle
+  }
+}

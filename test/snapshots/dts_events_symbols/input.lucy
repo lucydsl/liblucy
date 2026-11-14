@@ -1,0 +1,41 @@
+use './types' { User }
+
+machine session {
+  action remember = assign(last)
+
+  event login(User)
+  event rename(string)
+  event resize(number)
+  event logout
+  event refresh
+
+  initial state anonymous {
+    login => guard(:allowed) => assign(user) => remember => active
+  }
+
+  state active {
+    @entry => action(:track)
+    rename => guard(:allowed) => assign(name, :trimmed) => remember
+    resize => assign(size) => remember
+    logout => action(:goodbye) => leaving
+    refresh => action(:goodbye) => active
+    delay(:idleTime) => leaving
+  }
+
+  state leaving {
+    invoke(:save) {
+      done => assign(saved) => anonymous
+      error => action(:report) => active
+    }
+  }
+}
+
+machine plain {
+  initial state off {
+    toggle => guard(:ready) => on
+  }
+
+  state on {
+    toggle => off
+  }
+}

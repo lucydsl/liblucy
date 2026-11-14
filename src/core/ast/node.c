@@ -50,6 +50,10 @@ InvokeNode* node_create_invoke(Arena* arena) {
   return (InvokeNode*)node_create(arena, NODE_INVOKE, sizeof(InvokeNode));
 }
 
+EventNode* node_create_event(Arena* arena) {
+  return (EventNode*)node_create(arena, NODE_EVENT, sizeof(EventNode));
+}
+
 TransitionGuard* node_transition_add_guard(Arena* arena, TransitionNode* transition_node, const char* name) {
   TransitionGuard* guard = ARENA_NEW(arena, TransitionGuard);
   guard->name = name;
