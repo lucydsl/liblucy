@@ -27,3 +27,43 @@ jobs:
         prerelease: false
         artifacts: ${{ matrix.name }}.tar.gz
         token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Publishes @lucy/liblucy to npm with trusted publishing: npm trusts this
+  # workflow file in this repository (set on the package's page at npmjs.com),
+  # so there is no token to keep. That needs the id-token permission and
+  # npm 11.5.1 or later.
+  npm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v7
+      with:
+        node-version: 24.x
+        registry-url: https://registry.npmjs.org
+    - name: Update npm
+      run: npm install -g npm@latest
+    - name: Check the tag is the package's version
+      run: |
+        version="$(jq -r .version package.json)"
+        if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+          echo "The tag is $GITHUB_REF_NAME, but package.json says $version" >&2
+          exit 1
+        fi
+    - name: Cache wasi-sdk
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/wasi-sdk
+        key: wasi-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get_wasi_sdk') }}
+    - name: Get wasi-sdk
+      run: scripts/get_wasi_sdk
+    - name: Install colordiff
+      run: sudo apt-get install colordiff
+    - name: Build and test
+      run: |
+        make WERROR=1 all
+        make test
+    - name: Publish
+      run: npm publish --access public
