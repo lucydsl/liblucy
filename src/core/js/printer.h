@@ -19,10 +19,12 @@
 #include "../support/arena.h"
 #include "../support/str_builder.h"
 #include "../support/str_map.h"
+#include "../support/str_set.h"
 #include "js_builder.h"
 
 typedef struct JSMachine JSMachine;
 typedef struct JSState JSState;
+typedef struct JSEvent JSEvent;
 
 // JSState.flags: what the output has for a state.
 #define STATE_NEEDS_ENTER       (1u << 0) // an enterX function
@@ -62,6 +64,14 @@ struct JSState {
   JSMachine* invoked;
 };
 
+// An event a machine declares with `event name` or `event name(Type)`.
+struct JSEvent {
+  const char* name;
+  // The type of its data, or NULL when it carries none.
+  const char* type;
+  JSEvent* next;
+};
+
 struct JSMachine {
   MachineNode* node;
   JSMachine* next;
@@ -72,6 +82,9 @@ struct JSMachine {
   JSState* states;
   JSState* initial;
   bool has_final;
+  // The events it declares, in order. NULL when it declares none, and
+  // then its events are whatever its states handle.
+  JSEvent* events;
 };
 
 /*
@@ -88,6 +101,9 @@ typedef struct Printer {
   JSMachine* machines;
   // `action name = ...` and `guard name = ...`, by name.
   StrMap* bindings;
+  // The names used as the types of events. An import with one of these
+  // names is a type, which the JavaScript leaves out.
+  StrSet type_names;
   // The machine being printed.
   JSMachine* machine;
 } Printer;
@@ -136,6 +152,21 @@ const char* printer_event_name(TransitionNode*);
 JSState* printer_find_ancestor_handler(JSState* state, const char* event);
 /* A state's first transition on event, or NULL. */
 TransitionNode* printer_find_event_transition(JSState*, const char* event);
+
+/* event.c */
+
+/* Set machine's events from its `event` declarations. */
+void printer_build_events(Printer*, JSMachine*);
+/* The event machine declares as name, or NULL. */
+JSEvent* printer_find_event(JSMachine*, const char* name);
+/*
+ * Warn about what machine's states do that its declarations, or those of
+ * a machine it spawns, don't allow. Every machine's events must be built.
+ */
+void printer_check_events(Printer*, JSMachine*);
+/* Whether name is used as an event's type, so that an import of it is a
+ * type import. */
+bool printer_is_type_name(Printer*, const char* name);
 
 /* machine.c */
 
@@ -198,7 +229,9 @@ void printer_add_delay_length(Printer*, DelayExpression*);
 
 /* import.c */
 
-void printer_print_import(Printer*, ImportNode*);
+/* A `use` line as an import of the values it names. Returns false, having
+ * printed nothing, when it only names types. */
+bool printer_print_import(Printer*, ImportNode*);
 
 /* dts.c */
 

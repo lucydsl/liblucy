@@ -16,6 +16,7 @@ typedef enum NodeType {
   NODE_ASSIGNMENT,       // AssignmentNode
   NODE_INVOKE,           // InvokeNode
   NODE_LOCAL,            // LocalNode
+  NODE_EVENT,            // EventNode
 } NodeType;
 
 // TransitionNode.type.
@@ -149,6 +150,15 @@ typedef struct ImportNode {
   const char* from;
 } ImportNode;
 
+// `event name` or `event name(Type)`, in a machine's block.
+typedef struct EventNode {
+  Node node;
+
+  const char* name;
+  // The type of the event's data, or NULL when it carries none.
+  const char* type;
+} EventNode;
+
 typedef struct InvokeNode {
   Node node;
   struct InvokeExpression* expr;
@@ -240,6 +250,7 @@ ImportNode* node_create_import(Arena*);
 ImportSpecifierNode* node_create_import_specifier(Arena*, const char*);
 AssignmentNode* node_create_assignment(Arena*, AssignmentKind);
 InvokeNode* node_create_invoke(Arena*);
+EventNode* node_create_event(Arena*);
 AssignExpression* expression_create_assign(Arena*);
 IdentifierExpression* expression_create_identifier(Arena*);
 SymbolExpression* expression_create_symbol(Arena*);
