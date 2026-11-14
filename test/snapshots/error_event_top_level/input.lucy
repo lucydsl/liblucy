@@ -1,0 +1,7 @@
+event go
+
+machine light {
+  initial state off {
+    go => off
+  }
+}

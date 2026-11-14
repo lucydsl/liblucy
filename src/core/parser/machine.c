@@ -57,6 +57,12 @@ static ParseStatus consume_machine_inner(Parser* parser, bool is_implicit, Token
             }
             break;
           }
+          case KEYWORD_EVENT: {
+            if(parse_merge(&status, parser_consume_event(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
+            break;
+          }
           default: {
             break;
           }

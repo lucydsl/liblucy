@@ -1,0 +1,4 @@
+machine m {
+  event a(T)
+  event b
+}

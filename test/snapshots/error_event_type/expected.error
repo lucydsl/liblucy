@@ -1,0 +1,60 @@
+[1m[37mtest/snapshots/error_event_type/input.lucy[0m:2:19
+
+ [1m[31m𝒙[0m[31m An event's type is a single name, as in event add(Type). Give any other type a name in TypeScript and import it with use.
+
+[0m[1m[37m    1[0m │ machine list {
+[1m[37m    2[0m │   event add(string[])
+                          [1m[31m˄[0m
+[1m[37m    3[0m │   event remove string
+[1m[37m    4[0m │   event clear()
+
+
+[1m[37mtest/snapshots/error_event_type/input.lucy[0m:3:16
+
+ [1m[31m𝒙[0m[31m Expected the end of the line after an event. Its type goes in parentheses, as in event remove(Type).
+
+[0m[1m[37m    1[0m │ machine list {
+[1m[37m    2[0m │   event add(string[])
+[1m[37m    3[0m │   event remove string
+                       [1m[31m˄[0m
+[1m[37m    4[0m │   event clear()
+[1m[37m    5[0m │   event add(number)
+
+
+[1m[37mtest/snapshots/error_event_type/input.lucy[0m:4:15
+
+ [1m[31m𝒙[0m[31m An event's type is a single name, as in event clear(Type). Give any other type a name in TypeScript and import it with use.
+
+[0m[1m[37m    2[0m │   event add(string[])
+[1m[37m    3[0m │   event remove string
+[1m[37m    4[0m │   event clear()
+                      [1m[31m˄[0m
+[1m[37m    5[0m │   event add(number)
+[1m[37m    6[0m │   event add(string)
+
+
+[1m[37mtest/snapshots/error_event_type/input.lucy[0m:6:9
+
+ [1m[31m𝒙[0m[31m The event add is already declared.
+
+[0m[1m[37m    4[0m │   event clear()
+[1m[37m    5[0m │   event add(number)
+[1m[37m    6[0m │   event add(string)
+                [1m[31m˄[0m
+[1m[37m    7[0m │   event
+[1m[37m    8[0m │ 
+
+
+[1m[37mtest/snapshots/error_event_type/input.lucy[0m:7:8
+
+ [1m[31m𝒙[0m[31m Events must be given a name.
+
+[0m[1m[37m    5[0m │   event add(number)
+[1m[37m    6[0m │   event add(string)
+[1m[37m    7[0m │   event
+               [1m[31m˄[0m
+[1m[37m    8[0m │ 
+[1m[37m    9[0m │   initial state idle {
+
+
+Compilation failed!

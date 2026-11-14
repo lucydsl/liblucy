@@ -1,0 +1,18 @@
+use './types' { User }
+use './util' { isAdmin, Amount }
+
+machine counter {
+  event set(Amount)
+  event login(User)
+  event reset
+
+  initial state idle {
+    set => assign(count)
+    login => guard(isAdmin) => assign(user) => active
+    reset => idle
+  }
+
+  state active {
+    reset => idle
+  }
+}

@@ -20,6 +20,7 @@ static const struct {
   { "on", KEYWORD_ON },
   { "spawn", KEYWORD_SPAWN },
   { "send", KEYWORD_SEND },
+  { "event", KEYWORD_EVENT },
 };
 
 Keyword keyword_lookup(const char* key) {

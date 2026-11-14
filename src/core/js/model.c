@@ -494,6 +494,7 @@ static void check_imports(Printer* printer) {
 
 void printer_build_model(Printer* printer) {
   printer->bindings = str_map_create(printer->arena);
+  str_set_init(&printer->type_names, printer->arena);
   collect_bindings(printer, printer->program->body);
 
   JSMachine** tail = &printer->machines;
@@ -517,6 +518,7 @@ void printer_build_model(Printer* printer) {
         machine->has_final = true;
       }
     }
+    printer_build_events(printer, machine);
     *tail = machine;
     tail = &machine->next;
   }
@@ -531,5 +533,6 @@ void printer_build_model(Printer* printer) {
     // only adds flags, so this ends.
     while(compute_all_flags(printer, machine->states)) {
     }
+    printer_check_events(printer, machine);
   }
 }

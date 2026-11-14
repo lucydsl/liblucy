@@ -214,6 +214,7 @@ typedef enum Keyword {
   KEYWORD_ON,
   KEYWORD_SPAWN,
   KEYWORD_SEND,
+  KEYWORD_EVENT,
 } Keyword;
 
 /* The keyword a word is, or KEYWORD_NONE (also for NULL). */
@@ -244,6 +245,7 @@ ParseStatus parser_consume_machine(Parser*);
 ParseStatus parser_consume_implicit_machine(Parser*, TokenType);
 ParseStatus parser_consume_state(Parser*);
 ParseStatus parser_consume_use(Parser*);
+ParseStatus parser_consume_event(Parser*);
 ParseStatus parser_consume_local(Parser*, LocalKind);
 ParseStatus parser_consume_transition(Parser*);
 ParseStatus parser_consume_invoke(Parser*);

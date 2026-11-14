@@ -31,6 +31,8 @@
     factory function, `state.c` the table of states and the per-state
     functions, `transition.c` transitions, `action.c` actions and guards,
     `import.c` the `use` lines, and `dts.c` the TypeScript declarations.
+    `event.c` holds the events a machine declares and the warnings about
+    states that don't keep to them.
     `js_builder.c` builds indented JavaScript text a line at a time.
 
 ## Conventions

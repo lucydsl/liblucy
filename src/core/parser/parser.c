@@ -95,6 +95,14 @@ static ParseStatus consume_program(Parser* parser) {
             }
             break;
           }
+          case KEYWORD_EVENT: {
+            // Not allowed here, which parser_consume_event reports. Without
+            // this it would start the file's unnamed machine.
+            if(parse_merge(&status, parser_consume_event(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
+            break;
+          }
           default: {
             // Top-level machine
             if(parse_merge(&status, parser_consume_implicit_machine(parser, token)) == PARSE_FATAL) {

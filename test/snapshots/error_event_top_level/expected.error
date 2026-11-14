@@ -1,0 +1,11 @@
+[1m[37mtest/snapshots/error_event_top_level/input.lucy[0m:1:0
+
+ [1m[31m𝒙[0m[31m Events are declared inside a machine { } block.
+
+[0m[1m[37m    1[0m │ event go
+       [1m[31m˄[0m
+[1m[37m    2[0m │ 
+[1m[37m    3[0m │ machine light {
+[1m[37m    4[0m │ 
+
+Compilation failed!

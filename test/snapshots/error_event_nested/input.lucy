@@ -1,0 +1,11 @@
+machine light {
+  initial state off {
+    machine inner {
+      event go
+
+      initial state dim {
+        go => dim
+      }
+    }
+  }
+}

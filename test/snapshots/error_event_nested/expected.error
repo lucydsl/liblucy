@@ -1,0 +1,13 @@
+[1m[37mtest/snapshots/error_event_nested/input.lucy[0m:4:7
+
+ [1m[31m𝒙[0m[31m Events are declared on the outermost machine, not on a machine nested in a state.
+
+[0m[1m[37m    2[0m │   initial state off {
+[1m[37m    3[0m │     machine inner {
+[1m[37m    4[0m │       event go
+              [1m[31m˄[0m
+[1m[37m    5[0m │ 
+[1m[37m    6[0m │       initial state dim {
+
+
+Compilation failed!
