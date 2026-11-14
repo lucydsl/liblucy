@@ -7,6 +7,7 @@ machine session {
   event rename(string)
   event resize(number)
   event logout
+  event refresh
 
   initial state anonymous {
     login => guard(:allowed) => assign(user) => remember => active

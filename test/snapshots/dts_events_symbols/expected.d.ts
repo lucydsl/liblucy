@@ -1,4 +1,3 @@
-Event [refresh] in state [active] is not declared by machine [session].
 import type { User } from './types';
 
 export type SessionState = 'anonymous' | 'active' | 'leaving';
@@ -7,7 +6,7 @@ export interface SessionEvents {
   rename: { type: 'rename'; data: string };
   resize: { type: 'resize'; data: number };
   logout: { type: 'logout' };
-  refresh: { type: 'refresh'; data?: unknown };
+  refresh: { type: 'refresh' };
 }
 export type SessionEventName = keyof SessionEvents;
 export type SessionEvent = SessionEvents[SessionEventName];
