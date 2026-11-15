@@ -2,6 +2,8 @@ import { pet } from './util';
 
 export default function createMachine({ context = {} } = {}) {
   const listeners = new Set();
+  let busy = false;
+  const queue = [];
   let idlePromise;
   const states = {
     idle: {},
@@ -14,15 +16,30 @@ export default function createMachine({ context = {} } = {}) {
     promise.then(data => {
       if(idlePromise !== promise) return;
       const event = { type: 'done', data };
-      machine.context = { ...machine.context, wilbur: event.data };
-      machine.state = 'goodBoy';
-      machine.done = true;
-      notify();
+      run(() => {
+        machine.context = { ...machine.context, wilbur: event.data };
+        machine.state = 'goodBoy';
+        machine.done = true;
+      });
     });
   }
   function notify() {
     for(const listener of listeners) {
       listener(machine);
+    }
+  }
+  function run(step) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
     }
   }
   const machine = {
@@ -33,10 +50,22 @@ export default function createMachine({ context = {} } = {}) {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener) {
@@ -44,12 +73,12 @@ export default function createMachine({ context = {} } = {}) {
       return () => listeners.delete(listener);
     },
     start() {
-      enterIdle({ type: 'start' });
-      notify();
+      run(() => enterIdle({ type: 'start' }));
       return machine;
     },
     stop() {
       idlePromise = undefined;
+      queue.length = 0;
       listeners.clear();
     }
   };

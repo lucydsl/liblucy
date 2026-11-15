@@ -264,14 +264,18 @@ const char* printer_event_name(TransitionNode* transition) {
   return NULL;
 }
 
-TransitionNode* printer_find_event_transition(JSState* state, const char* event) {
-  for(TransitionNode* t = state->node->event_transition; t != NULL; t = t->next) {
+TransitionNode* printer_find_event_transition_in(TransitionNode* transition, const char* event) {
+  for(TransitionNode* t = transition; t != NULL; t = t->next) {
     const char* name = printer_event_name(t);
     if(name != NULL && strcmp(name, event) == 0) {
       return t;
     }
   }
   return NULL;
+}
+
+TransitionNode* printer_find_event_transition(JSState* state, const char* event) {
+  return printer_find_event_transition_in(state->node->event_transition, event);
 }
 
 JSState* printer_find_ancestor_handler(JSState* state, const char* event) {
@@ -437,6 +441,81 @@ static bool compute_flags(Printer* printer, JSState* state) {
   return changed;
 }
 
+// Whether an action calls code the machine doesn't own: anything but an
+// assign of the event's data.
+static bool action_calls_out(Printer* printer, TransitionAction* action) {
+  Expression* expression = action->expression;
+  if(action->name != NULL) {
+    AssignmentNode* binding = str_map_get(printer->bindings, action->name);
+    expression = binding != NULL ? binding->value : NULL;
+  }
+  if(expression == NULL) {
+    return false;
+  }
+  if(expression->type == EXPRESSION_ASSIGN) {
+    return ((AssignExpression*)expression)->value != NULL;
+  }
+  return true;
+}
+
+static bool actions_call_out(Printer* printer, TransitionAction* action) {
+  for(; action != NULL; action = action->next) {
+    if(action_calls_out(printer, action)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool transitions_call_out(Printer* printer, TransitionNode* transition) {
+  for(; transition != NULL; transition = transition->next) {
+    if(transition->guard != NULL || actions_call_out(printer, transition->action)) {
+      return true;
+    }
+    if(transition->delay != NULL && transition->delay->expression != NULL &&
+       transition->delay->expression->ref != NULL) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool states_call_out(Printer* printer, JSState* state) {
+  for(; state != NULL; state = state->next) {
+    StateNode* node = state->node;
+    if(node->invoke != NULL ||
+       (node->entry != NULL && actions_call_out(printer, node->entry->action)) ||
+       (node->exit != NULL && actions_call_out(printer, node->exit->action)) ||
+       transitions_call_out(printer, node->event_transition) ||
+       transitions_call_out(printer, node->immediate_transition) ||
+       transitions_call_out(printer, node->delay_transition) ||
+       states_call_out(printer, state->child)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Set needs_run and run_nests from the timers and invokes of states.
+static void find_run_uses(JSMachine* machine, JSState* state) {
+  for(; state != NULL; state = state->next) {
+    if(state->delay_count > 0) {
+      machine->needs_run = true;
+    }
+    if(state->invoke_kind != INVOKE_NONE) {
+      bool done = printer_find_event_transition_in(state->node->invoke->event_transition, "done") != NULL;
+      bool error = printer_find_event_transition_in(state->node->invoke->event_transition, "error") != NULL;
+      if(state->invoke_kind == INVOKE_PROMISE && (done || error)) {
+        machine->needs_run = true;
+      } else if(state->invoke_kind == INVOKE_MACHINE && done && state->invoked->has_final) {
+        machine->needs_run = true;
+        machine->run_nests = true;
+      }
+    }
+    find_run_uses(machine, state->child);
+  }
+}
+
 static bool compute_all_flags(Printer* printer, JSState* states) {
   bool changed = false;
   for(JSState* state = states; state != NULL; state = state->next) {
@@ -462,7 +541,7 @@ static void set_invoke_kinds(Printer* printer, JSState* states) {
 static const char* const reserved_names[] = {
   "listeners", "states", "machine", "notify", "event", "handler", "listener",
   "promise", "data", "error", "child", "actions", "assigns", "context",
-  "delays", "guards", "services", NULL
+  "delays", "guards", "services", "busy", "queue", "run", NULL
 };
 
 // Warn about `use` imports whose names the output needs for itself.
@@ -532,6 +611,11 @@ void printer_build_model(Printer* printer) {
     // enter function does), so go round until nothing changes. Each round
     // only adds flags, so this ends.
     while(compute_all_flags(printer, machine->states)) {
+    }
+    machine->queued = states_call_out(printer, machine->states);
+    if(machine->queued) {
+      machine->needs_run = machine->initial != NULL && (machine->initial->flags & STATE_NEEDS_ENTER);
+      find_run_uses(machine, machine->states);
     }
     printer_check_events(printer, machine);
   }

@@ -1,5 +1,7 @@
 export default function createMachine({ context = {}, guards } = {}) {
   const listeners = new Set();
+  let busy = false;
+  const queue = [];
   const states = {
     one: {},
     two: {}
@@ -19,6 +21,20 @@ export default function createMachine({ context = {}, guards } = {}) {
       listener(machine);
     }
   }
+  function run(step) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
+    }
+  }
   const machine = {
     state: 'one',
     context,
@@ -27,10 +43,22 @@ export default function createMachine({ context = {}, guards } = {}) {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener) {
@@ -38,11 +66,11 @@ export default function createMachine({ context = {}, guards } = {}) {
       return () => listeners.delete(listener);
     },
     start() {
-      enterOne({ type: 'start' });
-      notify();
+      run(() => enterOne({ type: 'start' }));
       return machine;
     },
     stop() {
+      queue.length = 0;
       listeners.clear();
     }
   };

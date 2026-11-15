@@ -2,6 +2,8 @@ import { getUser, setUser } from './user.js';
 
 export default function createMachine({ context = {} } = {}) {
   const listeners = new Set();
+  let busy = false;
+  const queue = [];
   let loadingPromise;
   const states = {
     loading: {
@@ -20,15 +22,17 @@ export default function createMachine({ context = {} } = {}) {
     promise.then(data => {
       if(loadingPromise !== promise) return;
       const event = { type: 'done', data };
-      exitLoading();
-      machine.context = { ...machine.context, user: setUser(machine.context, event) };
-      machine.state = 'ready';
-      notify();
+      run(() => {
+        exitLoading();
+        machine.context = { ...machine.context, user: setUser(machine.context, event) };
+        machine.state = 'ready';
+      });
     }, () => {
       if(loadingPromise !== promise) return;
-      exitLoading();
-      machine.state = 'error';
-      notify();
+      run(() => {
+        exitLoading();
+        machine.state = 'error';
+      });
     });
   }
   function exitLoading() {
@@ -39,6 +43,20 @@ export default function createMachine({ context = {} } = {}) {
       listener(machine);
     }
   }
+  function run(step) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
+    }
+  }
   const machine = {
     state: 'loading',
     context,
@@ -46,10 +64,22 @@ export default function createMachine({ context = {} } = {}) {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener) {
@@ -57,12 +87,12 @@ export default function createMachine({ context = {} } = {}) {
       return () => listeners.delete(listener);
     },
     start() {
-      enterLoading({ type: 'start' });
-      notify();
+      run(() => enterLoading({ type: 'start' }));
       return machine;
     },
     stop() {
       loadingPromise = undefined;
+      queue.length = 0;
       listeners.clear();
     }
   };

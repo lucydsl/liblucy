@@ -1,5 +1,7 @@
 export default function createMachine({ actions, assigns, context = {}, delays, guards, services } = {}) {
   const listeners = new Set();
+  let busy = false;
+  const queue = [];
   let loadingPromise;
   let loadedTimer;
   const states = {
@@ -26,18 +28,20 @@ export default function createMachine({ actions, assigns, context = {}, delays, 
     promise.then(data => {
       if(loadingPromise !== promise) return;
       const event = { type: 'done', data };
-      enterLoaded(event);
-      notify();
+      run(() => {
+        enterLoaded(event);
+      });
     });
   }
   function enterLoaded(event) {
     machine.state = 'loaded';
     loadedTimer = setTimeout(() => {
       const event = { type: 'delay' };
-      exitLoaded(event);
-      actions.doLog(machine.context, event);
-      enterHomescreen();
-      notify();
+      run(() => {
+        exitLoaded(event);
+        actions.doLog(machine.context, event);
+        enterHomescreen();
+      });
     }, delays.wait(machine.context, event));
   }
   function exitLoaded(event) {
@@ -53,6 +57,20 @@ export default function createMachine({ actions, assigns, context = {}, delays, 
       listener(machine);
     }
   }
+  function run(step) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
+    }
+  }
   const machine = {
     state: 'idle',
     context,
@@ -60,10 +78,22 @@ export default function createMachine({ actions, assigns, context = {}, delays, 
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener) {
@@ -80,6 +110,7 @@ export default function createMachine({ actions, assigns, context = {}, delays, 
       if(machine.context.todo) {
         machine.context.todo.stop();
       }
+      queue.length = 0;
       listeners.clear();
     }
   };

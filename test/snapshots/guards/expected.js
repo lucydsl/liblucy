@@ -2,6 +2,8 @@ import { isValidCard, isInvalidCard, moneyWithdrawn } from './util';
 
 export default function createMachine({ context = {} } = {}) {
   const listeners = new Set();
+  let busy = false;
+  const queue = [];
   const states = {
     idle: {
       next(event) {
@@ -37,10 +39,22 @@ export default function createMachine({ context = {} } = {}) {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener) {
@@ -52,6 +66,7 @@ export default function createMachine({ context = {} } = {}) {
       return machine;
     },
     stop() {
+      queue.length = 0;
       listeners.clear();
     }
   };

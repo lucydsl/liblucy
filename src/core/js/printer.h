@@ -82,6 +82,16 @@ struct JSMachine {
   JSState* states;
   JSState* initial;
   bool has_final;
+  // It calls code it doesn't own while it handles an event (an action, a
+  // guard, an invoke, ...), which may send it another: so it queues the
+  // events sent to it meanwhile, and handles them afterwards.
+  bool queued;
+  // It has transitions that send() doesn't start (a timer's, an invoke's,
+  // entering the initial state), which a queued machine does through run().
+  bool needs_run;
+  // One of those can happen during another transition: an invoked machine
+  // finishing as soon as it starts.
+  bool run_nests;
   // The events it declares, in order. NULL when it declares none, and
   // then its events are whatever its states handle.
   JSEvent* events;
@@ -152,6 +162,8 @@ const char* printer_event_name(TransitionNode*);
 JSState* printer_find_ancestor_handler(JSState* state, const char* event);
 /* A state's first transition on event, or NULL. */
 TransitionNode* printer_find_event_transition(JSState*, const char* event);
+/* The first transition on event in a list of them, or NULL. */
+TransitionNode* printer_find_event_transition_in(TransitionNode*, const char* event);
 
 /* event.c */
 
