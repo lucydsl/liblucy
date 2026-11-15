@@ -1,0 +1,7 @@
+state enabled {
+  toggle => disabled
+}
+
+initial state disabled {
+  toggle => enabled
+}

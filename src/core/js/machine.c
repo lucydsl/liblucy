@@ -4,7 +4,8 @@
 
 #include "../support/str_set.h"
 
-static void add_factory_params(JSBuilder* jsb, MachineNode* machine_node) {
+static void add_factory_params(Printer* printer, MachineNode* machine_node) {
+  JSBuilder* jsb = printer->jsb;
   js_builder_add_str(jsb, "{ ");
   if(machine_node->flags & MACHINE_USES_ACTION) {
     js_builder_add_str(jsb, "actions, ");
@@ -22,7 +23,7 @@ static void add_factory_params(JSBuilder* jsb, MachineNode* machine_node) {
   if(machine_node->flags & MACHINE_USES_SERVICE) {
     js_builder_add_str(jsb, ", services");
   }
-  js_builder_add_str(jsb, " } = {}");
+  js_builder_add_format(jsb, " }%s = {}", printer_any(printer));
 }
 
 // The variables for the timers, promises and children of the states.
@@ -30,12 +31,13 @@ static void print_resource_declarations(Printer* printer, JSState* state) {
   JSBuilder* jsb = printer->jsb;
   for(; state != NULL; state = state->next) {
     for(size_t i = 0; i < state->delay_count; i++) {
-      js_builder_line(jsb, "let %s;", printer_timer_name(printer, state, i));
+      js_builder_line(jsb, "let %s%s;", printer_timer_name(printer, state, i),
+        printer->ts ? ": ReturnType<typeof setTimeout> | undefined" : "");
     }
     if(state->invoke_kind == INVOKE_PROMISE) {
-      js_builder_line(jsb, "let %sPromise;", state->var);
+      js_builder_line(jsb, "let %sPromise%s;", state->var, printer_any(printer));
     } else if(state->invoke_kind == INVOKE_MACHINE) {
-      js_builder_line(jsb, "let %sChild;", state->var);
+      js_builder_line(jsb, "let %sChild%s;", state->var, printer_any(printer));
     }
     print_resource_declarations(printer, state->child);
   }
@@ -102,7 +104,7 @@ static void collect_spawn_keys(Printer* printer, JSState* state, StrSet* keys) {
 // queues its events. The events sent during it are handled after it.
 static void print_run(Printer* printer, JSMachine* machine) {
   JSBuilder* jsb = printer->jsb;
-  js_builder_open(jsb, "function run(step) {");
+  js_builder_open(jsb, "function run(step%s) {", printer->ts ? ": () => void" : "");
   if(machine->run_nests) {
     // Already in a transition, which step is then part of.
     js_builder_open(jsb, "if(busy) {");
@@ -130,16 +132,22 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
   JSBuilder* jsb = printer->jsb;
   printer->machine = machine;
 
+  if(printer->ts) {
+    // The types end with the factory's declaration, which the function
+    // below then implements.
+    printer_print_machine_types(printer, jsb, machine);
+  }
+
   js_builder_add_str(jsb, machine->name == NULL ? "export default function " : "export function ");
   js_builder_add_format(jsb, "%s(", machine->factory);
-  add_factory_params(jsb, machine->node);
-  js_builder_add_str(jsb, ") {\n");
+  add_factory_params(printer, machine->node);
+  js_builder_add_format(jsb, ")%s {\n", printer_any(printer));
   jsb->depth++;
 
-  js_builder_line(jsb, "const listeners = new Set();");
+  js_builder_line(jsb, "const listeners = new Set%s();", printer->ts ? "<(machine: any) => void>" : "");
   if(machine->queued) {
     js_builder_line(jsb, "let busy = false;");
-    js_builder_line(jsb, "const queue = [];");
+    js_builder_line(jsb, "const queue%s = [];", printer->ts ? ": any[]" : "");
   }
   print_resource_declarations(printer, machine->states);
   if(machine->states != NULL) {
@@ -157,7 +165,7 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
     print_run(printer, machine);
   }
 
-  js_builder_open(jsb, "const machine = {");
+  js_builder_open(jsb, "const machine%s = {", printer_any(printer));
   if(machine->states != NULL) {
     js_builder_line(jsb, "state: '%s',", printer_leaf(machine->initial)->path);
   }
@@ -166,7 +174,7 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
     js_builder_line(jsb, "done: false,");
   }
   if(machine->states != NULL) {
-    js_builder_open(jsb, "send(event) {");
+    js_builder_open(jsb, "send(%s) {", printer_event_param(printer, true));
     js_builder_open(jsb, "if(typeof event === 'string') {");
     js_builder_line(jsb, "event = { type: event };");
     js_builder_close(jsb, "}");
@@ -196,7 +204,7 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
   } else {
     js_builder_line(jsb, "send() {},");
   }
-  js_builder_open(jsb, "subscribe(listener) {");
+  js_builder_open(jsb, "subscribe(listener%s) {", printer_any(printer));
   js_builder_line(jsb, "listeners.add(listener);");
   js_builder_line(jsb, "return () => listeners.delete(listener);");
   js_builder_close(jsb, "},");

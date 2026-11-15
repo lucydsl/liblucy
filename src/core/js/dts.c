@@ -360,7 +360,7 @@ static void add_bare_event_names(Inventory* inventory, JSBuilder* jsb) {
   }
 }
 
-static void print_machine(Printer* printer, JSBuilder* jsb, JSMachine* machine) {
+void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* machine) {
   // Light for `machine light`, Machine for the unnamed machine: LightState,
   // CreateLightOptions, LightMachine; MachineState, CreateMachineOptions,
   // Machine.
@@ -514,8 +514,7 @@ static void print_machine(Printer* printer, JSBuilder* jsb, JSMachine* machine) 
     needs_options ? "" : "?", options_type, arguments, machine_type, arguments);
 }
 
-// The `use` lines that name types of events, as type imports.
-static bool print_type_imports(Printer* printer, JSBuilder* jsb) {
+bool printer_print_type_imports(Printer* printer, JSBuilder* jsb) {
   bool printed = false;
   for(Node* node = printer->program->body; node != NULL; node = node->next) {
     if(node->type != NODE_IMPORT) {
@@ -541,12 +540,12 @@ static bool print_type_imports(Printer* printer, JSBuilder* jsb) {
 
 char* printer_print_dts(Printer* printer) {
   JSBuilder* jsb = js_builder_create();
-  bool imports = print_type_imports(printer, jsb);
+  bool imports = printer_print_type_imports(printer, jsb);
   for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     if(imports || machine != printer->machines) {
       js_builder_blank(jsb);
     }
-    print_machine(printer, jsb, machine);
+    printer_print_machine_types(printer, jsb, machine);
   }
   return js_builder_release(jsb);
 }

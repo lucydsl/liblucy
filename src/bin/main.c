@@ -38,7 +38,8 @@ typedef enum PrintTarget {
 
 // The command line's options. The strings point into argv.
 typedef struct Options {
-  bool include_dts;
+  // --ts: TypeScript modules instead of JavaScript and declarations.
+  bool ts;
   const char* out_file;
   const char* out_dir;
   PrintTarget print_target;
@@ -51,13 +52,15 @@ static void usage(const char* program_name) {
 
   // Options
   fprintf(stderr, BOLDWHITE "Options:\n" RESET);
-  fprintf(stderr, "%s--out-file <file>     Specify a file to output to.\n", U_INDENT);
+  fprintf(stderr, "%s--out-file <file>     Specify a file to output to. Its TypeScript\n"
+                  "%s                       declarations (.d.ts) are written beside it.\n",
+    U_INDENT, U_INDENT);
   fprintf(stderr, "%s--out-dir <dir>       Specify a directory to output to.\n", U_INDENT);
-  fprintf(stderr, "%s--experimental-dts    Include TypeScript defintion (.d.ts) files.\n"
-                  "%s                       (when using --out-file or --out-dir).\n",
+  fprintf(stderr, "%s--ts                  Output TypeScript (.ts) instead of JavaScript\n"
+                  "%s                       and declarations.\n",
     U_INDENT, U_INDENT);
   fprintf(stderr, "%s--print KIND          Specify which unit to print to the console:\n"
-                  "%s                       'js', 'dts'\n",
+                  "%s                       'js', 'dts' (without --ts)\n",
     U_INDENT, U_INDENT);
   fprintf(stderr, "%s-h, --help            Prints help information.\n", U_INDENT);
   fprintf(stderr, "%s-v, --version         Prints the version.\n\n", U_INDENT);
@@ -66,7 +69,7 @@ static void usage(const char* program_name) {
   fprintf(stderr, BOLDWHITE "Examples:\n" RESET);
   fprintf(stderr, "%s# Compile a Lucy file and print to stdout.\n", U_INDENT);
   fprintf(stderr, "%s$ %s input.lucy\n\n", U_INDENT, program_name);
-  fprintf(stderr, "%s# Compile a Lucy file and output to out.js\n", U_INDENT);
+  fprintf(stderr, "%s# Compile a Lucy file and output to out.js and out.d.ts\n", U_INDENT);
   fprintf(stderr, "%s$ %s --out-file out.js input.lucy\n\n", U_INDENT, program_name);
   fprintf(stderr, "%s# Compile all Lucy files in a directory and output\n", U_INDENT);
   fprintf(stderr, "%s# them to the dist folder.\n", U_INDENT);
@@ -163,8 +166,33 @@ static void print_diagnostics(const LucyResult* result) {
   }
 }
 
-// Compile filename and write the output to out_file, or print it if
-// out_file is NULL. Returns 0 on success, 1 on failure.
+// The name of the declarations for out_file: out.d.ts for out.js, and
+// out.d.mts and out.d.cts for out.mjs and out.cjs, as TypeScript looks for
+// them. A name with no extension gets ".d.ts" added. The caller must
+// free() it.
+static char* declarations_name(const char* out_file) {
+  const char* slash = strrchr(out_file, '/');
+  const char* base = slash != NULL ? slash + 1 : out_file;
+  const char* dot = strrchr(base, '.');
+  // A name that is all extension (".js") keeps it.
+  if(dot == base) {
+    dot = NULL;
+  }
+  const char* extension = ".d.ts";
+  if(dot != NULL && strcmp(dot, ".mjs") == 0) {
+    extension = ".d.mts";
+  } else if(dot != NULL && strcmp(dot, ".cjs") == 0) {
+    extension = ".d.cts";
+  }
+  StrBuilder* sb = str_builder_create();
+  str_builder_copy_str(sb, out_file, 0, dot != NULL ? (size_t)(dot - out_file) : strlen(out_file));
+  str_builder_add_str(sb, extension);
+  return str_builder_release(sb, NULL);
+}
+
+// Compile filename and write the output to out_file, with its declarations
+// beside it if it is JavaScript, or print it if out_file is NULL. Returns 0
+// on success, 1 on failure.
 static int compile_file(const char* filename, const char* out_file, const Options* options) {
   char* source = read_file(filename);
   if(source == NULL) {
@@ -173,7 +201,7 @@ static int compile_file(const char* filename, const char* out_file, const Option
   }
 
   LucyResult* result = lucy_result_create();
-  lucy_result_set_options(result, options->include_dts);
+  lucy_result_set_format(result, options->ts ? LUCY_FORMAT_TS : LUCY_FORMAT_JS);
   lucy_compile(result, source, filename);
   print_diagnostics(result);
   // The result has its own copies of everything it needs.
@@ -181,26 +209,23 @@ static int compile_file(const char* filename, const char* out_file, const Option
 
   int ret = 0;
   if(lucy_result_success(result)) {
-    if(out_file != NULL) {
+    if(options->ts) {
+      // The output ends in a newline already.
+      if(out_file != NULL) {
+        ret = write_file(out_file, lucy_result_ts(result));
+      } else {
+        fputs(lucy_result_ts(result), stdout);
+      }
+    } else if(out_file != NULL) {
       ret = write_file(out_file, lucy_result_js(result));
 
-      if(ret == 0 && options->include_dts) {
-        // out.js -> out.d.ts. A name shorter than ".js" (which used to
-        // overrun the buffer) just gets ".d.ts" added.
-        size_t out_len = strlen(out_file);
-        size_t base_len = out_len >= 3 ? out_len - 3 : out_len;
-        StrBuilder* sb = str_builder_create();
-        str_builder_copy_str(sb, out_file, 0, base_len);
-        str_builder_add_str(sb, ".d.ts");
-        char* dts_name = str_builder_release(sb, NULL);
+      if(ret == 0) {
+        char* dts_name = declarations_name(out_file);
         ret = write_file(dts_name, lucy_result_dts(result));
         free(dts_name);
       }
     } else {
-      // Without --experimental-dts there is no .d.ts to print, so print
-      // the JavaScript, as scripts/lucyc.mjs does. The output ends in a
-      // newline already.
-      if(options->print_target == PRINT_TARGET_DTS && lucy_result_dts(result) != NULL) {
+      if(options->print_target == PRINT_TARGET_DTS) {
         fputs(lucy_result_dts(result), stdout);
       } else {
         fputs(lucy_result_js(result), stdout);
@@ -273,7 +298,7 @@ static int compile_dir(const char* rootdir, const char* dirname, const Options* 
       str_builder_add_str(out, options->out_dir);
       str_builder_add_char(out, '/');
       str_builder_copy_str(out, name, 0, strlen(name) - strlen(".lucy"));
-      str_builder_add_str(out, ".js");
+      str_builder_add_str(out, options->ts ? ".ts" : ".js");
       char* out_file = str_builder_release(out, NULL);
 
       ret = compile_file(path, out_file, options);
@@ -300,13 +325,16 @@ enum {
   OPTION_OUT_DIR,
   OPTION_EXPERIMENTAL_DTS,
   OPTION_PRINT,
+  OPTION_TS,
 };
 
 static const struct option long_options[] = {
+  // From when the declarations were optional. It does nothing now.
   { "experimental-dts", no_argument, NULL, OPTION_EXPERIMENTAL_DTS },
   { "out-file", required_argument, NULL, OPTION_OUT_FILE },
   { "out-dir", required_argument, NULL, OPTION_OUT_DIR },
   { "print", required_argument, NULL, OPTION_PRINT },
+  { "ts", no_argument, NULL, OPTION_TS },
   { "help", no_argument, NULL, 'h' },
   { "version", no_argument, NULL, 'v' },
   // getopt_long needs the terminating entry.
@@ -316,7 +344,7 @@ static const struct option long_options[] = {
 int main(int argc, char* argv[]) {
   const char* program_name = argv[0];
   Options options = {
-    .include_dts = false,
+    .ts = false,
     .out_file = NULL,
     .out_dir = NULL,
     .print_target = PRINT_TARGET_JS
@@ -326,7 +354,10 @@ int main(int argc, char* argv[]) {
   while((opt = getopt_long(argc, argv, "hv", long_options, NULL)) != -1) {
     switch(opt) {
       case OPTION_EXPERIMENTAL_DTS: {
-        options.include_dts = true;
+        break;
+      }
+      case OPTION_TS: {
+        options.ts = true;
         break;
       }
       case OPTION_OUT_FILE: {

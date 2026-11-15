@@ -128,20 +128,22 @@ static void print_invoke(Printer* printer, JSState* state) {
     js_builder_add_format(jsb, "const promise = services.%s(machine.context, event);\n", ((SymbolExpression*)ref)->name);
   }
   js_builder_line(jsb, "%sPromise = promise;", state->var);
+  const char* data_param = printer->ts ? "(data: any)" : "data";
+  const char* error_param = printer->ts ? "(error: any)" : "error";
   if(done != NULL) {
     bool done_event = printer_handler_takes_event(printer, state, done);
-    js_builder_open(jsb, "promise.then(%s => {", done_event ? "data" : "()");
+    js_builder_open(jsb, "promise.then(%s => {", done_event ? data_param : "()");
     print_invoke_callback(printer, state, done, "done", "data");
     if(error != NULL) {
       bool error_event = printer_handler_takes_event(printer, state, error);
-      js_builder_close(jsb, "}, %s => {", error_event ? "error" : "()");
+      js_builder_close(jsb, "}, %s => {", error_event ? error_param : "()");
       jsb->depth++;
       print_invoke_callback(printer, state, error, "error", "data: error");
     }
     js_builder_close(jsb, "});");
   } else if(error != NULL) {
     bool error_event = printer_handler_takes_event(printer, state, error);
-    js_builder_open(jsb, "promise.catch(%s => {", error_event ? "error" : "()");
+    js_builder_open(jsb, "promise.catch(%s => {", error_event ? error_param : "()");
     print_invoke_callback(printer, state, error, "error", "data: error");
     js_builder_close(jsb, "});");
   }
@@ -154,11 +156,9 @@ static void print_enter(Printer* printer, JSState* state) {
 
   js_builder_add_indent(jsb);
   js_builder_add_format(jsb, "function enter%s(", state->ident);
-  if(has_event) {
-    js_builder_add_str(jsb, "event");
-  }
+  js_builder_add_str(jsb, printer_event_param(printer, has_event));
   if(state->flags & STATE_ENTER_TAKES_CHILD) {
-    js_builder_add_format(jsb, ", enterChild = enter%s", state->initial->ident);
+    js_builder_add_format(jsb, ", enterChild%s = enter%s", printer->ts ? ": (event: any) => void" : "", state->initial->ident);
   }
   js_builder_add_str(jsb, ") {\n");
   jsb->depth++;
@@ -206,7 +206,7 @@ static void print_exit(Printer* printer, JSState* state) {
   JSBuilder* jsb = printer->jsb;
   StateNode* node = state->node;
   bool has_event = state->flags & STATE_EXIT_TAKES_EVENT;
-  js_builder_open(jsb, "function exit%s(%s) {", state->ident, has_event ? "event" : "");
+  js_builder_open(jsb, "function exit%s(%s) {", state->ident, printer_event_param(printer, has_event));
 
   // Leave whichever child is active first.
   bool opened = false;
@@ -249,7 +249,7 @@ static void print_exit(Printer* printer, JSState* state) {
 static void print_always(Printer* printer, JSState* state) {
   JSBuilder* jsb = printer->jsb;
   bool has_event = printer_immediate_takes_event(printer, state);
-  js_builder_open(jsb, "function always%s(%s) {", state->ident, has_event ? "event" : "");
+  js_builder_open(jsb, "function always%s(%s) {", state->ident, printer_event_param(printer, has_event));
   printer_print_immediate_transitions(printer, state, has_event);
   js_builder_close(jsb, "}");
 }
@@ -266,7 +266,7 @@ static void print_handlers(Printer* printer, JSState* state) {
       continue;
     }
     bool has_event = printer_handler_takes_event(printer, state, t);
-    js_builder_open(jsb, "function %s(%s) {", printer_handler_name(printer, state, event), has_event ? "event" : "");
+    js_builder_open(jsb, "function %s(%s) {", printer_handler_name(printer, state, event), printer_event_param(printer, has_event));
     printer_print_event_handler(printer, state, t, has_event);
     js_builder_close(jsb, "}");
   }
@@ -354,7 +354,7 @@ static void print_leaf(Printer* printer, JSState* leaf, bool last) {
     const char* comma = i + 1 < count ? "," : "";
     if(entry->own != NULL) {
       bool has_event = printer_handler_takes_event(printer, leaf, entry->own);
-      js_builder_open(jsb, "%s(%s) {", entry->event, has_event ? "event" : "");
+      js_builder_open(jsb, "%s(%s) {", entry->event, printer_event_param(printer, has_event));
       printer_print_event_handler(printer, leaf, entry->own, has_event);
       js_builder_close(jsb, "}%s", comma);
     } else {
@@ -378,7 +378,7 @@ static void print_leaves(Printer* printer, JSState* state, size_t* remaining) {
 void printer_print_states_table(Printer* printer, JSMachine* machine) {
   JSBuilder* jsb = printer->jsb;
   size_t remaining = count_leaves(machine->states);
-  js_builder_open(jsb, "const states = {");
+  js_builder_open(jsb, "const states%s = {", printer->ts ? ": Record<string, any>" : "");
   print_leaves(printer, machine->states, &remaining);
   js_builder_close(jsb, "};");
 }

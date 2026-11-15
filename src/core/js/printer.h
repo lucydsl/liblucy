@@ -116,6 +116,9 @@ typedef struct Printer {
   StrSet type_names;
   // The machine being printed.
   JSMachine* machine;
+  // Printing TypeScript: each factory comes after its types, and what it
+  // declares is annotated (printer_any).
+  bool ts;
 } Printer;
 
 /* printer.c */
@@ -130,6 +133,15 @@ const char* printer_span(Printer*, SourceSpan);
 const char* printer_capitalize(Printer*, const char* name);
 /* An arena string of the parts joined. */
 const char* printer_concat(Printer*, const char* a, const char* b);
+/*
+ * The type annotation of something a factory declares, when printing
+ * TypeScript: ": any", or "" in JavaScript. The factory's own types are
+ * those of its declaration (dts.c), which is what callers see; inside it
+ * the events and the machine are untyped.
+ */
+const char* printer_any(const Printer*);
+/* The parameter list of a function that takes the event, or nothing. */
+const char* printer_event_param(const Printer*, bool has_event);
 
 /* model.c */
 
@@ -249,3 +261,8 @@ bool printer_print_import(Printer*, ImportNode*);
 
 /* The .d.ts for the model, which the caller must free(). */
 char* printer_print_dts(Printer*);
+/* The `use` lines that name types of events, as type imports. Returns
+ * whether there were any. */
+bool printer_print_type_imports(Printer*, JSBuilder*);
+/* A machine's types, and the declaration of its factory. */
+void printer_print_machine_types(Printer*, JSBuilder*, JSMachine*);

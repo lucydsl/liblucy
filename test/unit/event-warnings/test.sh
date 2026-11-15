@@ -21,6 +21,6 @@ check() {
 }
 
 check expected.js
-check expected.d.ts --experimental-dts --print dts
+check expected.d.ts --print dts
 
 exit $ret
