@@ -21,6 +21,22 @@ const char* printer_timer_name(Printer* printer, JSState* state, size_t index) {
   return timer_name(printer, state, index);
 }
 
+// A transition that send() didn't start is wrapped in run() by a machine
+// that queues its events. These go around the transition's code.
+static void open_run(Printer* printer) {
+  if(printer->machine->queued) {
+    js_builder_open(printer->jsb, "%s(() => {", printer->run);
+  }
+}
+
+static void close_run(Printer* printer) {
+  if(printer->machine->queued) {
+    js_builder_close(printer->jsb, "});");
+  } else {
+    js_builder_line(printer->jsb, "notify();");
+  }
+}
+
 static void print_timer(Printer* printer, JSState* state, TransitionNode* transition, size_t index) {
   JSBuilder* jsb = printer->jsb;
   bool has_event = printer_transition_takes_event(printer, state, transition);
@@ -35,8 +51,9 @@ static void print_timer(Printer* printer, JSState* state, TransitionNode* transi
     js_builder_add_str(jsb, ") {\n");
     jsb->depth++;
   }
+  open_run(printer);
   printer_print_transition(printer, state, transition, has_event);
-  js_builder_line(jsb, "notify();");
+  close_run(printer);
   if(transition->guard != NULL) {
     js_builder_close(jsb, "}");
   }
@@ -48,13 +65,7 @@ static void print_timer(Printer* printer, JSState* state, TransitionNode* transi
 }
 
 static TransitionNode* find_invoke_transition(InvokeNode* invoke, const char* event) {
-  for(TransitionNode* t = invoke->event_transition; t != NULL; t = t->next) {
-    const char* name = printer_event_name(t);
-    if(name != NULL && strcmp(name, event) == 0) {
-      return t;
-    }
-  }
-  return NULL;
+  return printer_find_event_transition_in(invoke->event_transition, event);
 }
 
 // Warn about the events of an invoke that aren't done or error.
@@ -74,8 +85,9 @@ static void print_invoke_callback(Printer* printer, JSState* state, TransitionNo
   if(printer_handler_takes_event(printer, state, transition)) {
     js_builder_line(jsb, "const event = { type: '%s', %s };", type, data);
   }
+  open_run(printer);
   printer_print_event_handler(printer, state, transition, true);
-  js_builder_line(jsb, "notify();");
+  close_run(printer);
 }
 
 static void print_invoke(Printer* printer, JSState* state) {
@@ -95,8 +107,9 @@ static void print_invoke(Printer* printer, JSState* state) {
       if(has_event) {
         js_builder_line(jsb, "const event = { type: 'done' };");
       }
+      open_run(printer);
       printer_print_event_handler(printer, state, done, has_event);
-      js_builder_line(jsb, "notify();");
+      close_run(printer);
       js_builder_close(jsb, "}");
       js_builder_close(jsb, "});");
     }

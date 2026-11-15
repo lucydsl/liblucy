@@ -2,6 +2,8 @@ import { calcLightDelay } from './util';
 
 export default function createMachine({ context = {} } = {}) {
   const listeners = new Set();
+  let busy = false;
+  const queue = [];
   let greenTimer;
   let yellowTimer;
   let redTimer;
@@ -18,17 +20,19 @@ export default function createMachine({ context = {} } = {}) {
   function enterGreen() {
     machine.state = 'green';
     greenTimer = setTimeout(() => {
-      enterYellow();
-      notify();
+      run(() => {
+        enterYellow();
+      });
     }, 1000);
   }
   function enterYellow() {
     machine.state = 'yellow';
     yellowTimer = setTimeout(() => {
       const event = { type: 'delay' };
-      exitYellow();
-      enterRed(event);
-      notify();
+      run(() => {
+        exitYellow();
+        enterRed(event);
+      });
     }, 500);
   }
   function exitYellow() {
@@ -37,13 +41,28 @@ export default function createMachine({ context = {} } = {}) {
   function enterRed(event) {
     machine.state = 'red';
     redTimer = setTimeout(() => {
-      enterGreen();
-      notify();
+      run(() => {
+        enterGreen();
+      });
     }, calcLightDelay(machine.context, event));
   }
   function notify() {
     for(const listener of listeners) {
       listener(machine);
+    }
+  }
+  function run(step) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
     }
   }
   const machine = {
@@ -53,10 +72,22 @@ export default function createMachine({ context = {} } = {}) {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener) {
@@ -64,14 +95,14 @@ export default function createMachine({ context = {} } = {}) {
       return () => listeners.delete(listener);
     },
     start() {
-      enterGreen();
-      notify();
+      run(enterGreen);
       return machine;
     },
     stop() {
       clearTimeout(greenTimer);
       clearTimeout(yellowTimer);
       clearTimeout(redTimer);
+      queue.length = 0;
       listeners.clear();
     }
   };

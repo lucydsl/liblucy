@@ -23,6 +23,8 @@ export interface Machine<TContext extends Record<MachineContextKey, any>, TEvent
 export default function createMachine<TContext extends Record<MachineContextKey, any> = Record<MachineContextKey, any>, TEvent extends { type: MachineEventName } = { type: MachineEventName }>(options?: CreateMachineOptions<TContext, TEvent>): Machine<TContext, TEvent>;
 export default function createMachine({ context = {} }: any = {}): any {
   const listeners = new Set<(machine: any) => void>();
+  let busy = false;
+  const queue: any[] = [];
   let loadingPromise: any;
   const states: Record<string, any> = {
     loading: {
@@ -41,15 +43,17 @@ export default function createMachine({ context = {} }: any = {}): any {
     promise.then((data: any) => {
       if(loadingPromise !== promise) return;
       const event = { type: 'done', data };
-      exitLoading();
-      machine.context = { ...machine.context, user: setUser(machine.context, event) };
-      machine.state = 'ready';
-      notify();
+      run(() => {
+        exitLoading();
+        machine.context = { ...machine.context, user: setUser(machine.context, event) };
+        machine.state = 'ready';
+      });
     }, () => {
       if(loadingPromise !== promise) return;
-      exitLoading();
-      machine.state = 'error';
-      notify();
+      run(() => {
+        exitLoading();
+        machine.state = 'error';
+      });
     });
   }
   function exitLoading() {
@@ -60,6 +64,20 @@ export default function createMachine({ context = {} }: any = {}): any {
       listener(machine);
     }
   }
+  function run(step: () => void) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
+    }
+  }
   const machine: any = {
     state: 'loading',
     context,
@@ -67,10 +85,22 @@ export default function createMachine({ context = {} }: any = {}): any {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener: any) {
@@ -78,12 +108,12 @@ export default function createMachine({ context = {} }: any = {}): any {
       return () => listeners.delete(listener);
     },
     start() {
-      enterLoading({ type: 'start' });
-      notify();
+      run(() => enterLoading({ type: 'start' }));
       return machine;
     },
     stop() {
       loadingPromise = undefined;
+      queue.length = 0;
       listeners.clear();
     }
   };

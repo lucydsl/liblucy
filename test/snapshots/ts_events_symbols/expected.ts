@@ -54,6 +54,8 @@ export interface SessionMachine<TContext extends Record<SessionContextKey, any>>
 export function createSession<TContext extends Record<SessionContextKey, any> = Record<SessionContextKey, any>>(options: CreateSessionOptions<TContext>): SessionMachine<TContext>;
 export function createSession({ actions, assigns, context = {}, delays, guards, services }: any = {}): any {
   const listeners = new Set<(machine: any) => void>();
+  let busy = false;
+  const queue: any[] = [];
   let activeTimer: ReturnType<typeof setTimeout> | undefined;
   let leavingPromise: any;
   const states: Record<string, any> = {
@@ -95,9 +97,10 @@ export function createSession({ actions, assigns, context = {}, delays, guards, 
     actions.track(machine.context, event);
     activeTimer = setTimeout(() => {
       const event = { type: 'delay' };
-      exitActive();
-      enterLeaving(event);
-      notify();
+      run(() => {
+        exitActive();
+        enterLeaving(event);
+      });
     }, delays.idleTime(machine.context, event));
   }
   function exitActive() {
@@ -110,20 +113,36 @@ export function createSession({ actions, assigns, context = {}, delays, guards, 
     promise.then((data: any) => {
       if(leavingPromise !== promise) return;
       const event = { type: 'done', data };
-      machine.context = { ...machine.context, saved: event.data };
-      machine.state = 'anonymous';
-      notify();
+      run(() => {
+        machine.context = { ...machine.context, saved: event.data };
+        machine.state = 'anonymous';
+      });
     }, (error: any) => {
       if(leavingPromise !== promise) return;
       const event = { type: 'error', data: error };
-      actions.report(machine.context, event);
-      enterActive(event);
-      notify();
+      run(() => {
+        actions.report(machine.context, event);
+        enterActive(event);
+      });
     });
   }
   function notify() {
     for(const listener of listeners) {
       listener(machine);
+    }
+  }
+  function run(step: () => void) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
     }
   }
   const machine: any = {
@@ -133,10 +152,22 @@ export function createSession({ actions, assigns, context = {}, delays, guards, 
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener: any) {
@@ -150,6 +181,7 @@ export function createSession({ actions, assigns, context = {}, delays, guards, 
     stop() {
       clearTimeout(activeTimer);
       leavingPromise = undefined;
+      queue.length = 0;
       listeners.clear();
     }
   };
@@ -178,6 +210,8 @@ export interface PlainMachine<TContext extends Record<string, any>, TEvent exten
 export function createPlain<TContext extends Record<string, any> = Record<string, any>, TEvent extends { type: PlainEventName } = { type: PlainEventName }>(options: CreatePlainOptions<TContext, TEvent>): PlainMachine<TContext, TEvent>;
 export function createPlain({ context = {}, guards }: any = {}): any {
   const listeners = new Set<(machine: any) => void>();
+  let busy = false;
+  const queue: any[] = [];
   const states: Record<string, any> = {
     off: {
       toggle(event: any) {
@@ -204,10 +238,22 @@ export function createPlain({ context = {}, guards }: any = {}): any {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener: any) {
@@ -219,6 +265,7 @@ export function createPlain({ context = {}, guards }: any = {}): any {
       return machine;
     },
     stop() {
+      queue.length = 0;
       listeners.clear();
     }
   };

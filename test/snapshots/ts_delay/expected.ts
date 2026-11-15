@@ -22,6 +22,8 @@ export interface Machine<TContext extends Record<string, any>, TEvent extends { 
 export default function createMachine<TContext extends Record<string, any> = Record<string, any>, TEvent extends { type: MachineEventName } = { type: MachineEventName }>(options?: CreateMachineOptions<TContext, TEvent>): Machine<TContext, TEvent>;
 export default function createMachine({ context = {} }: any = {}): any {
   const listeners = new Set<(machine: any) => void>();
+  let busy = false;
+  const queue: any[] = [];
   let greenTimer: ReturnType<typeof setTimeout> | undefined;
   let yellowTimer: ReturnType<typeof setTimeout> | undefined;
   let redTimer: ReturnType<typeof setTimeout> | undefined;
@@ -38,17 +40,19 @@ export default function createMachine({ context = {} }: any = {}): any {
   function enterGreen() {
     machine.state = 'green';
     greenTimer = setTimeout(() => {
-      enterYellow();
-      notify();
+      run(() => {
+        enterYellow();
+      });
     }, 1000);
   }
   function enterYellow() {
     machine.state = 'yellow';
     yellowTimer = setTimeout(() => {
       const event = { type: 'delay' };
-      exitYellow();
-      enterRed(event);
-      notify();
+      run(() => {
+        exitYellow();
+        enterRed(event);
+      });
     }, 500);
   }
   function exitYellow() {
@@ -57,13 +61,28 @@ export default function createMachine({ context = {} }: any = {}): any {
   function enterRed(event: any) {
     machine.state = 'red';
     redTimer = setTimeout(() => {
-      enterGreen();
-      notify();
+      run(() => {
+        enterGreen();
+      });
     }, calcLightDelay(machine.context, event));
   }
   function notify() {
     for(const listener of listeners) {
       listener(machine);
+    }
+  }
+  function run(step: () => void) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
     }
   }
   const machine: any = {
@@ -73,10 +92,22 @@ export default function createMachine({ context = {} }: any = {}): any {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener: any) {
@@ -84,14 +115,14 @@ export default function createMachine({ context = {} }: any = {}): any {
       return () => listeners.delete(listener);
     },
     start() {
-      enterGreen();
-      notify();
+      run(enterGreen);
       return machine;
     },
     stop() {
       clearTimeout(greenTimer);
       clearTimeout(yellowTimer);
       clearTimeout(redTimer);
+      queue.length = 0;
       listeners.clear();
     }
   };

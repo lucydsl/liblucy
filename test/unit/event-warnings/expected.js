@@ -49,6 +49,8 @@ export function createKid({ context = {} } = {}) {
 
 export function createParent({ context = {} } = {}) {
   const listeners = new Set();
+  let busy = false;
+  const queue = [];
   const states = {
     idle: {
       go(event) {
@@ -71,6 +73,20 @@ export function createParent({ context = {} } = {}) {
       listener(machine);
     }
   }
+  function run(step) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
+    }
+  }
   const machine = {
     state: 'idle',
     context,
@@ -78,10 +94,22 @@ export function createParent({ context = {} } = {}) {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener) {
@@ -89,14 +117,14 @@ export function createParent({ context = {} } = {}) {
       return () => listeners.delete(listener);
     },
     start() {
-      enterIdle();
-      notify();
+      run(enterIdle);
       return machine;
     },
     stop() {
       if(machine.context.child) {
         machine.context.child.stop();
       }
+      queue.length = 0;
       listeners.clear();
     }
   };

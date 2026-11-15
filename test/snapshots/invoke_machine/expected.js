@@ -45,6 +45,8 @@ export function createMinute({ context = {} } = {}) {
 
 export function createParent({ context = {} } = {}) {
   const listeners = new Set();
+  let busy = false;
+  const queue = [];
   let pendingChild;
   const states = {
     pending: {},
@@ -56,10 +58,11 @@ export function createParent({ context = {} } = {}) {
     pendingChild = child;
     child.subscribe(() => {
       if(child.done) {
-        exitPending();
-        machine.state = 'timesUp';
-        machine.done = true;
-        notify();
+        run(() => {
+          exitPending();
+          machine.state = 'timesUp';
+          machine.done = true;
+        });
       }
     });
     child.start();
@@ -72,6 +75,24 @@ export function createParent({ context = {} } = {}) {
       listener(machine);
     }
   }
+  function run(step) {
+    if(busy) {
+      step();
+      return;
+    }
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
+    }
+  }
   const machine = {
     state: 'pending',
     context,
@@ -80,10 +101,22 @@ export function createParent({ context = {} } = {}) {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener) {
@@ -91,14 +124,14 @@ export function createParent({ context = {} } = {}) {
       return () => listeners.delete(listener);
     },
     start() {
-      enterPending();
-      notify();
+      run(enterPending);
       return machine;
     },
     stop() {
       if(pendingChild) {
         pendingChild.stop();
       }
+      queue.length = 0;
       listeners.clear();
     }
   };

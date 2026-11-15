@@ -25,6 +25,8 @@ export interface PlayerMachine<TContext extends Record<string, any>, TEvent exte
 export function createPlayer<TContext extends Record<string, any> = Record<string, any>, TEvent extends { type: PlayerEventName } = { type: PlayerEventName }>(options: CreatePlayerOptions<TContext, TEvent>): PlayerMachine<TContext, TEvent>;
 export function createPlayer({ actions, context = {} }: any = {}): any {
   const listeners = new Set<(machine: any) => void>();
+  let busy = false;
+  const queue: any[] = [];
   const states: Record<string, any> = {
     stopped: {
       play(event: any) {
@@ -77,10 +79,22 @@ export function createPlayer({ actions, context = {} }: any = {}): any {
       if(typeof event === 'string') {
         event = { type: event };
       }
-      const handler = states[machine.state][event.type];
-      if(handler) {
-        handler(event);
-        notify();
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
       }
     },
     subscribe(listener: any) {
@@ -92,6 +106,7 @@ export function createPlayer({ actions, context = {} }: any = {}): any {
       return machine;
     },
     stop() {
+      queue.length = 0;
       listeners.clear();
     }
   };

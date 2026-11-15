@@ -100,6 +100,34 @@ static void collect_spawn_keys(Printer* printer, JSState* state, StrSet* keys) {
   }
 }
 
+// run(step): a transition that send() didn't start, for a machine that
+// queues its events. The events sent during it are handled after it.
+static void print_run(Printer* printer, JSMachine* machine) {
+  JSBuilder* jsb = printer->jsb;
+  js_builder_open(jsb, "function %s(step%s) {", printer->run, printer->ts ? ": () => void" : "");
+  if(machine->run_nests) {
+    // Already in a transition, which step is then part of.
+    js_builder_open(jsb, "if(%s) {", printer->busy);
+    js_builder_line(jsb, "step();");
+    js_builder_line(jsb, "return;");
+    js_builder_close(jsb, "}");
+  }
+  js_builder_line(jsb, "%s = true;", printer->busy);
+  js_builder_open(jsb, "try {");
+  js_builder_line(jsb, "step();");
+  js_builder_line(jsb, "notify();");
+  js_builder_line(jsb, "%s = false;", printer->busy);
+  js_builder_open(jsb, "if(%s.length) {", printer->queue);
+  js_builder_line(jsb, "machine.send(%s.shift());", printer->queue);
+  js_builder_close(jsb, "}");
+  js_builder_close(jsb, "} finally {");
+  jsb->depth++;
+  js_builder_line(jsb, "%s.length = 0;", printer->queue);
+  js_builder_line(jsb, "%s = false;", printer->busy);
+  js_builder_close(jsb, "}");
+  js_builder_close(jsb, "}");
+}
+
 void printer_print_machine(Printer* printer, JSMachine* machine) {
   JSBuilder* jsb = printer->jsb;
   printer->machine = machine;
@@ -117,6 +145,10 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
   jsb->depth++;
 
   js_builder_line(jsb, "const listeners = new Set%s();", printer->ts ? "<(machine: any) => void>" : "");
+  if(machine->queued) {
+    js_builder_line(jsb, "let %s = false;", printer->busy);
+    js_builder_line(jsb, "const %s%s = [];", printer->queue, printer->ts ? ": any[]" : "");
+  }
   print_resource_declarations(printer, machine->states);
   if(machine->states != NULL) {
     printer_print_states_table(printer, machine);
@@ -128,6 +160,10 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
   js_builder_line(jsb, "listener(machine);");
   js_builder_close(jsb, "}");
   js_builder_close(jsb, "}");
+
+  if(machine->needs_run) {
+    print_run(printer, machine);
+  }
 
   js_builder_open(jsb, "const machine%s = {", printer_any(printer));
   if(machine->states != NULL) {
@@ -142,11 +178,28 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
     js_builder_open(jsb, "if(typeof event === 'string') {");
     js_builder_line(jsb, "event = { type: event };");
     js_builder_close(jsb, "}");
+    if(machine->queued) {
+      js_builder_open(jsb, "if(%s) {", printer->busy);
+      js_builder_line(jsb, "%s.push(event);", printer->queue);
+      js_builder_line(jsb, "return;");
+      js_builder_close(jsb, "}");
+      js_builder_line(jsb, "%s = true;", printer->busy);
+      js_builder_open(jsb, "try {");
+      js_builder_open(jsb, "do {");
+    }
     js_builder_line(jsb, "const handler = states[machine.state][event.type];");
     js_builder_open(jsb, "if(handler) {");
     js_builder_line(jsb, "handler(event);");
     js_builder_line(jsb, "notify();");
     js_builder_close(jsb, "}");
+    if(machine->queued) {
+      js_builder_close(jsb, "} while((event = %s.shift()));", printer->queue);
+      js_builder_close(jsb, "} finally {");
+      jsb->depth++;
+      js_builder_line(jsb, "%s.length = 0;", printer->queue);
+      js_builder_line(jsb, "%s = false;", printer->busy);
+      js_builder_close(jsb, "}");
+    }
     js_builder_close(jsb, "},");
   } else {
     js_builder_line(jsb, "send() {},");
@@ -158,9 +211,17 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
   js_builder_open(jsb, "start() {");
   if(machine->initial != NULL && (machine->initial->flags & STATE_NEEDS_ENTER)) {
     bool has_event = machine->initial->flags & STATE_ENTER_TAKES_EVENT;
-    js_builder_line(jsb, "enter%s(%s);", machine->initial->ident, has_event ? "{ type: 'start' }" : "");
+    if(!machine->queued) {
+      js_builder_line(jsb, "enter%s(%s);", machine->initial->ident, has_event ? "{ type: 'start' }" : "");
+      js_builder_line(jsb, "notify();");
+    } else if(has_event) {
+      js_builder_line(jsb, "%s(() => enter%s({ type: 'start' }));", printer->run, machine->initial->ident);
+    } else {
+      js_builder_line(jsb, "%s(enter%s);", printer->run, machine->initial->ident);
+    }
+  } else {
+    js_builder_line(jsb, "notify();");
   }
-  js_builder_line(jsb, "notify();");
   js_builder_line(jsb, "return machine;");
   js_builder_close(jsb, "},");
   js_builder_open(jsb, "stop() {");
@@ -168,6 +229,9 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
   StrSet keys;
   str_set_init(&keys, printer->arena);
   collect_spawn_keys(printer, machine->states, &keys);
+  if(machine->queued) {
+    js_builder_line(jsb, "%s.length = 0;", printer->queue);
+  }
   js_builder_line(jsb, "listeners.clear();");
   js_builder_close(jsb, "}");
   js_builder_close(jsb, "};");
