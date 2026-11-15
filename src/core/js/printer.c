@@ -36,6 +36,17 @@ const char* printer_capitalize(Printer* printer, const char* name) {
   return copy;
 }
 
+const char* printer_any(const Printer* printer) {
+  return printer->ts ? ": any" : "";
+}
+
+const char* printer_event_param(const Printer* printer, bool has_event) {
+  if(!has_event) {
+    return "";
+  }
+  return printer->ts ? "event: any" : "event";
+}
+
 const char* printer_concat(Printer* printer, const char* a, const char* b) {
   size_t a_len = strlen(a);
   size_t b_len = strlen(b);

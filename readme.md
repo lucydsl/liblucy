@@ -22,6 +22,7 @@ machine.stop();
 - `state` is the current state's name, or a dotted path such as `'red.walk'` inside a nested machine. `context` is a plain object, replaced (not mutated) by each `assign`. `done` becomes `true` when a final state is entered.
 - `send(event)` takes a type or an `{ type, data }` object and runs the transition at once. `subscribe(listener)` calls the listener with the machine after each change and returns an unsubscribe function. `start()` enters the initial state (entry actions, timers, invokes) and returns the machine; `stop()` clears timers, drops pending invokes, stops invoked and spawned children, and clears the listeners.
 - Every module comes with a `.d.ts` that types each factory's options and the machine it returns: `lucyc --out-file toggle.js` writes `toggle.d.ts` beside it, and `compile()` returns it as `dts`.
+- `lucyc --ts` (and `compile(source, filename, { format: 'ts' })`, which returns `ts`) compiles to one TypeScript module instead: the same code with those types in it. Its syntax is erasable, so Node runs it as it is. The types are those of the factories; the code inside them is marked `// @ts-nocheck`, as it is generated and uses `any` for the events.
 
 ## Typed events
 

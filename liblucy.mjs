@@ -95,14 +95,23 @@ export function createCompiler(instance, {
    * Compile Lucy source to a module of plain JavaScript state machines.
    * @param source {String} the input Lucy source.
    * @param filename {String} the name of the Lucy file.
-   * @returns {{ js: string, dts: string }} The compiled JavaScript module
-   *   and its TypeScript declarations.
+   * @param options {{ format?: 'js' | 'ts' }}
+   * @returns {{ js: string, dts: string } | { ts: string }} The compiled
+   *   JavaScript module and its TypeScript declarations, or with the 'ts'
+   *   format the two as one TypeScript module.
    * @throws {Error} 'Compiler error' if the source doesn't compile, with the
    *   errors and warnings in its diagnostics property.
    */
-  function compile(source, filename) {
+  function compile(source, filename, options = {}) {
     if(!source || !filename) {
       throw new Error('Source and filename are both required.');
+    }
+
+    // Read the options before allocating anything, so that bad options
+    // can't throw with memory still allocated.
+    const format = options.format ?? 'js';
+    if(format !== 'js' && format !== 'ts') {
+      throw new Error(`Unknown format '${format}'. Use 'js' or 'ts'.`);
     }
 
     const srcPtr = writeString(source);
@@ -118,13 +127,17 @@ export function createCompiler(instance, {
     let diagnostics = null;
     try {
       result = wasm.lucy_result_create();
+      // 1 is LUCY_FORMAT_TS.
+      wasm.lucy_result_set_format(result, format === 'ts' ? 1 : 0);
       wasm.lucy_compile(result, srcPtr, fnPtr);
 
       // The compiler doesn't print; this prints what lucyc would.
       printDiagnostics(result);
 
       if(wasm.lucy_result_success(result)) {
-        out = {
+        out = format === 'ts' ? {
+          ts: readString(wasm.lucy_result_ts(result))
+        } : {
           js: readString(wasm.lucy_result_js(result)),
           dts: readString(wasm.lucy_result_dts(result))
         };

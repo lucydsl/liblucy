@@ -38,6 +38,8 @@ typedef enum PrintTarget {
 
 // The command line's options. The strings point into argv.
 typedef struct Options {
+  // --ts: TypeScript modules instead of JavaScript and declarations.
+  bool ts;
   const char* out_file;
   const char* out_dir;
   PrintTarget print_target;
@@ -54,8 +56,11 @@ static void usage(const char* program_name) {
                   "%s                       declarations (.d.ts) are written beside it.\n",
     U_INDENT, U_INDENT);
   fprintf(stderr, "%s--out-dir <dir>       Specify a directory to output to.\n", U_INDENT);
+  fprintf(stderr, "%s--ts                  Output TypeScript (.ts) instead of JavaScript\n"
+                  "%s                       and declarations.\n",
+    U_INDENT, U_INDENT);
   fprintf(stderr, "%s--print KIND          Specify which unit to print to the console:\n"
-                  "%s                       'js', 'dts'\n",
+                  "%s                       'js', 'dts' (without --ts)\n",
     U_INDENT, U_INDENT);
   fprintf(stderr, "%s-h, --help            Prints help information.\n", U_INDENT);
   fprintf(stderr, "%s-v, --version         Prints the version.\n\n", U_INDENT);
@@ -186,8 +191,8 @@ static char* declarations_name(const char* out_file) {
 }
 
 // Compile filename and write the output to out_file, with its declarations
-// beside it, or print it if out_file is NULL. Returns 0 on success, 1 on
-// failure.
+// beside it if it is JavaScript, or print it if out_file is NULL. Returns 0
+// on success, 1 on failure.
 static int compile_file(const char* filename, const char* out_file, const Options* options) {
   char* source = read_file(filename);
   if(source == NULL) {
@@ -196,6 +201,7 @@ static int compile_file(const char* filename, const char* out_file, const Option
   }
 
   LucyResult* result = lucy_result_create();
+  lucy_result_set_format(result, options->ts ? LUCY_FORMAT_TS : LUCY_FORMAT_JS);
   lucy_compile(result, source, filename);
   print_diagnostics(result);
   // The result has its own copies of everything it needs.
@@ -203,7 +209,14 @@ static int compile_file(const char* filename, const char* out_file, const Option
 
   int ret = 0;
   if(lucy_result_success(result)) {
-    if(out_file != NULL) {
+    if(options->ts) {
+      // The output ends in a newline already.
+      if(out_file != NULL) {
+        ret = write_file(out_file, lucy_result_ts(result));
+      } else {
+        fputs(lucy_result_ts(result), stdout);
+      }
+    } else if(out_file != NULL) {
       ret = write_file(out_file, lucy_result_js(result));
 
       if(ret == 0) {
@@ -212,7 +225,6 @@ static int compile_file(const char* filename, const char* out_file, const Option
         free(dts_name);
       }
     } else {
-      // The output ends in a newline already.
       if(options->print_target == PRINT_TARGET_DTS) {
         fputs(lucy_result_dts(result), stdout);
       } else {
@@ -286,7 +298,7 @@ static int compile_dir(const char* rootdir, const char* dirname, const Options* 
       str_builder_add_str(out, options->out_dir);
       str_builder_add_char(out, '/');
       str_builder_copy_str(out, name, 0, strlen(name) - strlen(".lucy"));
-      str_builder_add_str(out, ".js");
+      str_builder_add_str(out, options->ts ? ".ts" : ".js");
       char* out_file = str_builder_release(out, NULL);
 
       ret = compile_file(path, out_file, options);
@@ -313,6 +325,7 @@ enum {
   OPTION_OUT_DIR,
   OPTION_EXPERIMENTAL_DTS,
   OPTION_PRINT,
+  OPTION_TS,
 };
 
 static const struct option long_options[] = {
@@ -321,6 +334,7 @@ static const struct option long_options[] = {
   { "out-file", required_argument, NULL, OPTION_OUT_FILE },
   { "out-dir", required_argument, NULL, OPTION_OUT_DIR },
   { "print", required_argument, NULL, OPTION_PRINT },
+  { "ts", no_argument, NULL, OPTION_TS },
   { "help", no_argument, NULL, 'h' },
   { "version", no_argument, NULL, 'v' },
   // getopt_long needs the terminating entry.
@@ -330,6 +344,7 @@ static const struct option long_options[] = {
 int main(int argc, char* argv[]) {
   const char* program_name = argv[0];
   Options options = {
+    .ts = false,
     .out_file = NULL,
     .out_dir = NULL,
     .print_target = PRINT_TARGET_JS
@@ -339,6 +354,10 @@ int main(int argc, char* argv[]) {
   while((opt = getopt_long(argc, argv, "hv", long_options, NULL)) != -1) {
     switch(opt) {
       case OPTION_EXPERIMENTAL_DTS: {
+        break;
+      }
+      case OPTION_TS: {
+        options.ts = true;
         break;
       }
       case OPTION_OUT_FILE: {

@@ -31,4 +31,14 @@ if [ ! -f "$outdir/single/toggle.mjs" ] || [ ! -f "$outdir/single/toggle.d.mts" 
   exit 1
 fi
 
+# --ts writes TypeScript modules, which have their types in them.
+rm -rf $outdir
+$LUCYC --ts --out-dir $outdir $srcdir
+if [ ! -f "$outdir/machine.ts" ] || [ ! -f "$outdir/nested/machine.ts" ]; then
+  exit 1
+fi
+if [ -f "$outdir/machine.js" ] || [ -f "$outdir/machine.d.ts" ]; then
+  exit 1
+fi
+
 exit 0

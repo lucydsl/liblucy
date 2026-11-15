@@ -44,6 +44,9 @@ run_test() {
   elif [[ "$input" == *"dts_"* ]]; then
     local output="${d}expected.d.ts"
     local dtsflag="--print dts"
+  elif [[ "$input" == *"/ts_"* ]]; then
+    local output="${d}expected.ts"
+    local dtsflag="--ts"
   else
     local output="${d}expected.js"
   fi

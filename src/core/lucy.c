@@ -4,16 +4,19 @@
 #include <stdlib.h>
 
 #include "diagnostic.h"
+#include "js/js.h"
 #include "parser/parser.h"
 #include "support/arena.h"
 #include "support/mem.h"
-#include "js/js.h"
 
 struct LucyResult {
+  LucyFormat format;
+
   // The last compile's output, malloc'd and owned by the result.
   bool success;
   char* js;
   char* dts;
+  char* ts;
   DiagnosticList diagnostics;
 };
 
@@ -21,14 +24,16 @@ struct LucyResult {
 static void clear_output(LucyResult* result) {
   free(result->js);
   free(result->dts);
+  free(result->ts);
   result->success = false;
   result->js = NULL;
   result->dts = NULL;
+  result->ts = NULL;
   diagnostic_list_clear(&result->diagnostics);
 }
 
 LucyResult* lucy_result_create(void) {
-  // Zeroed: no output.
+  // Zeroed: no output, and the format is JavaScript.
   LucyResult* result = xcalloc(1, sizeof(LucyResult));
   diagnostic_list_init(&result->diagnostics);
   return result;
@@ -40,6 +45,11 @@ void lucy_result_destroy(LucyResult* result) {
   }
   clear_output(result);
   free(result);
+}
+
+void lucy_result_set_format(LucyResult* result, LucyFormat format) {
+  clear_output(result);
+  result->format = format;
 }
 
 void lucy_compile(LucyResult* result, const char* source, const char* filename) {
@@ -59,10 +69,11 @@ void lucy_compile(LucyResult* result, const char* source, const char* filename) 
     &result->diagnostics);
   if(parsed.success) {
     JSOutput output = js_print(&arena, parsed.program, source,
-      &result->diagnostics);
+      result->format == LUCY_FORMAT_TS ? JS_FORMAT_TS : JS_FORMAT_JS, &result->diagnostics);
     result->success = true;
     result->js = output.js;
     result->dts = output.dts;
+    result->ts = output.ts;
   }
 
   arena_destroy(&arena);
@@ -78,6 +89,10 @@ const char* lucy_result_js(const LucyResult* result) {
 
 const char* lucy_result_dts(const LucyResult* result) {
   return result->dts;
+}
+
+const char* lucy_result_ts(const LucyResult* result) {
+  return result->ts;
 }
 
 size_t lucy_result_diagnostic_count(const LucyResult* result) {

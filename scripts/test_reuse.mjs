@@ -40,12 +40,13 @@ function compileSnapshots(round) {
   for(const name of tests) {
     const filename = `${dir}/${name}/input.lucy`;
     const dts = name.startsWith('dts_');
-    const expectedFile = `${dir}/${name}/expected.${dts ? 'd.ts' : 'js'}`;
+    const ts = name.startsWith('ts_');
+    const expectedFile = `${dir}/${name}/expected.${dts ? 'd.ts' : ts ? 'ts' : 'js'}`;
     const expected = readFileSync(expectedFile, 'utf-8');
     let actual;
     try {
-      const result = compile(readFileSync(filename, 'utf-8'), filename);
-      actual = dts ? result.dts : result.js;
+      const result = compile(readFileSync(filename, 'utf-8'), filename, { format: ts ? 'ts' : 'js' });
+      actual = dts ? result.dts : ts ? result.ts : result.js;
     } catch(err) {
       actual = String(err);
     }

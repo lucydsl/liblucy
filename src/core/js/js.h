@@ -11,17 +11,29 @@
 #include "../diagnostic.h"
 #include "../support/arena.h"
 
+// What a compile prints.
+typedef enum JSFormat {
+  // A JavaScript module and its declarations.
+  JS_FORMAT_JS,
+  // One TypeScript module.
+  JS_FORMAT_TS,
+} JSFormat;
+
+// The output, which the caller must free(). Only the strings of the
+// format asked for are set.
 typedef struct JSOutput {
-  // The JavaScript module. The caller must free() it.
+  // The JavaScript module.
   char* js;
-  // Its TypeScript declarations. The caller must free() it.
+  // Its TypeScript declarations.
   char* dts;
+  // The TypeScript module.
+  char* ts;
 } JSOutput;
 
 /*
- * Print program, parsed from source, as a module of plain JavaScript state
- * machines, and its .d.ts. Working memory comes from arena. Warnings about what the printer can't print are added
+ * Print program, parsed from source, as a module of plain state machines:
+ * JavaScript and its .d.ts, or TypeScript. Working memory comes from arena. Warnings about what the printer can't print are added
  * to diagnostics.
  */
 JSOutput js_print(Arena* arena, Program* program, const char* source,
-  DiagnosticList* diagnostics);
+  JSFormat format, DiagnosticList* diagnostics);
