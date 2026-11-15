@@ -25,7 +25,7 @@ const char* printer_timer_name(Printer* printer, JSState* state, size_t index) {
 // that queues its events. These go around the transition's code.
 static void open_run(Printer* printer) {
   if(printer->machine->queued) {
-    js_builder_open(printer->jsb, "run(() => {");
+    js_builder_open(printer->jsb, "%s(() => {", printer->run);
   }
 }
 

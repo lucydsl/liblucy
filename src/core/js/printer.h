@@ -114,6 +114,11 @@ typedef struct Printer {
   // The names used as the types of events. An import with one of these
   // names is a type, which the JavaScript leaves out.
   StrSet type_names;
+  // The names of the output's own variables for the queue: busy, queue and
+  // run, or busy2 and so on when the source imports something of that name.
+  const char* busy;
+  const char* queue;
+  const char* run;
   // The machine being printed.
   JSMachine* machine;
   // Printing TypeScript: each factory comes after its types, and what it

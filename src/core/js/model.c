@@ -1,6 +1,7 @@
 #include "printer.h"
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 
 // The states of machine_node, nested in parent (NULL at the top level).
@@ -541,8 +542,34 @@ static void set_invoke_kinds(Printer* printer, JSState* states) {
 static const char* const reserved_names[] = {
   "listeners", "states", "machine", "notify", "event", "handler", "listener",
   "promise", "data", "error", "child", "actions", "assigns", "context",
-  "delays", "guards", "services", "busy", "queue", "run", NULL
+  "delays", "guards", "services", NULL
 };
+
+static bool is_imported(Printer* printer, const char* name) {
+  for(Node* node = printer->program->body; node != NULL; node = node->next) {
+    if(node->type != NODE_IMPORT) {
+      continue;
+    }
+    for(Node* child = node->child; child != NULL; child = child->next) {
+      if(strcmp(((ImportSpecifierNode*)child)->imported, name) == 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// A name for one of the output's own variables that no import has: base,
+// or base2, base3, ...
+static const char* free_name(Printer* printer, const char* base) {
+  const char* name = base;
+  for(unsigned n = 2; is_imported(printer, name); n++) {
+    char suffix[16];
+    snprintf(suffix, sizeof(suffix), "%u", n);
+    name = printer_concat(printer, base, suffix);
+  }
+  return name;
+}
 
 // Warn about `use` imports whose names the output needs for itself.
 static void check_imports(Printer* printer) {
@@ -603,6 +630,9 @@ void printer_build_model(Printer* printer) {
   }
 
   check_imports(printer);
+  printer->busy = free_name(printer, "busy");
+  printer->queue = free_name(printer, "queue");
+  printer->run = free_name(printer, "run");
   for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     set_invoke_kinds(printer, machine->states);
     check_targets(printer, machine->states);
