@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Runs the behavioural tests in test/behavior/: each compiles a Lucy
-// program with lucyc (bin/lucyc, or $LUCYC), imports the module it
-// produced, and drives the machine, checking states, context, the order
+// program with lucyc (bin/lucyc, or $LUCYC), to JavaScript and then to
+// TypeScript (which Node runs as it is), imports the module it produced,
+// and drives the machine, checking states, context, the order
 // actions and guards run in, timers, invokes, spawns and notifications.
 //
 // A test module exports `source` (the Lucy program), optionally `modules`
@@ -73,7 +74,9 @@ function installClock() {
 }
 
 let failed = 0;
-for(const name of names) {
+for(const [name, format] of names.flatMap(name => [[name, 'js'], [name, 'ts']])) {
+  const label = format === 'ts' ? `${name} (ts)` : name;
+  const out = `machine.${format}`;
   const test = await import(pathToFileURL(resolve(dir, name)));
   const work = mkdtempSync(join(tmpdir(), 'lucy-behavior-'));
   const clock = installClock();
@@ -84,21 +87,21 @@ for(const name of names) {
       writeFileSync(join(work, file), text);
     }
     // Warnings go to stdout; show them, as a test shouldn't have any.
-    const warnings = execFileSync(lucyc, ['--out-file', join(work, 'machine.js'), join(work, 'machine.lucy')], { stdio: ['ignore', 'pipe', 'inherit'] });
+    const warnings = execFileSync(lucyc, [...(format === 'ts' ? ['--ts'] : []), '--out-file', join(work, out), join(work, 'machine.lucy')], { stdio: ['ignore', 'pipe', 'inherit'] });
     if(warnings.length > 0) {
       throw new Error(`lucyc warned:\n${warnings}`);
     }
-    const mod = await import(pathToFileURL(join(work, 'machine.js')));
+    const mod = await import(pathToFileURL(join(work, out)));
     const { log } = await import(pathToFileURL(join(work, 'log.js')));
     const helpers = {};
     for(const file of Object.keys(test.modules || {})) {
       helpers[file] = await import(pathToFileURL(join(work, file)));
     }
     await test.default({ mod, helpers, log, clock, assert });
-    console.log(`ok - ${name}`);
+    console.log(`ok - ${label}`);
   } catch(err) {
     failed++;
-    console.log(`FAILED - ${name}`);
+    console.log(`FAILED - ${label}`);
     console.log(err && err.stack ? err.stack : String(err));
   } finally {
     clock.restore();

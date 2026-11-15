@@ -7,9 +7,7 @@ let [,, filename] = process.argv;
 
 let outFile = null;
 let print = 'js';
-const options = {
-  dts: false
-};
+const options = {};
 
 while(filename && filename.startsWith('--')) {
   switch(filename) {
@@ -17,8 +15,8 @@ while(filename && filename.startsWith('--')) {
       outFile = process.argv[++index];
       break;
     }
-    case '--experimental-dts': {
-      options.dts = true;
+    case '--ts': {
+      options.format = 'ts';
       break;
     }
     case '--print': {
@@ -50,10 +48,12 @@ async function run() {
     const result = compile(contents, filename, options);
 
     if(outFile) {
-      await writeFile(outFile, result.js, 'utf-8');
+      await writeFile(outFile, result.ts ?? result.js, 'utf-8');
     } else {
       // The output ends in a newline already.
-      if(options.dts && print === 'dts') {
+      if(result.ts !== undefined) {
+        process.stdout.write(result.ts);
+      } else if(print === 'dts') {
         process.stdout.write(result.dts);
       } else {
         process.stdout.write(result.js);

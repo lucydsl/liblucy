@@ -6,8 +6,8 @@ bool printer_print_import(Printer* printer, ImportNode* import_node) {
     printer_warn(printer, LUCY_STREAM_STDOUT, "TODO add support for imports with no specifiers\n");
     return false;
   }
-  // The names used as the types of events are types, which only the .d.ts
-  // imports.
+  // The names used as the types of events are types, which are imported
+  // with the declarations (printer_print_type_imports).
   bool any = false;
   for(Node* child = import_node->node.child; child != NULL; child = child->next) {
     ImportSpecifierNode* specifier = (ImportSpecifierNode*)child;

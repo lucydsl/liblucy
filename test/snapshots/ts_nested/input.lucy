@@ -1,0 +1,23 @@
+machine player {
+  initial state stopped {
+    play => playing
+    resume => playing.paused
+  }
+
+  state playing {
+    @entry => action(:load)
+    @exit => action(:unload)
+    stop => stopped
+
+    machine track {
+      initial state running {
+        pause => paused
+      }
+
+      state paused {
+        @entry => action(:dim)
+        pause => running
+      }
+    }
+  }
+}

@@ -56,7 +56,7 @@ static void add_enter_child(Printer* printer, JSState* state, JSState* target) {
   while(child->parent != state) {
     child = child->parent;
   }
-  js_builder_add_format(jsb, "event => enter%s(event, ", state->ident);
+  js_builder_add_format(jsb, "%s => enter%s(event, ", printer->ts ? "(event: any)" : "event", state->ident);
   add_enter_child(printer, child, target);
   js_builder_add_str(jsb, ")");
 }
@@ -176,7 +176,7 @@ static void print_chain(Printer* printer, JSState* owner, TransitionNode* first,
       js_builder_close(jsb, "} else {");
       jsb->depth++;
       bool with_event = has_event &&
-        printer_handler_takes_event(printer, fallthrough, printer_find_event_transition(fallthrough, event));
+                        printer_handler_takes_event(printer, fallthrough, printer_find_event_transition(fallthrough, event));
       js_builder_line(jsb, "%s(%s);", handler_name(printer, fallthrough, event), with_event ? "event" : "");
     }
     js_builder_close(jsb, "}");

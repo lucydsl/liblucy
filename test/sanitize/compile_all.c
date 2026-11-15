@@ -1,6 +1,6 @@
 // Compiles every file it is given, several rounds over, in one process,
-// with and without the .d.ts option, and checks that every round gives
-// the same result as the first.
+// to JavaScript and to TypeScript, and checks that every round gives the
+// same result as the first.
 //
 // One process stands in for a long-lived wasm instance: `make
 // test-sanitize` builds this with AddressSanitizer, UndefinedBehavior-
@@ -30,6 +30,7 @@ typedef struct Output {
   bool success;
   char* js;
   char* dts;
+  char* ts;
 } Output;
 
 static char* read_file(const char* path) {
@@ -213,9 +214,9 @@ int main(int argc, char** argv) {
       }
       const char* filename = sources[i].name;
       for(int set = 0; set < OPTION_SETS; set++) {
-        bool include_dts = set == 1;
+        LucyFormat format = set == 1 ? LUCY_FORMAT_TS : LUCY_FORMAT_JS;
         LucyResult* result = reuse ? reused : lucy_result_create();
-        lucy_result_set_options(result, include_dts);
+        lucy_result_set_format(result, format);
         lucy_compile(result, sources[i].text, filename);
 
         Output* expected = &outputs[i * OPTION_SETS + set];
@@ -223,10 +224,12 @@ int main(int argc, char** argv) {
           expected->success = lucy_result_success(result);
           expected->js = copy(lucy_result_js(result));
           expected->dts = copy(lucy_result_dts(result));
+          expected->ts = copy(lucy_result_ts(result));
         } else if(lucy_result_success(result) != expected->success ||
-                  !same(lucy_result_js(result), expected->js) || !same(lucy_result_dts(result), expected->dts)) {
-          printf("FAILED - %s (dts %d) changed in round %d\n",
-            filename, include_dts, round + 1);
+                  !same(lucy_result_js(result), expected->js) || !same(lucy_result_dts(result), expected->dts) ||
+                  !same(lucy_result_ts(result), expected->ts)) {
+          printf("FAILED - %s (%s) changed in round %d\n",
+            filename, format == LUCY_FORMAT_TS ? "ts" : "js", round + 1);
           failed = 1;
         }
 
@@ -241,6 +244,7 @@ int main(int argc, char** argv) {
   for(int i = 0; i < count * OPTION_SETS; i++) {
     free(outputs[i].js);
     free(outputs[i].dts);
+    free(outputs[i].ts);
   }
   for(int i = 0; i < count; i++) {
     free(sources[i].text);

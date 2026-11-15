@@ -1,0 +1,14 @@
+use './util' { calcLightDelay }
+
+initial state green {
+  delay(1s) => yellow
+}
+
+state yellow {
+  go => green
+  delay(500) => red
+}
+
+state red {
+  delay(calcLightDelay) => green
+}

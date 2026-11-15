@@ -1,14 +1,29 @@
 declare namespace LibLucy {
   interface CompileOptions {
-    /** Also produce TypeScript declarations (.d.ts) for the module. Experimental. */
+    /**
+     * What to compile to: 'js', the default, for a JavaScript module and
+     * its declarations, or 'ts' for the two as one TypeScript module.
+     */
+    format?: 'js' | 'ts';
+    /**
+     * @deprecated The declarations are always produced. This does nothing.
+     */
     dts?: boolean;
   }
 
   interface CompileResult {
     /** The compiled JavaScript module. */
     js: string;
-    /** The module's TypeScript declarations, when the `dts` option is set. */
-    dts?: string;
+    /** The module's TypeScript declarations (.d.ts). */
+    dts: string;
+  }
+
+  interface TypeScriptCompileResult {
+    /**
+     * The compiled TypeScript module: the JavaScript with its types in it.
+     * Its syntax is erasable, so Node can run it as it is.
+     */
+    ts: string;
   }
 
   /** An error or warning from the compiler. */
@@ -44,7 +59,9 @@ declare namespace LibLucy {
    * Throws a CompileError if the source doesn't compile, after printing
    * them.
    */
-  export function compile(source: string, filename: string, options?: CompileOptions): CompileResult;
+  export function compile(source: string, filename: string, options?: CompileOptions & { format?: 'js' }): CompileResult;
+  /** The same, to TypeScript. */
+  export function compile(source: string, filename: string, options: CompileOptions & { format: 'ts' }): TypeScriptCompileResult;
 }
 
 export = LibLucy;
