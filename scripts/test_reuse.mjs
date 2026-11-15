@@ -44,7 +44,7 @@ function compileSnapshots(round) {
     const expected = readFileSync(expectedFile, 'utf-8');
     let actual;
     try {
-      const result = compile(readFileSync(filename, 'utf-8'), filename, { dts });
+      const result = compile(readFileSync(filename, 'utf-8'), filename);
       actual = dts ? result.dts : result.js;
     } catch(err) {
       actual = String(err);

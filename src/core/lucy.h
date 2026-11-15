@@ -2,10 +2,9 @@
 
 /*
  * liblucy's API: compile Lucy source to a module of plain JavaScript state
- * machines and, optionally, TypeScript declarations (.d.ts) for it.
+ * machines and the TypeScript declarations (.d.ts) for it.
  *
  *   LucyResult* result = lucy_result_create();
- *   lucy_result_set_options(result, true);
  *   lucy_compile(result, source, "machine.lucy");
  *   for(size_t i = 0; i < lucy_result_diagnostic_count(result); i++) {
  *     fputs(lucy_diagnostic_text(lucy_result_diagnostic(result, i)), stderr);
@@ -20,8 +19,7 @@
  *
  * A result can be used for many compiles, one after another; each compile
  * replaces the last one's output. Everything a result returns belongs to
- * it and is valid until its next compile, lucy_result_set_options or
- * lucy_result_destroy. Running out of memory aborts.
+ * it and is valid until its next compile or lucy_result_destroy. Running out of memory aborts.
  *
  * The library doesn't print anything. A compile's errors and warnings are
  * diagnostics on the result, for the caller to show.
@@ -32,17 +30,11 @@
 
 typedef struct LucyResult LucyResult;
 
-/* An empty result, with the .d.ts option off. Free it with lucy_result_destroy. */
+/* An empty result. Free it with lucy_result_destroy. */
 LucyResult* lucy_result_create(void);
 
 /* Free a result and everything it holds. NULL does nothing. */
 void lucy_result_destroy(LucyResult* result);
-
-/*
- * Set the options for the next compiles, and clear the result's output.
- * include_dts makes the compile produce a .d.ts as well.
- */
-void lucy_result_set_options(LucyResult* result, bool include_dts);
 
 /*
  * Compile source, a NUL-terminated Lucy program read from filename, into
@@ -57,10 +49,7 @@ bool lucy_result_success(const LucyResult* result);
 /* The last compile's JavaScript, or NULL if it failed. */
 const char* lucy_result_js(const LucyResult* result);
 
-/*
- * The last compile's TypeScript declarations, or NULL if it failed or the
- * include_dts option was off.
- */
+/* The last compile's TypeScript declarations, or NULL if it failed. */
 const char* lucy_result_dts(const LucyResult* result);
 
 typedef enum LucySeverity {

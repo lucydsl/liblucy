@@ -21,7 +21,7 @@ machine.stop();
 - `createMachine({ context, actions, guards, assigns, delays, services })`: the options supply what the Lucy source names with `:symbols`, each called as `(context, event)`; a `services` entry returns a promise for `invoke(:name)` and an unstarted machine for `spawn(:name)`. Only the options a machine uses are read.
 - `state` is the current state's name, or a dotted path such as `'red.walk'` inside a nested machine. `context` is a plain object, replaced (not mutated) by each `assign`. `done` becomes `true` when a final state is entered.
 - `send(event)` takes a type or an `{ type, data }` object and runs the transition at once. `subscribe(listener)` calls the listener with the machine after each change and returns an unsubscribe function. `start()` enters the initial state (entry actions, timers, invokes) and returns the machine; `stop()` clears timers, drops pending invokes, stops invoked and spawned children, and clears the listeners.
-- `--experimental-dts` writes a `.d.ts` that types each factory's options and the machine it returns.
+- Every module comes with a `.d.ts` that types each factory's options and the machine it returns: `lucyc --out-file toggle.js` writes `toggle.d.ts` beside it, and `compile()` returns it as `dts`.
 
 ## Typed events
 

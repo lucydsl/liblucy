@@ -1,14 +1,16 @@
 declare namespace LibLucy {
   interface CompileOptions {
-    /** Also produce TypeScript declarations (.d.ts) for the module. Experimental. */
+    /**
+     * @deprecated The declarations are always produced. This does nothing.
+     */
     dts?: boolean;
   }
 
   interface CompileResult {
     /** The compiled JavaScript module. */
     js: string;
-    /** The module's TypeScript declarations, when the `dts` option is set. */
-    dts?: string;
+    /** The module's TypeScript declarations (.d.ts). */
+    dts: string;
   }
 
   /** An error or warning from the compiler. */

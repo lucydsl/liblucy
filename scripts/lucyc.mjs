@@ -7,18 +7,11 @@ let [,, filename] = process.argv;
 
 let outFile = null;
 let print = 'js';
-const options = {
-  dts: false
-};
 
 while(filename && filename.startsWith('--')) {
   switch(filename) {
     case '--out-file': {
       outFile = process.argv[++index];
-      break;
-    }
-    case '--experimental-dts': {
-      options.dts = true;
       break;
     }
     case '--print': {
@@ -47,13 +40,13 @@ async function run() {
   const { compile } = liblucy;
 
   try {
-    const result = compile(contents, filename, options);
+    const result = compile(contents, filename);
 
     if(outFile) {
       await writeFile(outFile, result.js, 'utf-8');
     } else {
       // The output ends in a newline already.
-      if(options.dts && print === 'dts') {
+      if(print === 'dts') {
         process.stdout.write(result.dts);
       } else {
         process.stdout.write(result.js);

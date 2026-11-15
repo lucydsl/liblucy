@@ -40,7 +40,7 @@ WASM_CC=$(WASI_SDK)/bin/clang --target=wasm32-wasip1 --sysroot=$(WASI_SDK)/share
 #   trap's stack trace then shows function numbers instead of names; build
 #   with WASM_STRIP= to keep them.
 WASM_EXPORTS=malloc free \
-	lucy_result_create lucy_result_destroy lucy_result_set_options \
+	lucy_result_create lucy_result_destroy \
 	lucy_compile lucy_result_success lucy_result_js lucy_result_dts \
 	lucy_result_diagnostic_count lucy_result_diagnostic \
 	lucy_diagnostic_severity lucy_diagnostic_stream lucy_diagnostic_message \

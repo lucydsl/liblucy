@@ -20,4 +20,15 @@ if [ ! -f "$outdir/nested/machine.js" ]; then
   exit 1
 fi
 
+# Each has its declarations beside it.
+if [ ! -f "$outdir/machine.d.ts" ] || [ ! -f "$outdir/nested/machine.d.ts" ]; then
+  exit 1
+fi
+
+# --out-file names them after the file, whatever its extension.
+$LUCYC --out-file "$outdir/single/toggle.mjs" "$srcdir/machine.lucy"
+if [ ! -f "$outdir/single/toggle.mjs" ] || [ ! -f "$outdir/single/toggle.d.mts" ]; then
+  exit 1
+fi
+
 exit 0

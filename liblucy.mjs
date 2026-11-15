@@ -95,20 +95,15 @@ export function createCompiler(instance, {
    * Compile Lucy source to a module of plain JavaScript state machines.
    * @param source {String} the input Lucy source.
    * @param filename {String} the name of the Lucy file.
-   * @param options {{ dts?: boolean }}
-   * @returns {{ js: string, dts?: string }} The compiled JavaScript module,
-   *   and its TypeScript declarations if options.dts is set.
+   * @returns {{ js: string, dts: string }} The compiled JavaScript module
+   *   and its TypeScript declarations.
    * @throws {Error} 'Compiler error' if the source doesn't compile, with the
    *   errors and warnings in its diagnostics property.
    */
-  function compile(source, filename, options = {}) {
+  function compile(source, filename) {
     if(!source || !filename) {
       throw new Error('Source and filename are both required.');
     }
-
-    // Read the options before allocating anything, so that bad options
-    // can't throw with memory still allocated.
-    const dts = options.dts;
 
     const srcPtr = writeString(source);
     let fnPtr;
@@ -123,20 +118,16 @@ export function createCompiler(instance, {
     let diagnostics = null;
     try {
       result = wasm.lucy_result_create();
-      // dts becomes an i32 as it always has (true is 1, undefined 0), while
-      // whether out.dts is set follows its truthiness, as before.
-      wasm.lucy_result_set_options(result, dts);
       wasm.lucy_compile(result, srcPtr, fnPtr);
 
       // The compiler doesn't print; this prints what lucyc would.
       printDiagnostics(result);
 
       if(wasm.lucy_result_success(result)) {
-        out = {};
-        out.js = readString(wasm.lucy_result_js(result));
-        if(dts) {
-          out.dts = readString(wasm.lucy_result_dts(result));
-        }
+        out = {
+          js: readString(wasm.lucy_result_js(result)),
+          dts: readString(wasm.lucy_result_dts(result))
+        };
       } else {
         diagnostics = readDiagnostics(result);
       }

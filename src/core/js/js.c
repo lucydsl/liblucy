@@ -7,7 +7,7 @@
 #include "printer.h"
 
 JSOutput js_print(Arena* arena, Program* program, const char* source,
-  bool include_dts, DiagnosticList* diagnostics) {
+  DiagnosticList* diagnostics) {
   Printer printer = {
     .arena = arena,
     .diagnostics = diagnostics,
@@ -33,13 +33,8 @@ JSOutput js_print(Arena* arena, Program* program, const char* source,
     printed = true;
   }
 
-  JSOutput output = {
-    .js = js_builder_release(printer.jsb),
-    .dts = NULL
-  };
+  JSOutput output = { .js = js_builder_release(printer.jsb) };
   printer.jsb = NULL;
-  if(include_dts) {
-    output.dts = printer_print_dts(&printer);
-  }
+  output.dts = printer_print_dts(&printer);
   return output;
 }

@@ -10,8 +10,6 @@
 #include "js/js.h"
 
 struct LucyResult {
-  bool include_dts;
-
   // The last compile's output, malloc'd and owned by the result.
   bool success;
   char* js;
@@ -30,7 +28,7 @@ static void clear_output(LucyResult* result) {
 }
 
 LucyResult* lucy_result_create(void) {
-  // Zeroed: no output, and the .d.ts option off.
+  // Zeroed: no output.
   LucyResult* result = xcalloc(1, sizeof(LucyResult));
   diagnostic_list_init(&result->diagnostics);
   return result;
@@ -42,11 +40,6 @@ void lucy_result_destroy(LucyResult* result) {
   }
   clear_output(result);
   free(result);
-}
-
-void lucy_result_set_options(LucyResult* result, bool include_dts) {
-  clear_output(result);
-  result->include_dts = include_dts;
 }
 
 void lucy_compile(LucyResult* result, const char* source, const char* filename) {
@@ -66,7 +59,7 @@ void lucy_compile(LucyResult* result, const char* source, const char* filename) 
     &result->diagnostics);
   if(parsed.success) {
     JSOutput output = js_print(&arena, parsed.program, source,
-      result->include_dts, &result->diagnostics);
+      &result->diagnostics);
     result->success = true;
     result->js = output.js;
     result->dts = output.dts;
