@@ -20,6 +20,7 @@
 #include "../support/str_builder.h"
 #include "../support/str_map.h"
 #include "../support/str_set.h"
+#include "../support/string_list.h"
 #include "js_builder.h"
 
 typedef struct JSMachine JSMachine;
@@ -64,6 +65,63 @@ struct JSState {
   JSMachine* invoked;
 };
 
+// A :symbol a machine's options have to provide.
+typedef struct JSSymbol {
+  const char* name;
+  // For an assign, the context key it sets.
+  const char* key;
+  // The events it is used on, or any_event when it is used somewhere
+  // without an event of the user's (entry actions, immediate transitions,
+  // timers, invoke results).
+  StringList events;
+  bool any_event;
+  struct JSSymbol* next;
+} JSSymbol;
+
+// One of the bags in the options object, in the order the symbols were
+// first seen.
+typedef struct JSSymbolBag {
+  JSSymbol* head;
+  JSSymbol** tail;
+  StrMap* by_name;
+} JSSymbolBag;
+
+// A context key that assign(key) sets from the data of declared events,
+// with the types of those events' data.
+typedef struct JSEventData {
+  const char* key;
+  StringList types;
+  struct JSEventData* next;
+} JSEventData;
+
+/*
+ * A machine's interface: what whoever creates it has to supply (the
+ * :symbols it names, by the option they are in), and what its states
+ * handle and store. The factory's parameters, the declarations and the
+ * checks on the machines that spawn it are all made from this.
+ */
+typedef struct JSInterface {
+  JSSymbolBag actions;
+  JSSymbolBag assigns;
+  JSSymbolBag guards;
+  JSSymbolBag delays;
+  // Both in the services option: functions that return a promise, for an
+  // invoke, and ones that return an actor, for a spawn.
+  JSSymbolBag services;
+  JSSymbolBag actors;
+  // The events its states have transitions on, in order.
+  StringList events;
+  StrSet event_set;
+  // The context keys its assigns set, in order.
+  StringList keys;
+  StrSet key_set;
+  JSEventData* event_data;
+  // The events the machine makes itself that its states can get.
+  bool has_delay;
+  bool has_done;
+  bool has_error;
+} JSInterface;
+
 // An event a machine declares with `event name` or `event name(Type)`.
 struct JSEvent {
   const char* name;
@@ -95,6 +153,8 @@ struct JSMachine {
   // The events it declares, in order. NULL when it declares none, and
   // then its events are whatever its states handle.
   JSEvent* events;
+  // What it needs supplied and what it handles.
+  JSInterface* interface;
 };
 
 /*
@@ -196,6 +256,19 @@ void printer_check_events(Printer*, JSMachine*);
 /* Whether name is used as an event's type, so that an import of it is a
  * type import. */
 bool printer_is_type_name(Printer*, const char* name);
+
+/* interface.c */
+
+/* Set machine's interface from its states. Its events must be built. */
+void printer_build_interface(Printer*, JSMachine*);
+/* Whether the machine names anything its creator has to supply. */
+bool printer_interface_needs_options(const JSInterface*);
+/*
+ * Warn about the machines of this file that machine spawns or invokes and
+ * that need options, which nothing supplies to them. Every machine's
+ * interface must be built.
+ */
+void printer_check_interfaces(Printer*, JSMachine*);
 
 /* machine.c */
 

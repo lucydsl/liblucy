@@ -38,12 +38,5 @@ ParseStatus parser_consume_inline_spawn(Parser* parser, AssignExpression* assign
   }
   assign_expression->value = (Expression*)spawn_expression;
 
-  // The machine this is in. parser->current_machine_node was NULL here
-  // after a nested machine had ended.
-  MachineNode* machine_node = node_find_machine(parser->node);
-  if(spawn_expression->target->type == EXPRESSION_SYMBOL && machine_node != NULL) {
-    machine_node->flags |= MACHINE_USES_SERVICE;
-  }
-
   return status;
 }

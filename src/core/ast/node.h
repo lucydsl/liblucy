@@ -54,13 +54,6 @@ typedef enum LocalKind {
   LOCAL_EXIT,  // @exit
 } LocalKind;
 
-// MachineNode.flags: what the machine's options have to provide.
-#define MACHINE_USES_GUARD   (1u << 0)
-#define MACHINE_USES_ACTION  (1u << 1)
-#define MACHINE_USES_ASSIGN  (1u << 2)
-#define MACHINE_USES_DELAY   (1u << 3)
-#define MACHINE_USES_SERVICE (1u << 4)
-
 typedef struct Node {
   NodeType type;
   struct Node* parent;
@@ -78,8 +71,6 @@ typedef struct SourceSpan {
 typedef struct MachineNode {
   Node node;
 
-  unsigned printer_flags;
-  unsigned flags;
   // `machine name { ... }`. A machine made of states at the top level of
   // the file has no name.
   bool has_name;

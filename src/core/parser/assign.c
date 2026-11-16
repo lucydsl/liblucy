@@ -1,13 +1,5 @@
 #include "internal.h"
 
-static inline void maybe_add_machine_uses_assign(AssignExpression* assign_expression, Node* parent_node) {
-  Expression* value = assign_expression->value;
-  if(value != NULL && value->type == EXPRESSION_SYMBOL) {
-    MachineNode* machine_node = node_find_machine(parent_node);
-    machine_node->flags |= MACHINE_USES_ASSIGN;
-  }
-}
-
 /* Public API */
 ParseStatus parser_consume_inline_assign_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   ParseStatus status = PARSE_OK;
@@ -78,7 +70,6 @@ ParseStatus parser_consume_inline_assign(Parser* parser, Node* node) {
       break;
     }
   }
-  maybe_add_machine_uses_assign(assign_expression, node);
 
   return status;
 }

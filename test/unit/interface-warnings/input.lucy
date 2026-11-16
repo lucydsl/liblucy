@@ -1,0 +1,36 @@
+machine kid {
+  guard ok = :ok
+
+  initial state waiting {
+    go => ok => action(:log) => waiting
+    delay(:wait) => waiting
+  }
+}
+
+machine timer {
+  initial state running {
+    delay(1s) => action(:ring) => over
+  }
+
+  final state over {}
+}
+
+machine plain {
+  initial state only {
+    ping => only
+  }
+}
+
+machine parent {
+  initial state idle {
+    @entry => assign(child, spawn(kid)) => assign(other, spawn(plain))
+    again => assign(child, spawn(kid)) => idle
+    wait => waiting
+  }
+
+  state waiting {
+    invoke(timer) {
+      done => idle
+    }
+  }
+}

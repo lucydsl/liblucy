@@ -163,7 +163,7 @@ ParseStatus parser_consume_transition(Parser* parser) {
           parser_error_back(parser, parser->token_len, "delay must be a child of a state");
           status = PARSE_ERROR;
         } else {
-          if(parse_merge(&status, parser_consume_inline_delay(parser, transition_node, (StateNode*)current_node)) == PARSE_FATAL) {
+          if(parse_merge(&status, parser_consume_inline_delay(parser, transition_node)) == PARSE_FATAL) {
             return PARSE_FATAL;
           }
           append_transition(&((StateNode*)current_node)->delay_transition, transition_node);

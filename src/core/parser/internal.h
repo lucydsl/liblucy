@@ -258,4 +258,4 @@ ParseStatus parser_consume_inline_assign(Parser*, Node*);
 ParseStatus parser_consume_inline_send_args(Parser*, void*, TokenType, const char*, size_t);
 ParseStatus parser_consume_inline_send(Parser*, Node*);
 ParseStatus parser_consume_inline_spawn(Parser*, AssignExpression*);
-ParseStatus parser_consume_inline_delay(Parser*, TransitionNode*, StateNode*);
+ParseStatus parser_consume_inline_delay(Parser*, TransitionNode*);
