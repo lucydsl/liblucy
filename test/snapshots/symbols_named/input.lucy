@@ -1,0 +1,20 @@
+machine named {
+  action log = :log
+  guard ok = :ok
+  action count = assign(n, :next)
+
+  initial state idle {
+    go => ok => log => count => busy
+  }
+
+  state busy {
+    machine inner {
+      initial state waiting {
+        @entry => action(:enter)
+        delay(:wait) => done
+      }
+
+      state done {}
+    }
+  }
+}

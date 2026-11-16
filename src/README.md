@@ -31,6 +31,10 @@
     factory function, `state.c` the table of states and the per-state
     functions, `transition.c` transitions, `action.c` actions and guards,
     `import.c` the `use` lines, and `dts.c` the TypeScript declarations.
+    `interface.c` holds each machine's interface (the options its
+    :symbols need, the events and context keys its states use), which the
+    factory's parameters and the declarations are made from, and the
+    warning about a machine created without the options it needs.
     With `Printer.ts` set they print one TypeScript module instead: each
     machine's declarations, then its factory with annotations.
     `event.c` holds the events a machine declares and the warnings about

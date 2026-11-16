@@ -43,11 +43,6 @@ ParseStatus parser_consume_invoke(Parser* parser) {
   if(parse_merge(&status, parser_expect_call_argument(parser, "invoke", invoke_node->expr->ref, status)) == PARSE_FATAL) {
     return PARSE_FATAL;
   }
-  MachineNode* machine_node = node_find_machine(parent_node);
-  if(invoke_node->expr->ref != NULL &&
-     invoke_node->expr->ref->type == EXPRESSION_SYMBOL && machine_node != NULL) {
-    machine_node->flags |= MACHINE_USES_SERVICE;
-  }
 
   TokenType token = parser_next_token(parser);
 

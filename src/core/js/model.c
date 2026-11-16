@@ -647,6 +647,10 @@ void printer_build_model(Printer* printer) {
       machine->needs_run = machine->initial != NULL && (machine->initial->flags & STATE_NEEDS_ENTER);
       find_run_uses(machine, machine->states);
     }
+    printer_build_interface(printer, machine);
+  }
+  for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     printer_check_events(printer, machine);
+    printer_check_interfaces(printer, machine);
   }
 }

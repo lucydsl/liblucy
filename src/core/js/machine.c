@@ -4,23 +4,24 @@
 
 #include "../support/str_set.h"
 
-static void add_factory_params(Printer* printer, MachineNode* machine_node) {
+// The options the factory reads: the ones its interface has symbols in.
+static void add_factory_params(Printer* printer, const JSInterface* interface) {
   JSBuilder* jsb = printer->jsb;
   js_builder_add_str(jsb, "{ ");
-  if(machine_node->flags & MACHINE_USES_ACTION) {
+  if(interface->actions.head != NULL) {
     js_builder_add_str(jsb, "actions, ");
   }
-  if(machine_node->flags & MACHINE_USES_ASSIGN) {
+  if(interface->assigns.head != NULL) {
     js_builder_add_str(jsb, "assigns, ");
   }
   js_builder_add_str(jsb, "context = {}");
-  if(machine_node->flags & MACHINE_USES_DELAY) {
+  if(interface->delays.head != NULL) {
     js_builder_add_str(jsb, ", delays");
   }
-  if(machine_node->flags & MACHINE_USES_GUARD) {
+  if(interface->guards.head != NULL) {
     js_builder_add_str(jsb, ", guards");
   }
-  if(machine_node->flags & MACHINE_USES_SERVICE) {
+  if(interface->services.head != NULL || interface->actors.head != NULL) {
     js_builder_add_str(jsb, ", services");
   }
   js_builder_add_format(jsb, " }%s = {}", printer_any(printer));
@@ -140,7 +141,7 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
 
   js_builder_add_str(jsb, machine->name == NULL ? "export default function " : "export function ");
   js_builder_add_format(jsb, "%s(", machine->factory);
-  add_factory_params(printer, machine->node);
+  add_factory_params(printer, machine->interface);
   js_builder_add_format(jsb, ")%s {\n", printer_any(printer));
   jsb->depth++;
 

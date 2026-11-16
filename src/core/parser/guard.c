@@ -37,11 +37,6 @@ ParseStatus parser_consume_inline_guard(Parser* parser, TransitionNode* transiti
   TransitionGuard* guard = node_transition_add_guard(parser->arena, transition_node, NULL);
   guard->expression = guard_expression;
 
-  MachineNode* parent_machine_node = node_find_machine((Node*)transition_node);
-  if(guard->expression->ref->type == EXPRESSION_SYMBOL && parent_machine_node != NULL) {
-    parent_machine_node->flags |= MACHINE_USES_GUARD;
-  }
-
   return status;
 }
 

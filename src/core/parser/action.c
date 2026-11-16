@@ -55,11 +55,6 @@ ParseStatus parser_consume_inline_action(Parser* parser, Node* node) {
     }
   }
 
-  MachineNode* parent_machine_node = node_find_machine(node);
-  if(action_expression->ref->type == EXPRESSION_SYMBOL && parent_machine_node != NULL) {
-    parent_machine_node->flags |= MACHINE_USES_ACTION;
-  }
-
   return status;
 }
 

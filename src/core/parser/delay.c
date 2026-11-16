@@ -56,7 +56,7 @@ static ParseStatus consume_inline_delay_args(Parser* parser, void* expr, TokenTy
   return PARSE_OK;
 }
 
-ParseStatus parser_consume_inline_delay(Parser* parser, TransitionNode* transition_node, StateNode* state_node) {
+ParseStatus parser_consume_inline_delay(Parser* parser, TransitionNode* transition_node) {
   ParseStatus status = PARSE_OK;
 
   transition_node->type = TRANSITION_DELAY;
@@ -67,10 +67,6 @@ ParseStatus parser_consume_inline_delay(Parser* parser, TransitionNode* transiti
   }
 
   node_transition_set_delay(parser->arena, transition_node, expression);
-  if(expression->ref != NULL && expression->ref->type == EXPRESSION_SYMBOL) {
-    MachineNode* machine_node = node_find_machine((Node*)state_node);
-    machine_node->flags |= MACHINE_USES_DELAY;
-  }
 
   return status;
 }
