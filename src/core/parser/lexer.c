@@ -96,9 +96,15 @@ void parser_rewind(Parser* parser, size_t inc) {
   parser->column = (size_t)pos.column;
 }
 
-/* Whether c can appear in an identifier: ASCII letters and underscore. */
-static bool is_identifier_char(char c) {
+/* Whether c can start an identifier: ASCII letters and underscore. */
+static bool is_identifier_start(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+/* Whether c can appear in an identifier after its first character: digits
+ * too. */
+static bool is_identifier_char(char c) {
+  return is_identifier_start(c) || timeframe_is_digit(c);
 }
 
 static inline bool is_newline(char c) {
@@ -231,7 +237,7 @@ TokenType parser_next_token(Parser* parser) {
       return TOKEN_ASSIGNMENT;
     }
 
-    if(is_identifier_char(c)) {
+    if(is_identifier_start(c)) {
       consume_identifier(parser);
       if(parser_peek(parser) == '.') {
         return TOKEN_MEMBER_EXPRESSION;

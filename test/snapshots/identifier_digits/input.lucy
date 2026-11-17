@@ -1,0 +1,18 @@
+use './util.js' { log2, isBase64 }
+
+machine step2 {
+  action logTwice = log2
+  guard base64 = isBase64
+
+  initial state s1 {
+    go2 => base64 => s2
+    @entry => logTwice
+  }
+
+  state s2 {
+    delay(2s) => step_3
+    back2s1 => assign(last2) => s1
+  }
+
+  final state step_3 {}
+}
