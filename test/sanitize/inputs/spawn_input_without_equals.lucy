@@ -1,0 +1,9 @@
+machine a {
+  input t
+  initial state s {}
+}
+machine b {
+  initial state r {
+    go => assign(x, spawn(a) { t event.data }) => r
+  }
+}

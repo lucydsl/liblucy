@@ -121,8 +121,11 @@ typedef struct JSInterface {
   bool has_done;
   bool has_error;
   // The events it sends to whatever created it, with send(parent, event),
-  // in order. A machine that sends any takes its parent as an option.
+  // in order.
   StringList parent_events;
+  // It uses its parent, to send to or to give to a machine it spawns, so
+  // it takes the parent as an option.
+  bool takes_parent;
 } JSInterface;
 
 // An event a machine declares with `event name` or `event name(Type)`.
@@ -132,6 +135,14 @@ struct JSEvent {
   const char* type;
   JSEvent* next;
 };
+
+// An input a machine declares with `input name` or `input name(Type)`.
+typedef struct JSInput {
+  const char* name;
+  // Its type, or NULL when none is given.
+  const char* type;
+  struct JSInput* next;
+} JSInput;
 
 struct JSMachine {
   MachineNode* node;
@@ -156,6 +167,9 @@ struct JSMachine {
   // The events it declares, in order. NULL when it declares none, and
   // then its events are whatever its states handle.
   JSEvent* events;
+  // The inputs it declares, in order: keys of its context that whoever
+  // creates it supplies. NULL when it declares none.
+  JSInput* inputs;
   // What it needs supplied and what it handles.
   JSInterface* interface;
 };
@@ -251,6 +265,10 @@ TransitionNode* printer_find_event_transition_in(TransitionNode*, const char* ev
 
 /* Set machine's events from its `event` declarations. */
 void printer_build_events(Printer*, JSMachine*);
+/* Set machine's inputs from its `input` declarations. */
+void printer_build_inputs(Printer*, JSMachine*);
+/* The input machine declares as name, or NULL. */
+JSInput* printer_find_input(JSMachine*, const char* name);
 /* The event machine declares as name, or NULL. */
 JSEvent* printer_find_event(JSMachine*, const char* name);
 /*
@@ -330,10 +348,10 @@ bool printer_actions_take_event(Printer*, TransitionAction*);
  * else NULL. */
 AssignExpression* printer_action_spawn(Printer*, TransitionAction*);
 /* The argument a machine of this file is created with by another: its
- * parent, if it sends to it, else nothing. */
+ * parent, if it uses it, else nothing. */
 void printer_add_child_options(Printer*, JSMachine* child);
-/* The expression that creates and starts what spawn(x) spawns. */
-void printer_add_spawn(Printer*, SpawnExpression*);
+/* Whether the values a spawn gives use the event. */
+bool printer_spawn_takes_event(SpawnExpression*);
 /* The expression for a delay's length in milliseconds. */
 void printer_add_delay_length(Printer*, DelayExpression*);
 

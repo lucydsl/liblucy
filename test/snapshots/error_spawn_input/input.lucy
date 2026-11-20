@@ -1,0 +1,11 @@
+machine todoItem {
+  input title
+
+  initial state active {}
+}
+
+machine todoList {
+  initial state ready {
+    add => assign(todo, spawn(todoItem) { title = event.type }) => ready
+  }
+}

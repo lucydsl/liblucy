@@ -1,0 +1,23 @@
+use './util' { svc, calc }
+
+machine withInputs {
+  input title(string)
+  input owner
+
+  initial state idle {
+    go => assign(kid, spawn(withInputs) {
+      title = event.data
+      owner = self
+    }) => assign(a, spawn(:ext) { title = context.title }) => assign(b, spawn(svc) {
+      title = :pick
+      owner = parent
+    }) => idle
+    one => assign(c, spawn(withInputs) { title = calc }) => idle
+    @entry => assign(d, spawn(withInputs) {
+
+      // A comment, and blank lines.
+      title = context.title
+
+    })
+  }
+}

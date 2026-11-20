@@ -625,6 +625,7 @@ void printer_build_model(Printer* printer) {
       }
     }
     printer_build_events(printer, machine);
+    printer_build_inputs(printer, machine);
     *tail = machine;
     tail = &machine->next;
   }

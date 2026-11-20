@@ -1,0 +1,34 @@
+use './types' { Storage }
+use './util.js' { makeId }
+
+machine todoItem {
+  input title(string)
+  input storage(Storage)
+  input id
+
+  initial state active {
+    remove => removed
+  }
+
+  final state removed {
+    @entry => send(parent, removedTodo)
+  }
+}
+
+machine todoList {
+  action addDraft = assign(draft, spawn(todoItem) {
+    title = :draftTitle
+    storage = context.storage
+    id = makeId
+  })
+
+  initial state ready {
+    add => assign(todo, spawn(todoItem) {
+      title = event.data
+      storage = context.storage
+      id = self
+    }) => ready
+    draft => addDraft => ready
+    removedTodo => ready
+  }
+}

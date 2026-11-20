@@ -50,3 +50,38 @@ machine boss {
     report => idle
   }
 }
+
+machine card {
+  input title(string)
+  input owner
+
+  initial state shown {}
+}
+
+machine free {
+  initial state only {}
+}
+
+machine board {
+  initial state idle {
+    full => assign(a, spawn(card) {
+      title = event.data
+      owner = self
+    }) => idle
+    short => assign(b, spawn(card) { title = event.data }) => idle
+    none => assign(c, spawn(card)) => idle
+    extra => assign(d, spawn(card) {
+      title = event.data
+      owner = self
+      colour = event.data
+    }) => idle
+    unchecked => assign(e, spawn(free) { anything = self }) => idle
+    wait => waiting
+  }
+
+  state waiting {
+    invoke(card) {
+      done => idle
+    }
+  }
+}

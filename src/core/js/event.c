@@ -27,6 +27,33 @@ void printer_build_events(Printer* printer, JSMachine* machine) {
   }
 }
 
+void printer_build_inputs(Printer* printer, JSMachine* machine) {
+  JSInput** tail = &machine->inputs;
+  for(Node* node = machine->node->node.child; node != NULL; node = node->next) {
+    if(node->type != NODE_INPUT) {
+      continue;
+    }
+    InputNode* input_node = (InputNode*)node;
+    JSInput* input = ARENA_NEW(printer->arena, JSInput);
+    input->name = input_node->name;
+    input->type = input_node->type;
+    if(input->type != NULL) {
+      str_set_add(&printer->type_names, input->type);
+    }
+    *tail = input;
+    tail = &input->next;
+  }
+}
+
+JSInput* printer_find_input(JSMachine* machine, const char* name) {
+  for(JSInput* input = machine->inputs; input != NULL; input = input->next) {
+    if(strcmp(input->name, name) == 0) {
+      return input;
+    }
+  }
+  return NULL;
+}
+
 JSEvent* printer_find_event(JSMachine* machine, const char* name) {
   for(JSEvent* event = machine->events; event != NULL; event = event->next) {
     if(strcmp(event->name, name) == 0) {

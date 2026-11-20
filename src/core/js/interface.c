@@ -93,16 +93,29 @@ static void collect_actions(Build* build, TransitionAction* action, const char* 
       } else if(assign->value->type == EXPRESSION_SYMBOL) {
         bag_add(build, &build->interface->assigns, ((SymbolExpression*)assign->value)->name, assign->key, event);
       } else if(assign->value->type == EXPRESSION_SPAWN) {
-        Expression* target = ((SpawnExpression*)assign->value)->target;
+        SpawnExpression* spawn = (SpawnExpression*)assign->value;
+        Expression* target = spawn->target;
         if(target->type == EXPRESSION_SYMBOL) {
           bag_add(build, &build->interface->actors, ((SymbolExpression*)target)->name, NULL, event);
+        }
+        // The values it gives: a :symbol is in the assigns option, as the
+        // value of an assign is, and parent is the machine's own.
+        for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+          if(field->value->type == EXPRESSION_SYMBOL) {
+            bag_add(build, &build->interface->assigns, ((SymbolExpression*)field->value)->name, NULL, event);
+          } else if(field->value->type == EXPRESSION_IDENTIFIER &&
+                    strcmp(((IdentifierExpression*)field->value)->name, "parent") == 0) {
+            build->interface->takes_parent = true;
+          }
         }
       }
     } else if(expression->type == EXPRESSION_SEND) {
       SendExpression* send = (SendExpression*)expression;
-      if(send->actor != NULL && send->event != NULL && strcmp(send->actor, "parent") == 0 &&
-         !list_contains(&build->interface->parent_events, send->event)) {
-        string_list_append(&build->interface->parent_events, send->event);
+      if(send->actor != NULL && send->event != NULL && strcmp(send->actor, "parent") == 0) {
+        build->interface->takes_parent = true;
+        if(!list_contains(&build->interface->parent_events, send->event)) {
+          string_list_append(&build->interface->parent_events, send->event);
+        }
       }
     } else if(expression->type == EXPRESSION_ACTION) {
       Expression* ref = ((ActionExpression*)expression)->ref;
@@ -252,7 +265,37 @@ static void check_child(Printer* printer, JSMachine* machine, JSMachine* child, 
   str_builder_destroy(text);
 }
 
-static void check_spawns(Printer* printer, JSMachine* machine, TransitionAction* action, StrSet* warned) {
+// Warn about the inputs a spawn gives a machine that declares its own:
+// the ones it leaves out, and the ones the machine doesn't have. A machine
+// that declares none isn't checked.
+static void check_inputs(Printer* printer, JSState* state, AssignExpression* assign, JSMachine* child) {
+  if(child->inputs == NULL) {
+    return;
+  }
+  SpawnExpression* spawn = (SpawnExpression*)assign->value;
+  for(JSInput* input = child->inputs; input != NULL; input = input->next) {
+    bool given = false;
+    for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+      if(strcmp(field->name, input->name) == 0) {
+        given = true;
+      }
+    }
+    if(!given) {
+      printer_warnf(printer, LUCY_STREAM_STDOUT,
+        "spawn(%s) for [%s] in state [%s] doesn't give machine [%s] its input [%s].\n",
+        child->name, assign->key, state->path, child->name, input->name);
+    }
+  }
+  for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+    if(printer_find_input(child, field->name) == NULL) {
+      printer_warnf(printer, LUCY_STREAM_STDOUT,
+        "spawn(%s) for [%s] in state [%s] gives [%s], which machine [%s] doesn't declare as an input.\n",
+        child->name, assign->key, state->path, field->name, child->name);
+    }
+  }
+}
+
+static void check_spawns(Printer* printer, JSMachine* machine, JSState* state, TransitionAction* action, StrSet* warned) {
   for(; action != NULL; action = action->next) {
     AssignExpression* assign = printer_action_spawn(printer, action);
     if(assign == NULL) {
@@ -265,13 +308,14 @@ static void check_spawns(Printer* printer, JSMachine* machine, TransitionAction*
     JSMachine* child = printer_find_machine(printer, ((IdentifierExpression*)target)->name);
     if(child != NULL) {
       check_child(printer, machine, child, "spawns", warned);
+      check_inputs(printer, state, assign, child);
     }
   }
 }
 
-static void check_transitions(Printer* printer, JSMachine* machine, TransitionNode* transition, StrSet* warned) {
+static void check_transitions(Printer* printer, JSMachine* machine, JSState* state, TransitionNode* transition, StrSet* warned) {
   for(; transition != NULL; transition = transition->next) {
-    check_spawns(printer, machine, transition->action, warned);
+    check_spawns(printer, machine, state, transition->action, warned);
   }
 }
 
@@ -279,19 +323,25 @@ static void check_states(Printer* printer, JSMachine* machine, JSState* state, S
   for(; state != NULL; state = state->next) {
     StateNode* node = state->node;
     if(node->entry != NULL) {
-      check_spawns(printer, machine, node->entry->action, warned);
+      check_spawns(printer, machine, state, node->entry->action, warned);
     }
     if(node->exit != NULL) {
-      check_spawns(printer, machine, node->exit->action, warned);
+      check_spawns(printer, machine, state, node->exit->action, warned);
     }
-    check_transitions(printer, machine, node->event_transition, warned);
-    check_transitions(printer, machine, node->immediate_transition, warned);
-    check_transitions(printer, machine, node->delay_transition, warned);
+    check_transitions(printer, machine, state, node->event_transition, warned);
+    check_transitions(printer, machine, state, node->immediate_transition, warned);
+    check_transitions(printer, machine, state, node->delay_transition, warned);
     if(node->invoke != NULL) {
-      check_transitions(printer, machine, node->invoke->event_transition, warned);
+      check_transitions(printer, machine, state, node->invoke->event_transition, warned);
     }
     if(state->invoke_kind == INVOKE_MACHINE) {
       check_child(printer, machine, state->invoked, "invokes", warned);
+      // An invoke has nowhere to give inputs.
+      for(JSInput* input = state->invoked->inputs; input != NULL; input = input->next) {
+        printer_warnf(printer, LUCY_STREAM_STDOUT,
+          "invoke(%s) in state [%s] doesn't give machine [%s] its input [%s]: an invoke can't give any.\n",
+          state->invoked->name, state->path, state->invoked->name, input->name);
+      }
     }
     check_states(printer, machine, state->child, warned);
   }

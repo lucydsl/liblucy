@@ -215,6 +215,7 @@ typedef enum Keyword {
   KEYWORD_SPAWN,
   KEYWORD_SEND,
   KEYWORD_EVENT,
+  KEYWORD_INPUT,
 } Keyword;
 
 /* The keyword a word is, or KEYWORD_NONE (also for NULL). */
@@ -258,4 +259,5 @@ ParseStatus parser_consume_inline_assign(Parser*, Node*);
 ParseStatus parser_consume_inline_send_args(Parser*, void*, TokenType, const char*, size_t);
 ParseStatus parser_consume_inline_send(Parser*, Node*);
 ParseStatus parser_consume_inline_spawn(Parser*, AssignExpression*);
+ParseStatus parser_consume_input(Parser*);
 ParseStatus parser_consume_inline_delay(Parser*, TransitionNode*);
