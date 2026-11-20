@@ -66,6 +66,7 @@ export function createParent({ context = {} } = {}) {
   };
   function enterIdle() {
     machine.state = 'idle';
+    machine.context.child?.stop();
     machine.context = { ...machine.context, child: createKid().start() };
   }
   function notify() {

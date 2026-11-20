@@ -240,6 +240,15 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
   print_bag(&inventory, jsb, &interface->assigns, "assigns", "unknown");
   print_bag(&inventory, jsb, &interface->delays, "delays", "number");
   print_bag(&inventory, jsb, &interface->guards, "guards", "boolean");
+  if(interface->parent_events.length > 0) {
+    // Whatever created the machine, which it sends these events to.
+    js_builder_add_indent(jsb);
+    js_builder_add_str(jsb, "parent?: { send(event: { type: ");
+    for(StringListIterator it = string_list_iterator(&interface->parent_events); string_list_next(&it);) {
+      js_builder_add_format(jsb, "%s'%s'", it.index > 0 ? " | " : "", it.node->value);
+    }
+    js_builder_add_str(jsb, "; data?: unknown }): void };\n");
+  }
   if(interface->services.head != NULL || interface->actors.head != NULL) {
     js_builder_open(jsb, "services: {");
     for(JSSymbol* symbol = interface->services.head; symbol != NULL; symbol = symbol->next) {
@@ -251,7 +260,9 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
     }
     for(JSSymbol* symbol = interface->actors.head; symbol != NULL; symbol = symbol->next) {
       if(str_map_get(interface->services.by_name, symbol->name) == NULL) {
-        js_builder_line(jsb, "%s: () => { start(): unknown; stop(): void; send(event: unknown): void };", symbol->name);
+        js_builder_line(jsb, "%s: (options: { parent: { send(event: unknown): void } }) => "
+                             "{ start(): unknown; stop(): void; send(event: unknown): void };",
+          symbol->name);
       }
     }
     js_builder_close(jsb, "};");

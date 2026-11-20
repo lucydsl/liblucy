@@ -22,7 +22,7 @@ export interface CreateMachineOptions<TContext extends Record<MachineContextKey,
   };
   services: {
     loadUsers: (context: TContext, event: TEvent) => Promise<unknown>;
-    todoMachine: () => { start(): unknown; stop(): void; send(event: unknown): void };
+    todoMachine: (options: { parent: { send(event: unknown): void } }) => { start(): unknown; stop(): void; send(event: unknown): void };
   };
 }
 

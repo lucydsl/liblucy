@@ -98,7 +98,10 @@ static void print_invoke(Printer* printer, JSState* state) {
   TransitionNode* error = find_invoke_transition(invoke, "error");
 
   if(state->invoke_kind == INVOKE_MACHINE) {
-    js_builder_line(jsb, "const child = %s();", state->invoked->factory);
+    js_builder_add_indent(jsb);
+    js_builder_add_format(jsb, "const child = %s(", state->invoked->factory);
+    printer_add_child_options(printer, state->invoked);
+    js_builder_add_str(jsb, ");\n");
     js_builder_line(jsb, "%sChild = child;", state->var);
     if(done != NULL && state->invoked->has_final) {
       js_builder_open(jsb, "child.subscribe(() => {");

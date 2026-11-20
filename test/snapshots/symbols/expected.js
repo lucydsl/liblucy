@@ -50,7 +50,8 @@ export default function createMachine({ actions, assigns, context = {}, delays, 
   }
   function enterHomescreen() {
     machine.state = 'homescreen';
-    machine.context = { ...machine.context, todo: services.todoMachine().start() };
+    machine.context.todo?.stop();
+    machine.context = { ...machine.context, todo: services.todoMachine({ parent: machine }).start() };
   }
   function notify() {
     for(const listener of listeners) {

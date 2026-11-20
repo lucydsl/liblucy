@@ -120,6 +120,9 @@ typedef struct JSInterface {
   bool has_delay;
   bool has_done;
   bool has_error;
+  // The events it sends to whatever created it, with send(parent, event),
+  // in order. A machine that sends any takes its parent as an option.
+  StringList parent_events;
 } JSInterface;
 
 // An event a machine declares with `event name` or `event name(Type)`.
@@ -179,6 +182,8 @@ typedef struct Printer {
   const char* busy;
   const char* queue;
   const char* run;
+  // Likewise the variable for the machine's parent.
+  const char* parent;
   // The machine being printed.
   JSMachine* machine;
   // Printing TypeScript: each factory comes after its types, and what it
@@ -324,6 +329,9 @@ bool printer_actions_take_event(Printer*, TransitionAction*);
 /* The assign an action does if it spawns something (assign(key, spawn(x))),
  * else NULL. */
 AssignExpression* printer_action_spawn(Printer*, TransitionAction*);
+/* The argument a machine of this file is created with by another: its
+ * parent, if it sends to it, else nothing. */
+void printer_add_child_options(Printer*, JSMachine* child);
 /* The expression that creates and starts what spawn(x) spawns. */
 void printer_add_spawn(Printer*, SpawnExpression*);
 /* The expression for a delay's length in milliseconds. */

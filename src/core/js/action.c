@@ -1,6 +1,7 @@
 #include "printer.h"
 
 #include <stdbool.h>
+#include <string.h>
 
 Expression* printer_action_expression(Printer* printer, TransitionAction* action) {
   if(action->name == NULL) {
@@ -14,21 +15,40 @@ Expression* printer_action_expression(Printer* printer, TransitionAction* action
   return binding->value;
 }
 
+void printer_add_child_options(Printer* printer, JSMachine* child) {
+  if(child->interface->parent_events.length > 0) {
+    js_builder_add_str(printer->jsb, "{ parent: machine }");
+  }
+}
+
 void printer_add_spawn(Printer* printer, SpawnExpression* spawn) {
   JSBuilder* jsb = printer->jsb;
   Expression* target = spawn->target;
+  // A machine of this file is given its parent if it sends to it. What
+  // anything else does with it isn't known, so it always is.
+  JSMachine* machine = NULL;
   if(target->type == EXPRESSION_IDENTIFIER) {
     const char* name = ((IdentifierExpression*)target)->name;
-    JSMachine* machine = printer_find_machine(printer, name);
+    machine = printer_find_machine(printer, name);
     js_builder_add_str(jsb, machine != NULL ? machine->factory : name);
   } else if(target->type == EXPRESSION_SYMBOL) {
     js_builder_add_format(jsb, "services.%s", ((SymbolExpression*)target)->name);
   }
-  js_builder_add_str(jsb, "().start()");
+  js_builder_add_str(jsb, "(");
+  if(machine != NULL) {
+    printer_add_child_options(printer, machine);
+  } else {
+    js_builder_add_str(jsb, "{ parent: machine }");
+  }
+  js_builder_add_str(jsb, ").start()");
 }
 
 static void print_assign(Printer* printer, AssignExpression* assign) {
   JSBuilder* jsb = printer->jsb;
+  if(assign->value != NULL && assign->value->type == EXPRESSION_SPAWN) {
+    // The key may hold what an earlier spawn put there.
+    js_builder_line(jsb, "machine.context.%s?.stop();", assign->key);
+  }
   js_builder_add_indent(jsb);
   js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: ", assign->key);
   Expression* value = assign->value;
@@ -58,6 +78,11 @@ static void print_assign(Printer* printer, AssignExpression* assign) {
 }
 
 static void print_send(Printer* printer, SendExpression* send) {
+  if(send->actor != NULL && strcmp(send->actor, "parent") == 0) {
+    // A machine nothing created has no parent to tell.
+    js_builder_line(printer->jsb, "%s?.send({ type: '%s', data: event.data });", printer->parent, send->event);
+    return;
+  }
   js_builder_line(printer->jsb, "machine.context.%s.send({ type: '%s', data: event.data });",
     send->actor, send->event);
 }

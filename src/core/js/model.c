@@ -633,6 +633,7 @@ void printer_build_model(Printer* printer) {
   printer->busy = free_name(printer, "busy");
   printer->queue = free_name(printer, "queue");
   printer->run = free_name(printer, "run");
+  printer->parent = free_name(printer, "parent");
   for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     set_invoke_kinds(printer, machine->states);
     check_targets(printer, machine->states);

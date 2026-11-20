@@ -34,3 +34,19 @@ machine parent {
     }
   }
 }
+
+machine reporter {
+  initial state only {
+    go => send(parent, report) => send(parent, unknown) => only
+  }
+}
+
+machine boss {
+  event start
+  event report
+
+  initial state idle {
+    start => assign(worker, spawn(reporter)) => idle
+    report => idle
+  }
+}
