@@ -83,6 +83,7 @@ machine todoList {
 - An input is a key of the machine's context: the spawned machine starts with `{ title, storage }` as its context, and reads and assigns them like any other key. The type, as for an event, is optional and a single name.
 - The block has one `name = value` to a line. A value is a reference, not an expression: `event.data`, `context.key`, `self` (the spawning machine), `parent` (its own parent), or a function, from `use` or a `:symbol` in `assigns`, called with `(context, event)`.
 - An imported factory or a `services` entry given to `spawn` is called with `{ context, parent }`, the inputs being the context.
+- `send(actor, event)` passes on the data of the event being handled. A third argument, a value of the same kinds, is the data instead: `send(parent, removed, self)` tells the parent which machine was removed, and `send(todo, rename, context.name)` sends a key of the context.
 - The compiler warns about a spawn that leaves out an input the machine declares, or gives one it doesn't, and about an `invoke` of a machine with inputs, which can't give any. A machine that declares no inputs is not checked.
 - In the `.d.ts`, the inputs are `TodoItemInput`, and `createTodoItem` has to be given a `context` that holds them.
 

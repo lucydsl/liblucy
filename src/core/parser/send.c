@@ -1,14 +1,22 @@
 #include "internal.h"
 
 ParseStatus parser_consume_inline_send_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
-  (void)parser;
-  (void)token;
   SendExpression* send_expression = (SendExpression*)expr;
 
+  // index counts the commas too.
   if(index == 0) {
     send_expression->actor = arg;
-  } else {
+  } else if(index == 2) {
     send_expression->event = arg;
+  } else if(index == 4) {
+    // The event's data, a value: send(parent, removed, self)
+    send_expression->data = parser_consume_value(parser, token, arg);
+    if(send_expression->data == NULL) {
+      return PARSE_FATAL;
+    }
+  } else {
+    parser_error_back(parser, parser->token_len, "send takes an actor, an event and, at most, a value for the event's data.");
+    return PARSE_FATAL;
   }
 
   return PARSE_OK;

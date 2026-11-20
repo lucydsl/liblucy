@@ -1,0 +1,13 @@
+[1m[37mtest/snapshots/error_send_data/input.lucy[0m:3:43
+
+ [1m[31m𝒙[0m[31m A value is event.data, context.name, self, parent, or a function: one from use, or a :symbol.
+
+[0m[1m[37m    1[0m │ machine todoItem {
+[1m[37m    2[0m │   initial state active {
+[1m[37m    3[0m │     remove => send(parent, removed, event.type) => active
+                                                  [1m[31m˄[0m
+[1m[37m    4[0m │   }
+[1m[37m    5[0m │ }
+
+
+Compilation failed!

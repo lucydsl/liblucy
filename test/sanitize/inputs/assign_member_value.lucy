@@ -1,0 +1,5 @@
+machine b {
+  initial state r {
+    go => assign(a, event.data) => r
+  }
+}

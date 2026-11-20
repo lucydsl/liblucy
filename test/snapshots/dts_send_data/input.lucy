@@ -1,0 +1,20 @@
+use './util.js' { describe }
+
+machine todoItem {
+  input id
+  input list
+
+  action tellRemoved = send(list, removed, self)
+
+  initial state active {
+    rename => send(list, renamed, event.data) => active
+    touch => send(parent, touched, context.id) => active
+    report => send(parent, report, describe) => send(parent, summary, :summarise) => active
+    forward => send(parent, forwarded) => active
+    remove => tellRemoved => gone
+  }
+
+  final state gone {
+    @entry => send(parent, gone, self)
+  }
+}
