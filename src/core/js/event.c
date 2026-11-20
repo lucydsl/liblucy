@@ -172,10 +172,17 @@ static void check_action(Printer* printer, JSMachine* machine, JSState* state, J
       return;
     }
     JSMachine* actor = str_map_get(actors, send->actor);
-    if(actor != NULL && actor != &unknown_actor && actor != machine && actor->events != NULL &&
-       printer_find_event(actor, send->event) == NULL) {
+    if(actor == NULL || actor == &unknown_actor || actor == machine || actor->events == NULL) {
+      return;
+    }
+    JSEvent* declared = printer_find_event(actor, send->event);
+    if(declared == NULL) {
       printer_warnf(printer, LUCY_STREAM_STDOUT,
         "send(%s, %s) in state [%s] sends an event that machine [%s] does not declare.\n",
+        send->actor, send->event, state->path, actor->name);
+    } else if(declared->type == NULL && send->data != NULL) {
+      printer_warnf(printer, LUCY_STREAM_STDOUT,
+        "send(%s, %s, ...) in state [%s] gives data to an event that machine [%s] declares without any.\n",
         send->actor, send->event, state->path, actor->name);
     }
   }

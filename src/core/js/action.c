@@ -62,20 +62,22 @@ static void add_value(Printer* printer, Expression* value) {
   }
 }
 
+// Whether a value uses the event: all but context.key, self and parent.
+static bool value_takes_event(Expression* value) {
+  if(value->type == EXPRESSION_MEMBER) {
+    return strcmp(((MemberExpression*)value)->owner, "event") == 0;
+  }
+  if(value->type == EXPRESSION_IDENTIFIER) {
+    const char* name = ((IdentifierExpression*)value)->name;
+    return strcmp(name, "self") != 0 && strcmp(name, "parent") != 0;
+  }
+  return true;
+}
+
 bool printer_spawn_takes_event(SpawnExpression* spawn) {
   for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
-    Expression* value = field->value;
-    if(value->type == EXPRESSION_SYMBOL) {
+    if(value_takes_event(field->value)) {
       return true;
-    }
-    if(value->type == EXPRESSION_MEMBER && strcmp(((MemberExpression*)value)->owner, "event") == 0) {
-      return true;
-    }
-    if(value->type == EXPRESSION_IDENTIFIER) {
-      const char* name = ((IdentifierExpression*)value)->name;
-      if(strcmp(name, "self") != 0 && strcmp(name, "parent") != 0) {
-        return true;
-      }
     }
   }
   return false;
@@ -159,13 +161,21 @@ static void print_assign(Printer* printer, AssignExpression* assign) {
 }
 
 static void print_send(Printer* printer, SendExpression* send) {
+  JSBuilder* jsb = printer->jsb;
+  js_builder_add_indent(jsb);
   if(send->actor != NULL && strcmp(send->actor, "parent") == 0) {
     // A machine nothing created has no parent to tell.
-    js_builder_line(printer->jsb, "%s?.send({ type: '%s', data: event.data });", printer->parent, send->event);
-    return;
+    js_builder_add_format(jsb, "%s?.send({ type: '%s', data: ", printer->parent, send->event);
+  } else {
+    js_builder_add_format(jsb, "machine.context.%s.send({ type: '%s', data: ", send->actor, send->event);
   }
-  js_builder_line(printer->jsb, "machine.context.%s.send({ type: '%s', data: event.data });",
-    send->actor, send->event);
+  // The data it names, or else that of the event being handled.
+  if(send->data != NULL) {
+    add_value(printer, send->data);
+  } else {
+    js_builder_add_str(jsb, "event.data");
+  }
+  js_builder_add_str(jsb, " });\n");
 }
 
 // A call of a function given as an identifier (imported) or a symbol
@@ -221,6 +231,9 @@ bool printer_action_takes_event(Printer* printer, TransitionAction* action) {
       return printer_spawn_takes_event((SpawnExpression*)assign->value);
     }
     return true;
+  }
+  if(expression->type == EXPRESSION_SEND && ((SendExpression*)expression)->data != NULL) {
+    return value_takes_event(((SendExpression*)expression)->data);
   }
   return true;
 }

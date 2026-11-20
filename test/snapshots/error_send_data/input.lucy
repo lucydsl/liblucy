@@ -1,0 +1,5 @@
+machine todoItem {
+  initial state active {
+    remove => send(parent, removed, event.type) => active
+  }
+}

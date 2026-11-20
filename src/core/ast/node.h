@@ -203,9 +203,10 @@ typedef struct OnExpression {
   const char* name;
 } OnExpression;
 
-// One line of a spawn's block, `name = value`. The value is a reference:
-// a MemberExpression (event.data, context.key), an IdentifierExpression
-// (self, parent, or a function from `use`) or a SymbolExpression.
+// One line of a spawn's block, `name = value`. The value is a reference,
+// as is the data of a send: a MemberExpression (event.data, context.key),
+// an IdentifierExpression (self, parent, or a function from `use`) or a
+// SymbolExpression.
 typedef struct SpawnField {
   const char* name;
   Expression* value;
@@ -223,6 +224,9 @@ typedef struct SendExpression {
   Expression expression;
   const char* actor;
   const char* event;
+  // The event's data, a reference as a SpawnField's value is, or NULL to
+  // pass on the data of the event being handled.
+  Expression* data;
 } SendExpression;
 
 typedef struct SymbolExpression {

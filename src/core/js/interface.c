@@ -111,6 +111,14 @@ static void collect_actions(Build* build, TransitionAction* action, const char* 
       }
     } else if(expression->type == EXPRESSION_SEND) {
       SendExpression* send = (SendExpression*)expression;
+      // The data it gives: a :symbol is in the assigns option, as a
+      // spawn's is, and parent is the machine's own.
+      if(send->data != NULL && send->data->type == EXPRESSION_SYMBOL) {
+        bag_add(build, &build->interface->assigns, ((SymbolExpression*)send->data)->name, NULL, event);
+      } else if(send->data != NULL && send->data->type == EXPRESSION_IDENTIFIER &&
+                strcmp(((IdentifierExpression*)send->data)->name, "parent") == 0) {
+        build->interface->takes_parent = true;
+      }
       if(send->actor != NULL && send->event != NULL && strcmp(send->actor, "parent") == 0) {
         build->interface->takes_parent = true;
         if(!list_contains(&build->interface->parent_events, send->event)) {

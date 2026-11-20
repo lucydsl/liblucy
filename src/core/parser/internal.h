@@ -260,4 +260,7 @@ ParseStatus parser_consume_inline_send_args(Parser*, void*, TokenType, const cha
 ParseStatus parser_consume_inline_send(Parser*, Node*);
 ParseStatus parser_consume_inline_spawn(Parser*, AssignExpression*);
 ParseStatus parser_consume_input(Parser*);
+/* A value (see value.c), token being its first token and word that
+ * token's text. NULL, after an error, when it isn't one. */
+Expression* parser_consume_value(Parser*, TokenType token, const char* word);
 ParseStatus parser_consume_inline_delay(Parser*, TransitionNode*);

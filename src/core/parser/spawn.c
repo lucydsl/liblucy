@@ -26,50 +26,6 @@ static ParseStatus consume_inline_spawn_args(Parser* parser, void* expr, TokenTy
   return PARSE_OK;
 }
 
-static const char* const value_help =
-  "A value is event.data, context.name, self, parent, or a function: one from use, or a :symbol.";
-
-// The value of a field, token being its first token: a reference, never
-// an expression. NULL, after an error, for anything else.
-static Expression* consume_value(Parser* parser, TokenType token) {
-  switch(token) {
-    case TOKEN_MEMBER_EXPRESSION: {
-      MemberExpression* member = expression_create_member(parser->arena);
-      member->owner = parser_take_word(parser);
-      // Over the dot.
-      parser_next(parser);
-      token = parser_next_token(parser);
-      if(token != TOKEN_IDENTIFIER) {
-        parser_error_back(parser, parser->token_len, value_help);
-        return NULL;
-      }
-      IdentifierExpression* property = expression_create_identifier(parser->arena);
-      property->name = parser_take_word(parser);
-      member->property = (Expression*)property;
-      bool event_data = strcmp(member->owner, "event") == 0 && strcmp(property->name, "data") == 0;
-      if(!event_data && strcmp(member->owner, "context") != 0) {
-        parser_error_back(parser, parser->token_len, value_help);
-        return NULL;
-      }
-      return (Expression*)member;
-    }
-    case TOKEN_IDENTIFIER: {
-      IdentifierExpression* identifier = expression_create_identifier(parser->arena);
-      identifier->name = parser_take_word(parser);
-      return (Expression*)identifier;
-    }
-    case TOKEN_SYMBOL: {
-      SymbolExpression* symbol = expression_create_symbol(parser->arena);
-      symbol->name = parser_take_word(parser);
-      return (Expression*)symbol;
-    }
-    default: {
-      parser_error_back(parser, parser->token_len, value_help);
-      return NULL;
-    }
-  }
-}
-
 static bool has_field(const SpawnExpression* spawn_expression, const char* name) {
   for(const SpawnField* field = spawn_expression->fields; field != NULL; field = field->next) {
     if(strcmp(field->name, name) == 0) {
@@ -110,7 +66,9 @@ static ParseStatus consume_fields(Parser* parser, SpawnExpression* spawn_express
       parser_error_backf(parser, parser->token_len, "Expected an = after the input's name, as in %s = value.", name);
       return PARSE_FATAL;
     }
-    Expression* value = consume_value(parser, parser_next_token(parser));
+    token = parser_next_token(parser);
+    const char* word = token == TOKEN_MEMBER_EXPRESSION || token == TOKEN_IDENTIFIER || token == TOKEN_SYMBOL ? parser_take_word(parser) : NULL;
+    Expression* value = parser_consume_value(parser, token, word);
     if(value == NULL) {
       return PARSE_FATAL;
     }

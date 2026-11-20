@@ -21,3 +21,22 @@ machine parent {
     stop => store => idle
   }
 }
+
+machine quiet {
+  event ping
+  event set(number)
+
+  initial state only {
+    ping => only
+    set => only
+  }
+}
+
+machine teller {
+  initial state idle {
+    @entry => assign(kid, spawn(quiet))
+    one => send(kid, ping, self) => idle
+    two => send(kid, set, context.n) => idle
+    three => send(kid, ping) => idle
+  }
+}

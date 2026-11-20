@@ -1,0 +1,5 @@
+machine b {
+  initial state r {
+    go => send(a, b, other.thing) => r
+  }
+}

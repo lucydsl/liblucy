@@ -30,7 +30,9 @@ ParseStatus parser_consume_call(Parser* parser, const char* fn_name, void* expr,
       case TOKEN_IDENTIFIER:
       case TOKEN_INTEGER:
       case TOKEN_SYMBOL:
-      case TOKEN_TIMEFRAME: {
+      case TOKEN_TIMEFRAME:
+      // The first word of a.b, the rest of which the handler reads.
+      case TOKEN_MEMBER_EXPRESSION: {
         identifier = parser_take_word(parser);
         if(parse_merge(&status, on_args(parser, expr, token, identifier, index)) == PARSE_FATAL) {
           return PARSE_FATAL;
