@@ -171,6 +171,11 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
   bool has_keys = interface->keys.length > 0;
   const char* event_constraint = has_events ? printer_concat(printer, printer_concat(printer, "{ type: ", prefix), "EventName }") : "{ type: string }";
   const char* context_constraint = has_keys ? printer_concat(printer, printer_concat(printer, "Record<", prefix), "ContextKey, any>") : "Record<string, any>";
+  // A machine with inputs has to be given a context that holds them.
+  bool has_inputs = machine->inputs != NULL;
+  if(has_inputs) {
+    context_constraint = printer_concat(printer, printer_concat(printer, context_constraint, " & "), printer_concat(printer, prefix, "Input"));
+  }
 
   // The type parameters as they are declared, and as they are passed on.
   // A machine that declares its events has no TEvent.
@@ -208,6 +213,13 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
     }
     js_builder_add_str(jsb, ";\n");
   }
+  if(has_inputs) {
+    js_builder_open(jsb, "export interface %sInput {", prefix);
+    for(JSInput* input = machine->inputs; input != NULL; input = input->next) {
+      js_builder_line(jsb, "%s: %s;", input->name, input->type != NULL ? input->type : "unknown");
+    }
+    js_builder_close(jsb, "}");
+  }
   // What assign(key) stores from the data of declared events.
   if(interface->event_data != NULL) {
     js_builder_open(jsb, "export interface %sEventData {", prefix);
@@ -229,12 +241,12 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
     // has to be able to hold it. Where it can't, the key's type here is
     // the data's, which the caller's value doesn't fit, or never when the
     // value would fit because the key's type is only part of the data's.
-    js_builder_line(jsb, "context?: { [K in keyof TContext]: K extends keyof %sEventData ? "
+    js_builder_line(jsb, "context%s: { [K in keyof TContext]: K extends keyof %sEventData ? "
                          "(%sEventData[K] extends TContext[K] ? TContext[K] : "
                          "TContext[K] extends %sEventData[K] ? never : %sEventData[K]) : TContext[K] };",
-      prefix, prefix, prefix, prefix);
+      has_inputs ? "" : "?", prefix, prefix, prefix, prefix);
   } else {
-    js_builder_line(jsb, "context?: TContext;");
+    js_builder_line(jsb, "context%s: TContext;", has_inputs ? "" : "?");
   }
   print_bag(&inventory, jsb, &interface->actions, "actions", "void");
   print_bag(&inventory, jsb, &interface->assigns, "assigns", "unknown");
@@ -248,6 +260,9 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
       js_builder_add_format(jsb, "%s'%s'", it.index > 0 ? " | " : "", it.node->value);
     }
     js_builder_add_str(jsb, "; data?: unknown }): void };\n");
+  } else if(interface->takes_parent) {
+    // It only hands its parent on, to a machine it spawns.
+    js_builder_line(jsb, "parent?: unknown;");
   }
   if(interface->services.head != NULL || interface->actors.head != NULL) {
     js_builder_open(jsb, "services: {");
@@ -292,7 +307,7 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
   js_builder_close(jsb, "}");
   js_builder_blank(jsb);
 
-  bool needs_options = printer_interface_needs_options(interface);
+  bool needs_options = printer_interface_needs_options(interface) || has_inputs;
   js_builder_add_format(jsb, "export %s %s<TContext extends %s = %s",
     machine->name != NULL ? "function" : "default function", machine->factory,
     context_constraint, context_constraint);

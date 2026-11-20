@@ -54,6 +54,38 @@ machine session {
 - The declarations change nothing in the JavaScript. The compiler warns about a transition on an event the machine doesn't declare, a declared event no state handles, `assign(key)` on an event declared without data, and `send(child, event)` to a machine spawned from the same file that doesn't declare `event`. A machine that declares no events is not checked.
 - In the `.d.ts`, the machine's events become `SessionEvents` (by name, so `SessionEvents['login']` types the event parameter of an imported guard or action) and their union `SessionEvent`. `send` takes a `SessionEvent`, or the name alone for an event without data. What the options supply is typed with the events it is used on, and the `context` passed in has to be able to hold the data that `assign(key)` stores.
 
+## Inputs
+
+A machine can declare what it has to be given when it is created, and a machine that spawns it gives those in a block after the spawn:
+
+```lucy
+use './types' { Storage }
+
+machine todoItem {
+  input title(string)
+  input storage(Storage)
+
+  initial state active {
+    rename => assign(title) => active
+  }
+}
+
+machine todoList {
+  initial state ready {
+    add => assign(todo, spawn(todoItem) {
+      title = event.data
+      storage = context.storage
+    }) => ready
+  }
+}
+```
+
+- An input is a key of the machine's context: the spawned machine starts with `{ title, storage }` as its context, and reads and assigns them like any other key. The type, as for an event, is optional and a single name.
+- The block has one `name = value` to a line. A value is a reference, not an expression: `event.data`, `context.key`, `self` (the spawning machine), `parent` (its own parent), or a function, from `use` or a `:symbol` in `assigns`, called with `(context, event)`.
+- An imported factory or a `services` entry given to `spawn` is called with `{ context, parent }`, the inputs being the context.
+- The compiler warns about a spawn that leaves out an input the machine declares, or gives one it doesn't, and about an `invoke` of a machine with inputs, which can't give any. A machine that declares no inputs is not checked.
+- In the `.d.ts`, the inputs are `TodoItemInput`, and `createTodoItem` has to be given a `context` that holds them.
+
 ## Contributing
 
 See the [contributing page](https://lucy.spooky.click/docs/contributing/) for information on how to build liblucy and the workflow for making changes.

@@ -16,42 +16,127 @@ Expression* printer_action_expression(Printer* printer, TransitionAction* action
 }
 
 void printer_add_child_options(Printer* printer, JSMachine* child) {
-  if(child->interface->parent_events.length > 0) {
+  if(child->interface->takes_parent) {
     js_builder_add_str(printer->jsb, "{ parent: machine }");
   }
 }
 
-void printer_add_spawn(Printer* printer, SpawnExpression* spawn) {
+// The function spawn(x) calls: a machine's factory, an imported function
+// or a service. *machine_out gets the machine, when it is one of this
+// file's.
+static void add_spawn_callee(Printer* printer, SpawnExpression* spawn, JSMachine** machine_out) {
   JSBuilder* jsb = printer->jsb;
   Expression* target = spawn->target;
-  // A machine of this file is given its parent if it sends to it. What
-  // anything else does with it isn't known, so it always is.
-  JSMachine* machine = NULL;
+  *machine_out = NULL;
   if(target->type == EXPRESSION_IDENTIFIER) {
     const char* name = ((IdentifierExpression*)target)->name;
-    machine = printer_find_machine(printer, name);
-    js_builder_add_str(jsb, machine != NULL ? machine->factory : name);
+    *machine_out = printer_find_machine(printer, name);
+    js_builder_add_str(jsb, *machine_out != NULL ? (*machine_out)->factory : name);
   } else if(target->type == EXPRESSION_SYMBOL) {
     js_builder_add_format(jsb, "services.%s", ((SymbolExpression*)target)->name);
   }
-  js_builder_add_str(jsb, "(");
-  if(machine != NULL) {
-    printer_add_child_options(printer, machine);
-  } else {
-    js_builder_add_str(jsb, "{ parent: machine }");
+}
+
+// A value a spawn gives, which is a reference.
+static void add_value(Printer* printer, Expression* value) {
+  JSBuilder* jsb = printer->jsb;
+  if(value->type == EXPRESSION_MEMBER) {
+    MemberExpression* member = (MemberExpression*)value;
+    const char* property = ((IdentifierExpression*)member->property)->name;
+    if(strcmp(member->owner, "context") == 0) {
+      js_builder_add_format(jsb, "machine.context.%s", property);
+    } else {
+      js_builder_add_format(jsb, "event.%s", property);
+    }
+  } else if(value->type == EXPRESSION_IDENTIFIER) {
+    const char* name = ((IdentifierExpression*)value)->name;
+    if(strcmp(name, "self") == 0) {
+      js_builder_add_str(jsb, "machine");
+    } else if(strcmp(name, "parent") == 0) {
+      js_builder_add_str(jsb, printer->parent);
+    } else {
+      js_builder_add_format(jsb, "%s(machine.context, event)", name);
+    }
+  } else if(value->type == EXPRESSION_SYMBOL) {
+    js_builder_add_format(jsb, "assigns.%s(machine.context, event)", ((SymbolExpression*)value)->name);
   }
-  js_builder_add_str(jsb, ").start()");
+}
+
+bool printer_spawn_takes_event(SpawnExpression* spawn) {
+  for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+    Expression* value = field->value;
+    if(value->type == EXPRESSION_SYMBOL) {
+      return true;
+    }
+    if(value->type == EXPRESSION_MEMBER && strcmp(((MemberExpression*)value)->owner, "event") == 0) {
+      return true;
+    }
+    if(value->type == EXPRESSION_IDENTIFIER) {
+      const char* name = ((IdentifierExpression*)value)->name;
+      if(strcmp(name, "self") != 0 && strcmp(name, "parent") != 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// assign(key, spawn(x)): what x makes is created, started and kept in
+// the context. A machine of this file is given its parent if it uses it.
+// What anything else does with it isn't known, so it always is.
+static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpression* spawn) {
+  JSBuilder* jsb = printer->jsb;
+  JSMachine* machine = NULL;
+  // The key may hold what an earlier spawn put there.
+  js_builder_line(jsb, "machine.context.%s?.stop();", assign->key);
+
+  if(spawn->fields == NULL) {
+    js_builder_add_indent(jsb);
+    js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: ", assign->key);
+    add_spawn_callee(printer, spawn, &machine);
+    js_builder_add_str(jsb, "(");
+    if(machine != NULL) {
+      printer_add_child_options(printer, machine);
+    } else {
+      js_builder_add_str(jsb, "{ parent: machine }");
+    }
+    js_builder_add_str(jsb, ").start() };\n");
+    return;
+  }
+
+  // With inputs, which are the context it starts with, over several lines.
+  js_builder_open(jsb, "machine.context = {");
+  js_builder_line(jsb, "...machine.context,");
+  js_builder_add_indent(jsb);
+  js_builder_add_format(jsb, "%s: ", assign->key);
+  add_spawn_callee(printer, spawn, &machine);
+  js_builder_add_str(jsb, "({\n");
+  jsb->depth++;
+  bool with_parent = machine == NULL || machine->interface->takes_parent;
+  js_builder_open(jsb, "context: {");
+  for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+    js_builder_add_indent(jsb);
+    js_builder_add_format(jsb, "%s: ", field->name);
+    add_value(printer, field->value);
+    js_builder_add_str(jsb, field->next != NULL ? ",\n" : "\n");
+  }
+  js_builder_close(jsb, "}%s", with_parent ? "," : "");
+  if(with_parent) {
+    js_builder_line(jsb, "parent: machine");
+  }
+  js_builder_close(jsb, "}).start()");
+  js_builder_close(jsb, "};");
 }
 
 static void print_assign(Printer* printer, AssignExpression* assign) {
   JSBuilder* jsb = printer->jsb;
-  if(assign->value != NULL && assign->value->type == EXPRESSION_SPAWN) {
-    // The key may hold what an earlier spawn put there.
-    js_builder_line(jsb, "machine.context.%s?.stop();", assign->key);
+  Expression* value = assign->value;
+  if(value != NULL && value->type == EXPRESSION_SPAWN) {
+    print_spawn(printer, assign, (SpawnExpression*)value);
+    return;
   }
   js_builder_add_indent(jsb);
   js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: ", assign->key);
-  Expression* value = assign->value;
   if(value == NULL) {
     js_builder_add_str(jsb, "event.data");
   } else {
@@ -62,10 +147,6 @@ static void print_assign(Printer* printer, AssignExpression* assign) {
       }
       case EXPRESSION_SYMBOL: {
         js_builder_add_format(jsb, "assigns.%s(machine.context, event)", ((SymbolExpression*)value)->name);
-        break;
-      }
-      case EXPRESSION_SPAWN: {
-        printer_add_spawn(printer, (SpawnExpression*)value);
         break;
       }
       default: {
@@ -132,11 +213,14 @@ bool printer_action_takes_event(Printer* printer, TransitionAction* action) {
   if(expression == NULL) {
     return false;
   }
-  // Everything is called with the event, except a spawn, which has no use
-  // for it.
+  // Everything is called with the event, except a spawn, which only has a
+  // use for it in the values it gives.
   if(expression->type == EXPRESSION_ASSIGN) {
     AssignExpression* assign = (AssignExpression*)expression;
-    return assign->value == NULL || assign->value->type != EXPRESSION_SPAWN;
+    if(assign->value != NULL && assign->value->type == EXPRESSION_SPAWN) {
+      return printer_spawn_takes_event((SpawnExpression*)assign->value);
+    }
+    return true;
   }
   return true;
 }

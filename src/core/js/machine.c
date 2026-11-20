@@ -22,7 +22,7 @@ static void add_factory_params(Printer* printer, const JSInterface* interface) {
   if(interface->guards.head != NULL) {
     js_builder_add_str(jsb, ", guards");
   }
-  if(interface->parent_events.length > 0) {
+  if(interface->takes_parent) {
     js_builder_add_str(jsb, ", parent");
     if(strcmp(printer->parent, "parent") != 0) {
       js_builder_add_format(jsb, ": %s", printer->parent);

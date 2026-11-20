@@ -1,0 +1,17 @@
+input loose
+
+machine item {
+  input title(string[])
+  input owner string
+  input title
+  input title
+  input
+
+  initial state idle {
+    machine inner {
+      input nested
+
+      initial state x {}
+    }
+  }
+}

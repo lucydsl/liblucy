@@ -17,6 +17,7 @@ typedef enum NodeType {
   NODE_INVOKE,           // InvokeNode
   NODE_LOCAL,            // LocalNode
   NODE_EVENT,            // EventNode
+  NODE_INPUT,            // InputNode
 } NodeType;
 
 // TransitionNode.type.
@@ -150,6 +151,16 @@ typedef struct EventNode {
   const char* type;
 } EventNode;
 
+// `input name` or `input name(Type)`, in a machine's block: a key of the
+// machine's context that whoever creates it has to supply.
+typedef struct InputNode {
+  Node node;
+
+  const char* name;
+  // The type of the value, or NULL when none is given.
+  const char* type;
+} InputNode;
+
 typedef struct InvokeNode {
   Node node;
   struct InvokeExpression* expr;
@@ -192,9 +203,20 @@ typedef struct OnExpression {
   const char* name;
 } OnExpression;
 
+// One line of a spawn's block, `name = value`. The value is a reference:
+// a MemberExpression (event.data, context.key), an IdentifierExpression
+// (self, parent, or a function from `use`) or a SymbolExpression.
+typedef struct SpawnField {
+  const char* name;
+  Expression* value;
+  struct SpawnField* next;
+} SpawnField;
+
 typedef struct SpawnExpression {
   Expression expression;
   Expression* target;
+  // The inputs given to what is spawned, in a block after the call.
+  SpawnField* fields;
 } SpawnExpression;
 
 typedef struct SendExpression {
@@ -242,6 +264,7 @@ ImportSpecifierNode* node_create_import_specifier(Arena*, const char*);
 AssignmentNode* node_create_assignment(Arena*, AssignmentKind);
 InvokeNode* node_create_invoke(Arena*);
 EventNode* node_create_event(Arena*);
+InputNode* node_create_input(Arena*);
 AssignExpression* expression_create_assign(Arena*);
 IdentifierExpression* expression_create_identifier(Arena*);
 SymbolExpression* expression_create_symbol(Arena*);

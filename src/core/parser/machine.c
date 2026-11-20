@@ -63,6 +63,12 @@ static ParseStatus consume_machine_inner(Parser* parser, bool is_implicit, Token
             }
             break;
           }
+          case KEYWORD_INPUT: {
+            if(parse_merge(&status, parser_consume_input(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
+            break;
+          }
           default: {
             break;
           }
