@@ -103,6 +103,22 @@ ParseStatus parser_consume_action(Parser* parser) {
           assignment->value = (Expression*)expression;
           break;
         }
+        case KEYWORD_APPEND: {
+          AssignExpression* expression = expression_create_assign(parser->arena);
+          if(parse_merge(&status, parser_consume_append_call(parser, expression)) == PARSE_FATAL) {
+            return PARSE_FATAL;
+          }
+          assignment->value = (Expression*)expression;
+          break;
+        }
+        case KEYWORD_REMOVE: {
+          RemoveExpression* expression = expression_create_remove(parser->arena);
+          if(parse_merge(&status, parser_consume_remove_call(parser, expression)) == PARSE_FATAL) {
+            return PARSE_FATAL;
+          }
+          assignment->value = (Expression*)expression;
+          break;
+        }
         default: {
           IdentifierExpression* expression = expression_create_identifier(parser->arena);
           expression->name = identifier;

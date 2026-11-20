@@ -285,6 +285,18 @@ ParseStatus parser_consume_transition(Parser* parser) {
             }
             break;
           }
+          case KEYWORD_APPEND: {
+            if(parse_merge(&status, parser_consume_inline_append(parser, transition_node_node)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
+            break;
+          }
+          case KEYWORD_REMOVE: {
+            if(parse_merge(&status, parser_consume_inline_remove(parser, transition_node_node)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
+            break;
+          }
           default: {
             if(parser_has_guard_name(parser, identifier)) {
               node_transition_add_guard(parser->arena, transition_node, identifier);

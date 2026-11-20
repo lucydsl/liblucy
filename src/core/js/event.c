@@ -133,18 +133,40 @@ static void visit_machine(Printer* printer, JSMachine* machine, ActionVisitor vi
 // file: something from the options, or one machine here and another there.
 static JSMachine unknown_actor;
 
-// Record, by context key, the machine each assign(key, spawn(name)) spawns.
+// What the checks know about the context keys that hold machines.
+typedef struct Actors {
+  // By key, the machine each assign(key, spawn(name)) spawns.
+  StrMap* machines;
+  // The keys that hold one machine, and the ones that hold a list.
+  StrSet singles;
+  StrSet lists;
+  // The keys of lists, in order.
+  StringList list_keys;
+} Actors;
+
+// Record what each assign(key, spawn(name)) and append(key, spawn(name))
+// puts in its key.
 static void collect_spawn(Printer* printer, JSMachine* machine, JSState* state, JSEvent* event, Expression* expression, void* data) {
   (void)machine;
   (void)state;
   (void)event;
-  StrMap* actors = data;
+  Actors* actors = data;
   if(expression->type != EXPRESSION_ASSIGN) {
     return;
   }
   AssignExpression* assign = (AssignExpression*)expression;
+  bool spawns = assign->value != NULL && assign->value->type == EXPRESSION_SPAWN;
+  if(assign->append) {
+    if(str_set_add(&actors->lists, assign->key)) {
+      string_list_append(&actors->list_keys, assign->key);
+    }
+    return;
+  }
+  if(spawns) {
+    str_set_add(&actors->singles, assign->key);
+  }
   JSMachine* spawned = &unknown_actor;
-  if(assign->value != NULL && assign->value->type == EXPRESSION_SPAWN) {
+  if(spawns) {
     Expression* target = ((SpawnExpression*)assign->value)->target;
     if(target->type == EXPRESSION_IDENTIFIER) {
       JSMachine* found = printer_find_machine(printer, ((IdentifierExpression*)target)->name);
@@ -153,12 +175,12 @@ static void collect_spawn(Printer* printer, JSMachine* machine, JSState* state, 
       }
     }
   }
-  JSMachine* before = str_map_get(actors, assign->key);
-  str_map_set(actors, assign->key, before == NULL || before == spawned ? spawned : &unknown_actor);
+  JSMachine* before = str_map_get(actors->machines, assign->key);
+  str_map_set(actors->machines, assign->key, before == NULL || before == spawned ? spawned : &unknown_actor);
 }
 
 static void check_action(Printer* printer, JSMachine* machine, JSState* state, JSEvent* event, Expression* expression, void* data) {
-  StrMap* actors = data;
+  Actors* actors = data;
   if(expression->type == EXPRESSION_ASSIGN) {
     AssignExpression* assign = (AssignExpression*)expression;
     if(assign->value == NULL && event != NULL && event->type == NULL) {
@@ -171,7 +193,13 @@ static void check_action(Printer* printer, JSMachine* machine, JSState* state, J
     if(send->actor == NULL || send->event == NULL) {
       return;
     }
-    JSMachine* actor = str_map_get(actors, send->actor);
+    if(str_set_contains(&actors->lists, send->actor) && !str_set_contains(&actors->singles, send->actor)) {
+      printer_warnf(printer, LUCY_STREAM_STDOUT,
+        "send(%s, %s) in state [%s] sends to [%s], which holds a list of machines. A send goes to one machine.\n",
+        send->actor, send->event, state->path, send->actor);
+      return;
+    }
+    JSMachine* actor = str_map_get(actors->machines, send->actor);
     if(actor == NULL || actor == &unknown_actor || actor == machine || actor->events == NULL) {
       return;
     }
@@ -223,7 +251,17 @@ void printer_check_events(Printer* printer, JSMachine* machine) {
     }
   }
 
-  StrMap* actors = str_map_create(printer->arena);
-  visit_machine(printer, machine, collect_spawn, actors);
-  visit_machine(printer, machine, check_action, actors);
+  Actors actors = { .machines = str_map_create(printer->arena) };
+  str_set_init(&actors.singles, printer->arena);
+  str_set_init(&actors.lists, printer->arena);
+  string_list_init(&actors.list_keys, printer->arena);
+  visit_machine(printer, machine, collect_spawn, &actors);
+  for(StringListIterator it = string_list_iterator(&actors.list_keys); string_list_next(&it);) {
+    if(str_set_contains(&actors.singles, it.node->value)) {
+      printer_warnf(printer, LUCY_STREAM_STDOUT,
+        "[%s] holds one machine where assign spawns into it, and a list where append does. Use one or the other.\n",
+        it.node->value);
+    }
+  }
+  visit_machine(printer, machine, check_action, &actors);
 }

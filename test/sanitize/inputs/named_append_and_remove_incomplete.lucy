@@ -1,0 +1,3 @@
+action add = append(todos)
+action drop = remove(todos)
+state s {}

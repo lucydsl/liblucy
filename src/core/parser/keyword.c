@@ -22,6 +22,8 @@ static const struct {
   { "send", KEYWORD_SEND },
   { "event", KEYWORD_EVENT },
   { "input", KEYWORD_INPUT },
+  { "append", KEYWORD_APPEND },
+  { "remove", KEYWORD_REMOVE },
 };
 
 Keyword keyword_lookup(const char* key) {

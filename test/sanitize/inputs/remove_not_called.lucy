@@ -1,0 +1,8 @@
+machine a {
+  initial state s {}
+}
+machine b {
+  initial state r {
+    go => remove => r
+  }
+}

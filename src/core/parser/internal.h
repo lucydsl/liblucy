@@ -216,6 +216,8 @@ typedef enum Keyword {
   KEYWORD_SEND,
   KEYWORD_EVENT,
   KEYWORD_INPUT,
+  KEYWORD_APPEND,
+  KEYWORD_REMOVE,
 } Keyword;
 
 /* The keyword a word is, or KEYWORD_NONE (also for NULL). */
@@ -256,6 +258,13 @@ ParseStatus parser_consume_guard(Parser*);
 ParseStatus parser_consume_inline_guard(Parser*, TransitionNode*);
 ParseStatus parser_consume_inline_assign_args(Parser*, void*, TokenType, const char*, size_t);
 ParseStatus parser_consume_inline_assign(Parser*, Node*);
+/* append(key, spawn(x)), after the word append. */
+ParseStatus parser_consume_inline_append(Parser*, Node*);
+/* The call of an append, into expression, which becomes one. */
+ParseStatus parser_consume_append_call(Parser*, AssignExpression* expression);
+/* remove(key, value), after the word remove. */
+ParseStatus parser_consume_inline_remove(Parser*, Node*);
+ParseStatus parser_consume_remove_call(Parser*, RemoveExpression* expression);
 ParseStatus parser_consume_inline_send_args(Parser*, void*, TokenType, const char*, size_t);
 ParseStatus parser_consume_inline_send(Parser*, Node*);
 ParseStatus parser_consume_inline_spawn(Parser*, AssignExpression*);

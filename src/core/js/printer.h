@@ -196,8 +196,10 @@ typedef struct Printer {
   const char* busy;
   const char* queue;
   const char* run;
-  // Likewise the variable for the machine's parent.
+  // Likewise the variable for the machine's parent, and the one for a
+  // machine in a list.
   const char* parent;
+  const char* actor;
   // The machine being printed.
   JSMachine* machine;
   // Printing TypeScript: each factory comes after its types, and what it

@@ -3,6 +3,8 @@ Event [unused] is declared by machine [kid], but none of its states handles it.
 send(child, nope) in state [idle] sends an event that machine [kid] does not declare.
 assign(last) in state [idle] stores the data of event [stop], which is declared without any.
 send(kid, ping, ...) in state [idle] gives data to an event that machine [quiet] declares without any.
+[mixed] holds one machine where assign spawns into it, and a list where append does. Use one or the other.
+send(many, ping) in state [idle] sends to [many], which holds a list of machines. A send goes to one machine.
 export function createKid({ context = {} } = {}) {
   const listeners = new Set();
   const states = {
@@ -258,6 +260,99 @@ export function createTeller({ context = {} } = {}) {
     stop() {
       if(machine.context.kid) {
         machine.context.kid.stop();
+      }
+      queue.length = 0;
+      listeners.clear();
+    }
+  };
+  return machine;
+}
+
+export function createKeeper({ context = {} } = {}) {
+  const listeners = new Set();
+  let busy = false;
+  const queue = [];
+  const states = {
+    idle: {
+      add() {
+        machine.context = {
+          ...machine.context,
+          many: [
+            ...(machine.context.many ?? []),
+            createQuiet().start()
+          ]
+        };
+        machine.state = 'idle';
+      },
+      tell(event) {
+        machine.context.many.send({ type: 'ping', data: event.data });
+        machine.state = 'idle';
+      },
+      both() {
+        machine.context = {
+          ...machine.context,
+          mixed: [
+            ...(machine.context.mixed ?? []),
+            createQuiet().start()
+          ]
+        };
+        machine.state = 'idle';
+      },
+      one() {
+        machine.context.mixed?.stop();
+        machine.context = { ...machine.context, mixed: createQuiet().start() };
+        machine.state = 'idle';
+      },
+      poke(event) {
+        machine.context.mixed.send({ type: 'ping', data: event.data });
+        machine.state = 'idle';
+      }
+    }
+  };
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
+    }
+  }
+  const machine = {
+    state: 'idle',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      for(const actor of machine.context.many ?? []) {
+        actor.stop();
+      }
+      for(const actor of machine.context.mixed ?? []) {
+        actor.stop();
       }
       queue.length = 0;
       listeners.clear();

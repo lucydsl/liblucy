@@ -43,6 +43,7 @@ typedef enum ExpressionType {
   EXPRESSION_ON,         // OnExpression
   EXPRESSION_SPAWN,      // SpawnExpression
   EXPRESSION_SEND,       // SendExpression
+  EXPRESSION_REMOVE,     // RemoveExpression
   EXPRESSION_SYMBOL,     // SymbolExpression
   EXPRESSION_INVOKE,     // InvokeExpression
   EXPRESSION_MEMBER,     // MemberExpression
@@ -180,7 +181,18 @@ typedef struct AssignExpression {
   Expression expression;
   const char* key;
   Expression* value;
+  // append(key, spawn(x)): the key holds a list, which the spawned machine
+  // is added to. The value is then a SpawnExpression.
+  bool append;
 } AssignExpression;
+
+// remove(key, value): stop the machine that value refers to and take it
+// out of the list the key holds. The value is event.data or context.key.
+typedef struct RemoveExpression {
+  Expression expression;
+  const char* key;
+  Expression* value;
+} RemoveExpression;
 
 typedef struct GuardExpression {
   Expression expression;
@@ -278,6 +290,7 @@ DelayExpression* expression_create_delay(Arena*);
 OnExpression* expression_create_on(Arena*);
 SpawnExpression* expression_create_spawn(Arena*);
 SendExpression* expression_create_send(Arena*);
+RemoveExpression* expression_create_remove(Arena*);
 InvokeExpression* expression_create_invoke(Arena*);
 MemberExpression* expression_create_member(Arena*);
 LocalNode* node_create_local(Arena*);

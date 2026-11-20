@@ -1,0 +1,13 @@
+[1m[37mtest/snapshots/error_append/input.lucy[0m:3:30
+
+ [1m[31m𝒙[0m[31m append takes the key of a list and a spawn, as in append(todos, spawn(todoItem)).
+
+[0m[1m[37m    1[0m │ machine a {
+[1m[37m    2[0m │   initial state s {
+[1m[37m    3[0m │     go => append(todos, :make) => s
+                                     [1m[31m˄[0m
+[1m[37m    4[0m │   }
+[1m[37m    5[0m │ }
+
+
+Compilation failed!

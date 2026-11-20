@@ -1,5 +1,7 @@
 #include "internal.h"
 
+#include <stdbool.h>
+
 /* Public API */
 ParseStatus parser_consume_inline_assign_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   ParseStatus status = PARSE_OK;
@@ -44,11 +46,26 @@ ParseStatus parser_consume_inline_assign_args(Parser* parser, void* expr, TokenT
   return status;
 }
 
-ParseStatus parser_consume_inline_assign(Parser* parser, Node* node) {
+ParseStatus parser_consume_append_call(Parser* parser, AssignExpression* expression) {
+  ParseStatus status = PARSE_OK;
+  expression->append = true;
+  if(parse_merge(&status, parser_consume_call(parser, "append", expression, &parser_consume_inline_assign_args)) == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
+  // Only a spawn can be appended.
+  if(status == PARSE_OK && (expression->key == NULL || expression->value == NULL || expression->value->type != EXPRESSION_SPAWN)) {
+    parser_error_back(parser, parser->token_len, "append takes the key of a list and a spawn, as in append(todos, spawn(todoItem)).");
+    return PARSE_FATAL;
+  }
+  return status;
+}
+
+static ParseStatus consume_inline(Parser* parser, Node* node, bool append) {
   ParseStatus status = PARSE_OK;
   AssignExpression* assign_expression = expression_create_assign(parser->arena);
 
-  if(parse_merge(&status, parser_consume_call(parser, "assign", assign_expression, &parser_consume_inline_assign_args)) == PARSE_FATAL) {
+  ParseStatus call = append ? parser_consume_append_call(parser, assign_expression) : parser_consume_call(parser, "assign", assign_expression, &parser_consume_inline_assign_args);
+  if(parse_merge(&status, call) == PARSE_FATAL) {
     return PARSE_FATAL;
   }
 
@@ -72,4 +89,12 @@ ParseStatus parser_consume_inline_assign(Parser* parser, Node* node) {
   }
 
   return status;
+}
+
+ParseStatus parser_consume_inline_assign(Parser* parser, Node* node) {
+  return consume_inline(parser, node, false);
+}
+
+ParseStatus parser_consume_inline_append(Parser* parser, Node* node) {
+  return consume_inline(parser, node, true);
 }
