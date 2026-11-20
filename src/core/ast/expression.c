@@ -40,6 +40,10 @@ SendExpression* expression_create_send(Arena* arena) {
   return (SendExpression*)create_expression(arena, EXPRESSION_SEND, sizeof(SendExpression));
 }
 
+RemoveExpression* expression_create_remove(Arena* arena) {
+  return (RemoveExpression*)create_expression(arena, EXPRESSION_REMOVE, sizeof(RemoveExpression));
+}
+
 SymbolExpression* expression_create_symbol(Arena* arena) {
   return (SymbolExpression*)create_expression(arena, EXPRESSION_SYMBOL, sizeof(SymbolExpression));
 }

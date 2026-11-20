@@ -87,6 +87,28 @@ machine todoList {
 - The compiler warns about a spawn that leaves out an input the machine declares, or gives one it doesn't, and about an `invoke` of a machine with inputs, which can't give any. A machine that declares no inputs is not checked.
 - In the `.d.ts`, the inputs are `TodoItemInput`, and `createTodoItem` has to be given a `context` that holds them.
 
+## Lists of machines
+
+`assign(key, spawn(machine))` keeps one machine. To keep many, `append` adds what a spawn makes to a list, and `remove` takes a machine out of it:
+
+```lucy
+machine todoList {
+  initial state ready {
+    add => append(todos, spawn(todoItem) {
+      title = event.data
+      list = self
+    }) => ready
+    removedTodo => remove(todos, event.data) => ready
+  }
+}
+```
+
+- `append(key, spawn(...))` adds the new machine to the list in `context[key]`, which need not exist yet. The list, like the context, is replaced and not changed.
+- `remove(key, value)` stops the machine and takes it out of the list, if it is in it; if it isn't, nothing happens. The value is `event.data` or `context.key`.
+- `stop()` stops every machine in the list. A machine that reaches a final state stays in the list until it is removed.
+- `append` and `remove` are keywords where an action goes, so a state can't be called either and be a transition's target. An event still can.
+- The compiler warns about a key that `assign` spawns into and `append` adds to, and about a `send` to a key that holds a list.
+
 ## Contributing
 
 See the [contributing page](https://lucy.spooky.click/docs/contributing/) for information on how to build liblucy and the workflow for making changes.

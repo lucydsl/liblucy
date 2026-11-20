@@ -40,3 +40,13 @@ machine teller {
     three => send(kid, ping) => idle
   }
 }
+
+machine keeper {
+  initial state idle {
+    add => append(many, spawn(quiet)) => idle
+    tell => send(many, ping) => idle
+    both => append(mixed, spawn(quiet)) => idle
+    one => assign(mixed, spawn(quiet)) => idle
+    poke => send(mixed, ping) => idle
+  }
+}

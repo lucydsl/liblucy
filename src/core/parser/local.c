@@ -70,6 +70,18 @@ ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
         }
         break;
       }
+      case KEYWORD_APPEND: {
+        if(parse_merge(&status, parser_consume_inline_append(parser, node)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
+        break;
+      }
+      case KEYWORD_REMOVE: {
+        if(parse_merge(&status, parser_consume_inline_remove(parser, node)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
+        break;
+      }
       case KEYWORD_GUARD: {
         status = PARSE_ERROR;
         parser_error_backf(parser, parser->token_len, "Guards are not allowed in %s", local_name(key));

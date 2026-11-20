@@ -3,6 +3,8 @@ Event [unused] is declared by machine [kid], but none of its states handles it.
 send(child, nope) in state [idle] sends an event that machine [kid] does not declare.
 assign(last) in state [idle] stores the data of event [stop], which is declared without any.
 send(kid, ping, ...) in state [idle] gives data to an event that machine [quiet] declares without any.
+[mixed] holds one machine where assign spawns into it, and a list where append does. Use one or the other.
+send(many, ping) in state [idle] sends to [many], which holds a list of machines. A send goes to one machine.
 export type KidState = 'only';
 export interface KidEvents {
   ping: { type: 'ping'; data: number };
@@ -92,3 +94,22 @@ export interface TellerMachine<TContext extends Record<TellerContextKey, any>, T
 }
 
 export function createTeller<TContext extends Record<TellerContextKey, any> = Record<TellerContextKey, any>, TEvent extends { type: TellerEventName } = { type: TellerEventName }>(options?: CreateTellerOptions<TContext, TEvent>): TellerMachine<TContext, TEvent>;
+
+export type KeeperState = 'idle';
+export type KeeperEventName = 'add' | 'tell' | 'both' | 'one' | 'poke';
+export type KeeperContextKey = 'many' | 'mixed';
+
+export interface CreateKeeperOptions<TContext extends Record<KeeperContextKey, any>, TEvent extends { type: KeeperEventName }> {
+  context?: TContext;
+}
+
+export interface KeeperMachine<TContext extends Record<KeeperContextKey, any>, TEvent extends { type: KeeperEventName }> {
+  state: KeeperState;
+  context: TContext;
+  send(event: TEvent | TEvent['type']): void;
+  subscribe(listener: (machine: KeeperMachine<TContext, TEvent>) => void): () => void;
+  start(): KeeperMachine<TContext, TEvent>;
+  stop(): void;
+}
+
+export function createKeeper<TContext extends Record<KeeperContextKey, any> = Record<KeeperContextKey, any>, TEvent extends { type: KeeperEventName } = { type: KeeperEventName }>(options?: CreateKeeperOptions<TContext, TEvent>): KeeperMachine<TContext, TEvent>;

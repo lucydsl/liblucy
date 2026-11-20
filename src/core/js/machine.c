@@ -72,8 +72,16 @@ static void print_resource_cleanup(Printer* printer, JSState* state) {
 static void collect_spawn_keys_in(Printer* printer, TransitionAction* action, StrSet* keys) {
   for(; action != NULL; action = action->next) {
     AssignExpression* assign = printer_action_spawn(printer, action);
-    if(assign != NULL && str_set_add(keys, assign->key)) {
-      // stop() stops the actors the machine spawned into its context.
+    if(assign == NULL || !str_set_add(keys, assign->key)) {
+      continue;
+    }
+    // stop() stops the actors the machine spawned into its context: the
+    // one a key holds, or each in the list an append made.
+    if(assign->append) {
+      js_builder_open(printer->jsb, "for(const %s of machine.context.%s ?? []) {", printer->actor, assign->key);
+      js_builder_line(printer->jsb, "%s.stop();", printer->actor);
+      js_builder_close(printer->jsb, "}");
+    } else {
       js_builder_open(printer->jsb, "if(machine.context.%s) {", assign->key);
       js_builder_line(printer->jsb, "machine.context.%s.stop();", assign->key);
       js_builder_close(printer->jsb, "}");

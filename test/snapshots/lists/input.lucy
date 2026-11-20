@@ -1,0 +1,30 @@
+machine todoItem {
+  input title
+  input list
+
+  initial state active {
+    remove => removed
+  }
+
+  final state removed {
+    @entry => send(list, removedTodo, self)
+  }
+}
+
+machine plain {
+  initial state only {}
+}
+
+machine todoList {
+  action addPlain = append(others, spawn(plain))
+
+  initial state ready {
+    @entry => addPlain
+    add => append(todos, spawn(todoItem) {
+      title = event.data
+      list = self
+    }) => ready
+    removedTodo => remove(todos, event.data) => ready
+    drop => remove(others, context.selected) => ready
+  }
+}

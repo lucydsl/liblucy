@@ -109,6 +109,8 @@ static void collect_actions(Build* build, TransitionAction* action, const char* 
           }
         }
       }
+    } else if(expression->type == EXPRESSION_REMOVE) {
+      add_key(build, ((RemoveExpression*)expression)->key);
     } else if(expression->type == EXPRESSION_SEND) {
       SendExpression* send = (SendExpression*)expression;
       // The data it gives: a :symbol is in the assigns option, as a

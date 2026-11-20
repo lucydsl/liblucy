@@ -1,0 +1,13 @@
+[1m[37mtest/snapshots/error_remove/input.lucy[0m:3:25
+
+ [1m[31m𝒙[0m[31m remove takes the key of a list and the machine to remove, event.data or context.name, as in remove(todos, event.data).
+
+[0m[1m[37m    1[0m │ machine a {
+[1m[37m    2[0m │   initial state s {
+[1m[37m    3[0m │     go => remove(todos, self) => s
+                                [1m[31m˄[0m
+[1m[37m    4[0m │   }
+[1m[37m    5[0m │ }
+
+
+Compilation failed!

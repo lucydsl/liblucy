@@ -83,35 +83,27 @@ bool printer_spawn_takes_event(SpawnExpression* spawn) {
   return false;
 }
 
-// assign(key, spawn(x)): what x makes is created, started and kept in
-// the context. A machine of this file is given its parent if it uses it.
-// What anything else does with it isn't known, so it always is.
-static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpression* spawn) {
+// What spawn(x) is in the output, from where the line is up to: the call
+// that creates what x makes and starts it. With inputs, which are the
+// context it starts with, it is over several lines. A machine of this file
+// is given its parent if it uses it. What anything else does with it isn't
+// known, so it always is.
+static void add_spawn_call(Printer* printer, SpawnExpression* spawn) {
   JSBuilder* jsb = printer->jsb;
   JSMachine* machine = NULL;
-  // The key may hold what an earlier spawn put there.
-  js_builder_line(jsb, "machine.context.%s?.stop();", assign->key);
+  add_spawn_callee(printer, spawn, &machine);
 
   if(spawn->fields == NULL) {
-    js_builder_add_indent(jsb);
-    js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: ", assign->key);
-    add_spawn_callee(printer, spawn, &machine);
     js_builder_add_str(jsb, "(");
     if(machine != NULL) {
       printer_add_child_options(printer, machine);
     } else {
       js_builder_add_str(jsb, "{ parent: machine }");
     }
-    js_builder_add_str(jsb, ").start() };\n");
+    js_builder_add_str(jsb, ").start()");
     return;
   }
 
-  // With inputs, which are the context it starts with, over several lines.
-  js_builder_open(jsb, "machine.context = {");
-  js_builder_line(jsb, "...machine.context,");
-  js_builder_add_indent(jsb);
-  js_builder_add_format(jsb, "%s: ", assign->key);
-  add_spawn_callee(printer, spawn, &machine);
   js_builder_add_str(jsb, "({\n");
   jsb->depth++;
   bool with_parent = machine == NULL || machine->interface->takes_parent;
@@ -126,8 +118,66 @@ static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpress
   if(with_parent) {
     js_builder_line(jsb, "parent: machine");
   }
-  js_builder_close(jsb, "}).start()");
+  jsb->depth--;
+  js_builder_add_indent(jsb);
+  js_builder_add_str(jsb, "}).start()");
+}
+
+// assign(key, spawn(x)): the machine is kept in the context, in place of
+// what the key held. append(key, spawn(x)): it is added to the list the
+// key holds.
+static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpression* spawn) {
+  JSBuilder* jsb = printer->jsb;
+  if(assign->append) {
+    js_builder_open(jsb, "machine.context = {");
+    js_builder_line(jsb, "...machine.context,");
+    js_builder_open(jsb, "%s: [", assign->key);
+    // There need be no list yet.
+    js_builder_line(jsb, "...(machine.context.%s ?? []),", assign->key);
+    js_builder_add_indent(jsb);
+    add_spawn_call(printer, spawn);
+    js_builder_add_str(jsb, "\n");
+    js_builder_close(jsb, "]");
+    js_builder_close(jsb, "};");
+    return;
+  }
+
+  // The key may hold what an earlier spawn put there.
+  js_builder_line(jsb, "machine.context.%s?.stop();", assign->key);
+  if(spawn->fields == NULL) {
+    js_builder_add_indent(jsb);
+    js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: ", assign->key);
+    add_spawn_call(printer, spawn);
+    js_builder_add_str(jsb, " };\n");
+    return;
+  }
+  js_builder_open(jsb, "machine.context = {");
+  js_builder_line(jsb, "...machine.context,");
+  js_builder_add_indent(jsb);
+  js_builder_add_format(jsb, "%s: ", assign->key);
+  add_spawn_call(printer, spawn);
+  js_builder_add_str(jsb, "\n");
   js_builder_close(jsb, "};");
+}
+
+// remove(key, value): the machine is stopped and taken out of the list,
+// if it is in it.
+static void print_remove(Printer* printer, RemoveExpression* remove) {
+  JSBuilder* jsb = printer->jsb;
+  js_builder_add_indent(jsb);
+  js_builder_add_format(jsb, "if(machine.context.%s?.includes(", remove->key);
+  add_value(printer, remove->value);
+  js_builder_add_str(jsb, ")) {\n");
+  jsb->depth++;
+  js_builder_add_indent(jsb);
+  add_value(printer, remove->value);
+  js_builder_add_str(jsb, ".stop();\n");
+  js_builder_add_indent(jsb);
+  js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: machine.context.%s.filter(%s => %s !== ",
+    remove->key, remove->key, printer->actor, printer->actor);
+  add_value(printer, remove->value);
+  js_builder_add_str(jsb, ") };\n");
+  js_builder_close(jsb, "}");
 }
 
 static void print_assign(Printer* printer, AssignExpression* assign) {
@@ -202,6 +252,10 @@ void printer_print_action(Printer* printer, TransitionAction* action) {
       print_send(printer, (SendExpression*)expression);
       break;
     }
+    case EXPRESSION_REMOVE: {
+      print_remove(printer, (RemoveExpression*)expression);
+      break;
+    }
     case EXPRESSION_ACTION: {
       print_call(printer, ((ActionExpression*)expression)->ref, "actions");
       break;
@@ -234,6 +288,9 @@ bool printer_action_takes_event(Printer* printer, TransitionAction* action) {
   }
   if(expression->type == EXPRESSION_SEND && ((SendExpression*)expression)->data != NULL) {
     return value_takes_event(((SendExpression*)expression)->data);
+  }
+  if(expression->type == EXPRESSION_REMOVE) {
+    return value_takes_event(((RemoveExpression*)expression)->value);
   }
   return true;
 }
