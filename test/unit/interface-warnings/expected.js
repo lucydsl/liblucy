@@ -1,5 +1,6 @@
 Machine [parent] spawns machine [kid], which needs options that nothing supplies to it (actions.log, delays.wait, guards.ok), so it will throw when it uses them.
 Machine [parent] invokes machine [timer], which needs options that nothing supplies to it (actions.ring), so it will throw when it uses them.
+Machine [reporter] sends its parent the event [unknown], which machine [boss], which spawns it, does not declare.
 export function createKid({ actions, context = {}, delays, guards } = {}) {
   const listeners = new Set();
   let busy = false;
@@ -222,6 +223,7 @@ export function createParent({ context = {} } = {}) {
   const states = {
     idle: {
       again() {
+        machine.context.child?.stop();
         machine.context = { ...machine.context, child: createKid().start() };
         enterIdle();
       },
@@ -233,7 +235,9 @@ export function createParent({ context = {} } = {}) {
   };
   function enterIdle() {
     machine.state = 'idle';
+    machine.context.child?.stop();
     machine.context = { ...machine.context, child: createKid().start() };
+    machine.context.other?.stop();
     machine.context = { ...machine.context, other: createPlain().start() };
   }
   function enterWaiting() {
@@ -318,6 +322,130 @@ export function createParent({ context = {} } = {}) {
       }
       if(machine.context.other) {
         machine.context.other.stop();
+      }
+      queue.length = 0;
+      listeners.clear();
+    }
+  };
+  return machine;
+}
+
+export function createReporter({ context = {}, parent } = {}) {
+  const listeners = new Set();
+  let busy = false;
+  const queue = [];
+  const states = {
+    only: {
+      go(event) {
+        parent?.send({ type: 'report', data: event.data });
+        parent?.send({ type: 'unknown', data: event.data });
+        machine.state = 'only';
+      }
+    }
+  };
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
+    }
+  }
+  const machine = {
+    state: 'only',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      queue.length = 0;
+      listeners.clear();
+    }
+  };
+  return machine;
+}
+
+export function createBoss({ context = {} } = {}) {
+  const listeners = new Set();
+  let busy = false;
+  const queue = [];
+  const states = {
+    idle: {
+      start() {
+        machine.context.worker?.stop();
+        machine.context = { ...machine.context, worker: createReporter({ parent: machine }).start() };
+        machine.state = 'idle';
+      },
+      report() {
+        machine.state = 'idle';
+      }
+    }
+  };
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
+    }
+  }
+  const machine = {
+    state: 'idle',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      if(machine.context.worker) {
+        machine.context.worker.stop();
       }
       queue.length = 0;
       listeners.clear();

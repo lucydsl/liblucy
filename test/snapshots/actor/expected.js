@@ -47,10 +47,12 @@ export default function createMachine({ context = {} } = {}) {
   const states = {
     idle: {
       event() {
+        machine.context.first?.stop();
         machine.context = { ...machine.context, first: createOther().start() };
         machine.state = 'idle';
       },
       another() {
+        machine.context.second?.stop();
         machine.context = { ...machine.context, second: createOther().start() };
         machine.state = 'idle';
       }

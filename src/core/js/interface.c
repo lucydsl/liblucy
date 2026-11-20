@@ -98,6 +98,12 @@ static void collect_actions(Build* build, TransitionAction* action, const char* 
           bag_add(build, &build->interface->actors, ((SymbolExpression*)target)->name, NULL, event);
         }
       }
+    } else if(expression->type == EXPRESSION_SEND) {
+      SendExpression* send = (SendExpression*)expression;
+      if(send->actor != NULL && send->event != NULL && strcmp(send->actor, "parent") == 0 &&
+         !list_contains(&build->interface->parent_events, send->event)) {
+        string_list_append(&build->interface->parent_events, send->event);
+      }
     } else if(expression->type == EXPRESSION_ACTION) {
       Expression* ref = ((ActionExpression*)expression)->ref;
       if(ref->type == EXPRESSION_SYMBOL) {
@@ -185,6 +191,7 @@ void printer_build_interface(Printer* printer, JSMachine* machine) {
   bag_init(&interface->actors, arena);
   string_list_init(&interface->events, arena);
   str_set_init(&interface->event_set, arena);
+  string_list_init(&interface->parent_events, arena);
   string_list_init(&interface->keys, arena);
   str_set_init(&interface->key_set, arena);
   machine->interface = interface;
@@ -210,11 +217,26 @@ static void add_needs(StrBuilder* text, const JSSymbolBag* bag, const char* opti
   }
 }
 
-// Warn, once for each machine, that machine creates child, when child
-// needs options: a machine created by another gets none.
+// Warn, once for each machine that machine creates, about what child
+// expects of its creator that it doesn't get: options (a machine created
+// by another gets none), and a parent that declares the events it sends.
 static void check_child(Printer* printer, JSMachine* machine, JSMachine* child, const char* how, StrSet* warned) {
   JSInterface* needs = child->interface;
-  if(!printer_interface_needs_options(needs) || !str_set_add(warned, child->name)) {
+  if(!str_set_add(warned, child->name)) {
+    return;
+  }
+  // The events the child sends its parent, which this machine is, are
+  // ones it should declare, if it declares its events.
+  if(machine->events != NULL) {
+    for(StringListIterator it = string_list_iterator(&needs->parent_events); string_list_next(&it);) {
+      if(printer_find_event(machine, it.node->value) == NULL) {
+        printer_warnf(printer, LUCY_STREAM_STDOUT,
+          "Machine [%s] sends its parent the event [%s], which machine [%s], which %s it, does not declare.\n",
+          child->name, it.node->value, machine->name, how);
+      }
+    }
+  }
+  if(!printer_interface_needs_options(needs)) {
     return;
   }
   StrBuilder* text = str_builder_create();

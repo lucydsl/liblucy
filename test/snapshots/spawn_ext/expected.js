@@ -8,7 +8,8 @@ export default function createMachine({ context = {}, services } = {}) {
   };
   function enterInit() {
     machine.state = 'init';
-    machine.context = { ...machine.context, mac: services.external().start() };
+    machine.context.mac?.stop();
+    machine.context = { ...machine.context, mac: services.external({ parent: machine }).start() };
     machine.state = 'idle';
   }
   function notify() {

@@ -1,9 +1,11 @@
 #!/bin/bash
 
 # The warning about a machine that spawns or invokes a machine of the same
-# file that needs options, which nothing supplies to it: once for each such
-# machine. The snapshot tests can't hold these: their inputs compile without
-# warnings, as the wasm tests compare the compiler's output alone.
+# file that needs options, which nothing supplies to it, once for each such
+# machine; and the one about a machine that sends its parent an event that
+# the machine creating it doesn't declare. The snapshot tests can't hold
+# these: their inputs compile without warnings, as the wasm tests compare
+# the compiler's output alone.
 
 dir=$(dirname "$0")
 ret=0

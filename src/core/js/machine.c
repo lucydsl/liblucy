@@ -1,6 +1,7 @@
 #include "printer.h"
 
 #include <stdbool.h>
+#include <string.h>
 
 #include "../support/str_set.h"
 
@@ -20,6 +21,12 @@ static void add_factory_params(Printer* printer, const JSInterface* interface) {
   }
   if(interface->guards.head != NULL) {
     js_builder_add_str(jsb, ", guards");
+  }
+  if(interface->parent_events.length > 0) {
+    js_builder_add_str(jsb, ", parent");
+    if(strcmp(printer->parent, "parent") != 0) {
+      js_builder_add_format(jsb, ": %s", printer->parent);
+    }
   }
   if(interface->services.head != NULL || interface->actors.head != NULL) {
     js_builder_add_str(jsb, ", services");

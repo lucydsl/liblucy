@@ -1,0 +1,20 @@
+machine todoItem {
+  initial state active {
+    remove => removed
+    rename => send(parent, renamed) => active
+  }
+
+  final state removed {
+    @entry => send(parent, removedTodo)
+  }
+}
+
+machine todoList {
+  initial state ready {
+    add => assign(todo, spawn(todoItem)) => ready
+    remove => send(todo, remove) => ready
+    removedTodo => empty
+  }
+
+  state empty {}
+}
