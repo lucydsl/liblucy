@@ -1,5 +1,7 @@
 #include "internal.h"
 
+#include <stdbool.h>
+
 static ParseStatus consume_invoke_args(Parser* parser, void* expr, TokenType token, const char* arg, size_t index) {
   (void)index;
   InvokeExpression* invoke_expression = (InvokeExpression*)expr;
@@ -18,6 +20,23 @@ static ParseStatus consume_invoke_args(Parser* parser, void* expr, TokenType tok
   }
 
   return PARSE_OK;
+}
+
+// A line of the block that gives the invoked machine an input or a symbol,
+// after its name, up to the end of the line. A } is left for the block.
+static ParseStatus consume_field(Parser* parser, InvokeNode* invoke_node, bool symbol, const char* name, bool after_equals) {
+  ParseStatus status = parser_consume_spawn_field(parser, invoke_node->spawn, symbol, name, after_equals);
+  if(status == PARSE_FATAL) {
+    return PARSE_FATAL;
+  }
+  TokenType token = parser_next_token(parser);
+  if(token == TOKEN_END_BLOCK) {
+    parser_rewind(parser, parser->token_len);
+  } else if(token != TOKEN_EOL) {
+    parser_error_back(parser, parser->token_len, "Expected the end of the line after an input: one name = value to a line.");
+    return PARSE_FATAL;
+  }
+  return status;
 }
 
 ParseStatus parser_consume_invoke(Parser* parser) {
@@ -44,6 +63,9 @@ ParseStatus parser_consume_invoke(Parser* parser) {
     return PARSE_FATAL;
   }
 
+  invoke_node->spawn = expression_create_spawn(parser->arena);
+  invoke_node->spawn->target = invoke_node->expr->ref;
+
   TokenType token = parser_next_token(parser);
 
   if(token != TOKEN_BEGIN_BLOCK) {
@@ -60,7 +82,27 @@ ParseStatus parser_consume_invoke(Parser* parser) {
         goto end;
       }
       case TOKEN_IDENTIFIER: {
-        if(parse_merge(&status, parser_consume_transition(parser)) == PARSE_FATAL) {
+        // `name = value` is an input for a machine that is invoked;
+        // anything else is a transition: `done => next`. Look at the
+        // token after the name, and put the name back for a transition.
+        const char* word = parser->word;
+        size_t word_start = parser->word_start;
+        size_t word_end = parser->word_end;
+        if(parser_next_token(parser) != TOKEN_ASSIGNMENT) {
+          parser_rewind(parser, parser->token_len);
+          parser_set_word(parser, word, word_start, word_end);
+          if(parse_merge(&status, parser_consume_transition(parser)) == PARSE_FATAL) {
+            return PARSE_FATAL;
+          }
+          break;
+        }
+        if(parse_merge(&status, consume_field(parser, invoke_node, false, word, true)) == PARSE_FATAL) {
+          return PARSE_FATAL;
+        }
+        break;
+      }
+      case TOKEN_SYMBOL: {
+        if(parse_merge(&status, consume_field(parser, invoke_node, true, parser_take_word(parser), false)) == PARSE_FATAL) {
           return PARSE_FATAL;
         }
         break;

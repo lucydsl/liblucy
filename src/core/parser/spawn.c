@@ -53,12 +53,45 @@ static Expression* consume_function(Parser* parser, TokenType token) {
   return NULL;
 }
 
+ParseStatus parser_consume_spawn_field(Parser* parser, SpawnExpression* spawn_expression, bool symbol, const char* name, bool after_equals) {
+  ParseStatus status = PARSE_OK;
+  if(has_field(spawn_expression, name, symbol)) {
+    parser_error_backf(parser, parser->token_len, symbol ? "The symbol :%s is already given." : "The input %s is already given.", name);
+    status = PARSE_ERROR;
+  }
+  if(!after_equals && parser_next_token(parser) != TOKEN_ASSIGNMENT) {
+    parser_error_backf(parser, parser->token_len,
+      symbol ? "Expected an = after the symbol's name, as in :%s = function." : "Expected an = after the input's name, as in %s = value.", name);
+    return PARSE_FATAL;
+  }
+  TokenType token = parser_next_token(parser);
+  Expression* value;
+  if(symbol) {
+    value = consume_function(parser, token);
+  } else {
+    const char* word = token == TOKEN_MEMBER_EXPRESSION || token == TOKEN_IDENTIFIER || token == TOKEN_SYMBOL ? parser_take_word(parser) : NULL;
+    value = parser_consume_value(parser, token, word);
+  }
+  if(value == NULL) {
+    return PARSE_FATAL;
+  }
+  SpawnField* field = arena_alloc(parser->arena, sizeof(SpawnField));
+  field->name = name;
+  field->value = value;
+  field->symbol = symbol;
+  SpawnField** tail = &spawn_expression->fields;
+  while(*tail != NULL) {
+    tail = &(*tail)->next;
+  }
+  *tail = field;
+  return status;
+}
+
 // The block after a spawn, from after its {, up to the }. Each line is
 // `name = value`, an input, or `:name = function`, one of the machine's
 // :symbols.
 static ParseStatus consume_fields(Parser* parser, SpawnExpression* spawn_expression) {
   ParseStatus status = PARSE_OK;
-  SpawnField** tail = &spawn_expression->fields;
   for(;;) {
     TokenType token = parser_next_token(parser);
     if(token == TOKEN_EOL) {
@@ -75,35 +108,10 @@ static ParseStatus consume_fields(Parser* parser, SpawnExpression* spawn_express
       }
       return PARSE_FATAL;
     }
-    bool symbol = token == TOKEN_SYMBOL;
     const char* name = parser_take_word(parser);
-    if(has_field(spawn_expression, name, symbol)) {
-      parser_error_backf(parser, parser->token_len, symbol ? "The symbol :%s is already given." : "The input %s is already given.", name);
-      status = PARSE_ERROR;
-    }
-    token = parser_next_token(parser);
-    if(token != TOKEN_ASSIGNMENT) {
-      parser_error_backf(parser, parser->token_len,
-        symbol ? "Expected an = after the symbol's name, as in :%s = function." : "Expected an = after the input's name, as in %s = value.", name);
+    if(parse_merge(&status, parser_consume_spawn_field(parser, spawn_expression, token == TOKEN_SYMBOL, name, false)) == PARSE_FATAL) {
       return PARSE_FATAL;
     }
-    token = parser_next_token(parser);
-    Expression* value;
-    if(symbol) {
-      value = consume_function(parser, token);
-    } else {
-      const char* word = token == TOKEN_MEMBER_EXPRESSION || token == TOKEN_IDENTIFIER || token == TOKEN_SYMBOL ? parser_take_word(parser) : NULL;
-      value = parser_consume_value(parser, token, word);
-    }
-    if(value == NULL) {
-      return PARSE_FATAL;
-    }
-    SpawnField* field = arena_alloc(parser->arena, sizeof(SpawnField));
-    field->name = name;
-    field->value = value;
-    field->symbol = symbol;
-    *tail = field;
-    tail = &field->next;
 
     token = parser_next_token(parser);
     if(token == TOKEN_END_BLOCK) {

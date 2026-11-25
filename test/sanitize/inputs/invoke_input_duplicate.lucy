@@ -1,0 +1,17 @@
+machine a {
+  input t
+  initial state s {
+    => f
+  }
+  final state f {}
+}
+machine b {
+  initial state r {
+    invoke(a) {
+      t = self
+      t = parent
+      done => z
+    }
+  }
+  state z {}
+}

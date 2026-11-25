@@ -149,14 +149,15 @@ bool printer_spawn_is_long(Printer* printer, SpawnExpression* spawn) {
 // With a block it is over several lines: the inputs, which are the context
 // the machine starts with, and the symbols, each in the option that the
 // machine has it in (which only a machine of this file is known to have).
-static void add_spawn_call(Printer* printer, SpawnExpression* spawn) {
+void printer_add_spawn_call(Printer* printer, SpawnExpression* spawn, bool start) {
   JSBuilder* jsb = printer->jsb;
   JSMachine* machine = NULL;
   add_spawn_callee(printer, spawn, &machine);
   bool with_parent = machine == NULL || machine->interface->takes_parent;
 
   if(!printer_spawn_is_long(printer, spawn)) {
-    js_builder_add_str(jsb, with_parent ? "({ parent: machine }).start()" : "().start()");
+    js_builder_add_str(jsb, with_parent ? "({ parent: machine })" : "()");
+    js_builder_add_str(jsb, start ? ".start()" : "");
     return;
   }
 
@@ -231,7 +232,7 @@ static void add_spawn_call(Printer* printer, SpawnExpression* spawn) {
   }
   jsb->depth--;
   js_builder_add_indent(jsb);
-  js_builder_add_str(jsb, "}).start()");
+  js_builder_add_str(jsb, start ? "}).start()" : "})");
 }
 
 // assign(key, spawn(x)): the machine is kept in the context, in place of
@@ -246,7 +247,7 @@ static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpress
     // There need be no list yet.
     js_builder_line(jsb, "...(machine.context.%s ?? []),", assign->key);
     js_builder_add_indent(jsb);
-    add_spawn_call(printer, spawn);
+    printer_add_spawn_call(printer, spawn, true);
     js_builder_add_str(jsb, "\n");
     js_builder_close(jsb, "]");
     js_builder_close(jsb, "};");
@@ -258,7 +259,7 @@ static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpress
   if(!printer_spawn_is_long(printer, spawn)) {
     js_builder_add_indent(jsb);
     js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: ", assign->key);
-    add_spawn_call(printer, spawn);
+    printer_add_spawn_call(printer, spawn, true);
     js_builder_add_str(jsb, " };\n");
     return;
   }
@@ -266,7 +267,7 @@ static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpress
   js_builder_line(jsb, "...machine.context,");
   js_builder_add_indent(jsb);
   js_builder_add_format(jsb, "%s: ", assign->key);
-  add_spawn_call(printer, spawn);
+  printer_add_spawn_call(printer, spawn, true);
   js_builder_add_str(jsb, "\n");
   js_builder_close(jsb, "};");
 }

@@ -434,7 +434,9 @@ static bool compute_flags(Printer* printer, JSState* state) {
   bool changed = flags != state->flags;
   state->flags = flags;
   if(printer_actions_take_event(printer, entry) || any_delay_named(state) ||
-     state->invoke_kind == INVOKE_PROMISE || immediate_takes_event(printer, state)) {
+     state->invoke_kind == INVOKE_PROMISE ||
+     (state->invoke_kind == INVOKE_MACHINE && printer_spawn_takes_event(node->invoke->spawn)) ||
+     immediate_takes_event(printer, state)) {
     flags |= STATE_ENTER_TAKES_EVENT;
   }
   changed = changed || flags != state->flags;

@@ -166,6 +166,9 @@ typedef struct InvokeNode {
   Node node;
   struct InvokeExpression* expr;
   struct TransitionNode* event_transition;
+  // What its block gives a machine it invokes: the inputs and symbols, as
+  // in a spawn's block. Its target is the invoke's.
+  struct SpawnExpression* spawn;
 } InvokeNode;
 
 typedef struct Expression {

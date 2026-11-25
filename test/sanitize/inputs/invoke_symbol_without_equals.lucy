@@ -1,0 +1,15 @@
+machine a {
+  input t
+  initial state s {
+    => f
+  }
+  final state f {}
+}
+machine b {
+  initial state r {
+    invoke(a) {
+      :ok fn
+    }
+  }
+  state z {}
+}

@@ -1,16 +1,22 @@
 spawn(kid) for [child] in state [idle] doesn't give machine [kid] the symbols it uses (actions.log, delays.wait, guards.ok), so it will throw when it uses them.
 spawn(kid) for [child] in state [idle] doesn't give machine [kid] the symbols it uses (actions.log, delays.wait, guards.ok), so it will throw when it uses them.
-Machine [parent] invokes machine [timer], which needs options that nothing supplies to it (actions.ring), so it will throw when it uses them.
+invoke(timer) in state [waiting] doesn't give machine [timer] the symbols it uses (actions.ring), so it will throw when it uses them.
 Machine [reporter] sends its parent the event [unknown], which machine [boss], which spawns it, does not declare.
 spawn(card) for [b] in state [idle] doesn't give machine [card] its input [owner].
 spawn(card) for [c] in state [idle] doesn't give machine [card] its input [title].
 spawn(card) for [c] in state [idle] doesn't give machine [card] its input [owner].
 spawn(card) for [d] in state [idle] gives [colour], which machine [card] doesn't declare as an input.
-invoke(card) in state [waiting] doesn't give machine [card] its input [title]: an invoke can't give any.
-invoke(card) in state [waiting] doesn't give machine [card] its input [owner]: an invoke can't give any.
+invoke(card) in state [waiting] doesn't give machine [card] its input [title].
+invoke(card) in state [waiting] doesn't give machine [card] its input [owner].
 spawn(gated) for [b] in state [idle] doesn't give machine [gated] the symbols it uses (actions.note), so it will throw when it uses them.
 spawn(gated) for [c] in state [idle] gives [:unused], which machine [gated] doesn't use.
 The spawn for [d] in state [idle] gives [:allowed], but a symbol can only be given to a machine of this file.
+The invoke in state [fetching] gives [title], but only a machine of this file is given inputs and symbols. A function is called with the context and the event.
+The invoke in state [fetching] gives [:allowed], but only a machine of this file is given inputs and symbols. A function is called with the context and the event.
+invoke(card) in state [waiting] doesn't give machine [card] its input [owner].
+invoke(card) in state [waiting] gives [colour], which machine [card] doesn't declare as an input.
+invoke(gated) in state [gating] doesn't give machine [gated] the symbols it uses (actions.note), so it will throw when it uses them.
+invoke(gated) in state [gating] gives [:extra], which machine [gated] doesn't use.
 export function createKid({ actions, context = {}, delays, guards } = {}) {
   const listeners = new Set();
   let busy = false;
@@ -847,6 +853,134 @@ export function createGatekeeper({ actions, context = {}, guards, services } = {
       }
       if(machine.context.d) {
         machine.context.d.stop();
+      }
+      queue.length = 0;
+      listeners.clear();
+    }
+  };
+  return machine;
+}
+
+export function createInvoker({ context = {}, guards, services } = {}) {
+  const listeners = new Set();
+  let busy = false;
+  const queue = [];
+  let fetchingPromise;
+  let waitingChild;
+  let gatingChild;
+  const states = {
+    idle: {
+      go(event) {
+        enterFetching(event);
+      },
+      wait(event) {
+        enterWaiting(event);
+      },
+      more() {
+        enterGating();
+      }
+    },
+    fetching: {},
+    waiting: {},
+    gating: {}
+  };
+  function enterFetching(event) {
+    machine.state = 'fetching';
+    const promise = services.load(machine.context, event);
+    fetchingPromise = promise;
+    promise.then(() => {
+      if(fetchingPromise !== promise) return;
+      run(() => {
+        machine.state = 'idle';
+      });
+    });
+  }
+  function enterWaiting(event) {
+    machine.state = 'waiting';
+    const child = createCard({
+      context: {
+        title: event.data,
+        colour: event.data
+      }
+    });
+    waitingChild = child;
+    child.start();
+  }
+  function exitWaiting() {
+    waitingChild.stop();
+  }
+  function enterGating() {
+    machine.state = 'gating';
+    const child = createGated({
+      guards: {
+        allowed: guards.mayOpen
+      }
+    });
+    gatingChild = child;
+    child.start();
+  }
+  function exitGating() {
+    gatingChild.stop();
+  }
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
+    }
+  }
+  function run(step) {
+    busy = true;
+    try {
+      step();
+      notify();
+      busy = false;
+      if(queue.length) {
+        machine.send(queue.shift());
+      }
+    } finally {
+      queue.length = 0;
+      busy = false;
+    }
+  }
+  const machine = {
+    state: 'idle',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      fetchingPromise = undefined;
+      if(waitingChild) {
+        waitingChild.stop();
+      }
+      if(gatingChild) {
+        gatingChild.stop();
       }
       queue.length = 0;
       listeners.clear();

@@ -369,6 +369,12 @@ AssignExpression* printer_action_spawn(Printer*, TransitionAction*);
 /* The argument a machine of this file is created with by another: its
  * parent, if it uses it, else nothing. */
 void printer_add_child_options(Printer*, JSMachine* child);
+/*
+ * What spawn(x) is in the output, from where the line is up to: the call
+ * that creates what x makes, with what its block gives it, and, with
+ * start, starts it. An invoke of a machine uses it too.
+ */
+void printer_add_spawn_call(Printer*, SpawnExpression*, bool start);
 /* Whether a spawn's call is printed over several lines: it gives inputs,
  * or symbols the machine it spawns uses. */
 bool printer_spawn_is_long(Printer*, SpawnExpression*);
