@@ -107,3 +107,35 @@ machine gatekeeper {
     other => assign(d, spawn(:external) { :allowed = :mayOpen }) => idle
   }
 }
+
+machine invoker {
+  initial state idle {
+    go => fetching
+    wait => waiting
+    more => gating
+  }
+
+  state fetching {
+    invoke(:load) {
+      title = event.data
+      :allowed = :mayOpen
+      done => idle
+    }
+  }
+
+  state waiting {
+    invoke(card) {
+      title = event.data
+      colour = event.data
+      done => idle
+    }
+  }
+
+  state gating {
+    invoke(gated) {
+      :allowed = :mayOpen
+      :extra = :mayOpen
+      done => idle
+    }
+  }
+}

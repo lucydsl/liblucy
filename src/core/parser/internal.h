@@ -268,6 +268,12 @@ ParseStatus parser_consume_remove_call(Parser*, RemoveExpression* expression);
 ParseStatus parser_consume_inline_send_args(Parser*, void*, TokenType, const char*, size_t);
 ParseStatus parser_consume_inline_send(Parser*, Node*);
 ParseStatus parser_consume_inline_spawn(Parser*, AssignExpression*);
+/*
+ * One line of a spawn's block, or of an invoke's, after its name: the =
+ * (unless it was read already) and the value, which is added to the
+ * spawn's fields. symbol says the line is `:name = function`.
+ */
+ParseStatus parser_consume_spawn_field(Parser*, SpawnExpression*, bool symbol, const char* name, bool after_equals);
 ParseStatus parser_consume_input(Parser*);
 /* A value (see value.c), token being its first token and word that
  * token's text. NULL, after an error, when it isn't one. */

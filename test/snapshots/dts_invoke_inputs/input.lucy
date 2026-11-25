@@ -1,0 +1,45 @@
+use './util.js' { describe }
+
+machine countdown {
+  input seconds
+  input label
+
+  initial state ticking {
+    delay(1s) => guard(:more) => send(parent, tick, context.seconds) => ticking
+    delay(2s) => finished
+  }
+
+  final state finished {}
+}
+
+machine plain {
+  initial state only {
+    => over
+  }
+
+  final state over {}
+}
+
+machine timer {
+  initial state idle {
+    start => running
+    rest => resting
+  }
+
+  state running {
+    invoke(countdown) {
+      seconds = event.data
+      label = describe
+      :more = :keepGoing
+      done => idle
+    }
+    tick => assign(remaining)
+    cancel => idle
+  }
+
+  state resting {
+    invoke(plain) {
+      done => idle
+    }
+  }
+}
