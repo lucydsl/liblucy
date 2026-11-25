@@ -65,6 +65,12 @@ static void print_bag(Inventory* inventory, JSBuilder* jsb, JSSymbolBag* bag, co
   for(JSSymbol* symbol = bag->head; symbol != NULL; symbol = symbol->next) {
     js_builder_add_indent(jsb);
     js_builder_add_format(jsb, "%s: (", symbol->name);
+    if(symbol->forwarded) {
+      // Called by the machine it is given to, with that one's context
+      // and events.
+      js_builder_add_format(jsb, "context: any, event: any) => %s;\n", returns);
+      continue;
+    }
     js_builder_add_str(jsb, "context: TContext, event: ");
     add_event_type(inventory, jsb, symbol);
     js_builder_add_str(jsb, ") => ");
@@ -92,7 +98,17 @@ static void add_state_names(JSBuilder* jsb, JSState* state, bool* first) {
 // Whether any symbol in the bag is typed with every event.
 static bool bag_uses_any_event(JSSymbolBag* bag) {
   for(JSSymbol* symbol = bag->head; symbol != NULL; symbol = symbol->next) {
-    if(symbol->any_event || symbol->events.length == 0) {
+    if(!symbol->forwarded && (symbol->any_event || symbol->events.length == 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Whether the bag has a symbol the machine uses itself.
+static bool bag_has_own(JSSymbolBag* bag) {
+  for(JSSymbol* symbol = bag->head; symbol != NULL; symbol = symbol->next) {
+    if(!symbol->forwarded) {
       return true;
     }
   }
@@ -162,7 +178,7 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
   Arena* arena = printer->arena;
   inventory.uses_any_event = bag_uses_any_event(&interface->actions) || bag_uses_any_event(&interface->assigns) ||
                              bag_uses_any_event(&interface->guards) || bag_uses_any_event(&interface->delays) ||
-                             interface->services.head != NULL;
+                             bag_has_own(&interface->services);
 
   const char* machine_type = machine->name != NULL ? printer_concat(printer, prefix, "Machine") : "Machine";
   const char* options_type = printer_concat(printer, printer_concat(printer, "Create", prefix), "Options");
@@ -267,7 +283,9 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
   if(interface->services.head != NULL || interface->actors.head != NULL) {
     js_builder_open(jsb, "services: {");
     for(JSSymbol* symbol = interface->services.head; symbol != NULL; symbol = symbol->next) {
-      if(typed) {
+      if(symbol->forwarded) {
+        js_builder_line(jsb, "%s: (context: any, event: any) => Promise<unknown>;", symbol->name);
+      } else if(typed) {
         js_builder_line(jsb, "%s: (context: TContext, event: %sAnyEvent) => Promise<unknown>;", symbol->name, prefix);
       } else {
         js_builder_line(jsb, "%s: (context: TContext, event: TEvent) => Promise<unknown>;", symbol->name);

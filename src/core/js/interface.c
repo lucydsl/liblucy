@@ -101,6 +101,10 @@ static void collect_actions(Build* build, TransitionAction* action, const char* 
         // The values it gives: a :symbol is in the assigns option, as the
         // value of an assign is, and parent is the machine's own.
         for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+          if(field->symbol) {
+            // Code, which printer_forward_symbols sees to.
+            continue;
+          }
           if(field->value->type == EXPRESSION_SYMBOL) {
             bag_add(build, &build->interface->assigns, ((SymbolExpression*)field->value)->name, NULL, event);
           } else if(field->value->type == EXPRESSION_IDENTIFIER &&
@@ -222,6 +226,118 @@ void printer_build_interface(Printer* printer, JSMachine* machine) {
   collect_states(&build, machine->states);
 }
 
+JSSymbolBag* printer_interface_bag(JSInterface* interface, size_t index) {
+  JSSymbolBag* bags[INTERFACE_BAGS] = { &interface->actions, &interface->assigns, &interface->delays,
+    &interface->guards, &interface->services, &interface->actors };
+  return bags[index];
+}
+
+const char* printer_interface_option(size_t index) {
+  static const char* const options[INTERFACE_BAGS] = { "actions", "assigns", "delays", "guards", "services", "services" };
+  return options[index];
+}
+
+// Call visit for each spawn (in an assign or an append) of machine's states.
+typedef bool (*SpawnVisitor)(Printer*, JSMachine*, AssignExpression*);
+
+static bool visit_spawns_in(Printer* printer, JSMachine* machine, TransitionAction* action, SpawnVisitor visit) {
+  bool changed = false;
+  for(; action != NULL; action = action->next) {
+    AssignExpression* assign = printer_action_spawn(printer, action);
+    if(assign != NULL && visit(printer, machine, assign)) {
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+static bool visit_spawns_of(Printer* printer, JSMachine* machine, TransitionNode* transition, SpawnVisitor visit) {
+  bool changed = false;
+  for(; transition != NULL; transition = transition->next) {
+    if(visit_spawns_in(printer, machine, transition->action, visit)) {
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+static bool visit_spawns(Printer* printer, JSMachine* machine, JSState* state, SpawnVisitor visit) {
+  bool changed = false;
+  for(; state != NULL; state = state->next) {
+    StateNode* node = state->node;
+    if(node->entry != NULL && visit_spawns_in(printer, machine, node->entry->action, visit)) {
+      changed = true;
+    }
+    if(node->exit != NULL && visit_spawns_in(printer, machine, node->exit->action, visit)) {
+      changed = true;
+    }
+    if(visit_spawns_of(printer, machine, node->event_transition, visit) ||
+       visit_spawns_of(printer, machine, node->immediate_transition, visit) ||
+       visit_spawns_of(printer, machine, node->delay_transition, visit) ||
+       (node->invoke != NULL && visit_spawns_of(printer, machine, node->invoke->event_transition, visit)) ||
+       visit_spawns(printer, machine, state->child, visit)) {
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+// The machine of this file that a spawn spawns, or NULL.
+static JSMachine* spawned_machine(Printer* printer, SpawnExpression* spawn) {
+  if(spawn->target->type != EXPRESSION_IDENTIFIER) {
+    return NULL;
+  }
+  return printer_find_machine(printer, ((IdentifierExpression*)spawn->target)->name);
+}
+
+// For each `:name = :symbol` the spawn gives a machine of this file, put
+// symbol in the option of machine that the spawned machine has name in.
+// Returns whether that added anything.
+static bool forward_spawn(Printer* printer, JSMachine* machine, AssignExpression* assign) {
+  SpawnExpression* spawn = (SpawnExpression*)assign->value;
+  JSMachine* child = spawned_machine(printer, spawn);
+  if(child == NULL) {
+    return false;
+  }
+  bool changed = false;
+  for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+    if(!field->symbol || field->value->type != EXPRESSION_SYMBOL) {
+      continue;
+    }
+    const char* name = ((SymbolExpression*)field->value)->name;
+    for(size_t i = 0; i < INTERFACE_BAGS; i++) {
+      JSSymbolBag* bag = printer_interface_bag(machine->interface, i);
+      if(str_map_get(printer_interface_bag(child->interface, i)->by_name, field->name) == NULL ||
+         str_map_get(bag->by_name, name) != NULL) {
+        continue;
+      }
+      JSSymbol* symbol = ARENA_NEW(printer->arena, JSSymbol);
+      symbol->name = name;
+      symbol->forwarded = true;
+      string_list_init(&symbol->events, printer->arena);
+      str_map_set(bag->by_name, name, symbol);
+      *bag->tail = symbol;
+      bag->tail = &symbol->next;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+void printer_forward_symbols(Printer* printer) {
+  // A machine may be given a symbol only to give it to a machine it spawns
+  // in turn, so go round until nothing is added.
+  bool changed = true;
+  while(changed) {
+    changed = false;
+    for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
+      if(visit_spawns(printer, machine, machine->states, forward_spawn)) {
+        changed = true;
+      }
+    }
+  }
+}
+
 bool printer_interface_needs_options(const JSInterface* interface) {
   return interface->actions.head != NULL || interface->assigns.head != NULL ||
          interface->guards.head != NULL || interface->delays.head != NULL ||
@@ -241,9 +357,10 @@ static void add_needs(StrBuilder* text, const JSSymbolBag* bag, const char* opti
 }
 
 // Warn, once for each machine that machine creates, about what child
-// expects of its creator that it doesn't get: options (a machine created
-// by another gets none), and a parent that declares the events it sends.
-static void check_child(Printer* printer, JSMachine* machine, JSMachine* child, const char* how, StrSet* warned) {
+// expects of its creator that it doesn't get: a parent that declares the
+// events it sends and, of an invoke, the symbols it uses. An invoke can't
+// give any; a spawn can, which check_symbols looks at.
+static void check_child(Printer* printer, JSMachine* machine, JSMachine* child, const char* how, bool gives_symbols, StrSet* warned) {
   JSInterface* needs = child->interface;
   if(!str_set_add(warned, child->name)) {
     return;
@@ -259,7 +376,7 @@ static void check_child(Printer* printer, JSMachine* machine, JSMachine* child, 
       }
     }
   }
-  if(!printer_interface_needs_options(needs)) {
+  if(gives_symbols || !printer_interface_needs_options(needs)) {
     return;
   }
   StrBuilder* text = str_builder_create();
@@ -286,7 +403,7 @@ static void check_inputs(Printer* printer, JSState* state, AssignExpression* ass
   for(JSInput* input = child->inputs; input != NULL; input = input->next) {
     bool given = false;
     for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
-      if(strcmp(field->name, input->name) == 0) {
+      if(!field->symbol && strcmp(field->name, input->name) == 0) {
         given = true;
       }
     }
@@ -297,9 +414,60 @@ static void check_inputs(Printer* printer, JSState* state, AssignExpression* ass
     }
   }
   for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
-    if(printer_find_input(child, field->name) == NULL) {
+    if(!field->symbol && printer_find_input(child, field->name) == NULL) {
       printer_warnf(printer, LUCY_STREAM_STDOUT,
         "spawn(%s) for [%s] in state [%s] gives [%s], which machine [%s] doesn't declare as an input.\n",
+        child->name, assign->key, state->path, field->name, child->name);
+    }
+  }
+}
+
+static bool gives_symbol(const SpawnExpression* spawn, const char* name) {
+  for(const SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+    if(field->symbol && strcmp(field->name, name) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Warn about the symbols a spawn gives a machine of this file: the ones
+// the machine uses that it leaves out, and the ones the machine doesn't
+// use.
+static void check_symbols(Printer* printer, JSState* state, AssignExpression* assign, JSMachine* child) {
+  SpawnExpression* spawn = (SpawnExpression*)assign->value;
+  StrBuilder* missing = str_builder_create();
+  for(size_t i = 0; i < INTERFACE_BAGS; i++) {
+    for(JSSymbol* symbol = printer_interface_bag(child->interface, i)->head; symbol != NULL; symbol = symbol->next) {
+      if(!gives_symbol(spawn, symbol->name)) {
+        if(str_builder_peek(missing)[0] != '\0') {
+          str_builder_add_str(missing, ", ");
+        }
+        str_builder_add_str(missing, printer_interface_option(i));
+        str_builder_add_str(missing, ".");
+        str_builder_add_str(missing, symbol->name);
+      }
+    }
+  }
+  if(str_builder_peek(missing)[0] != '\0') {
+    printer_warnf(printer, LUCY_STREAM_STDOUT,
+      "spawn(%s) for [%s] in state [%s] doesn't give machine [%s] the symbols it uses (%s), so it will throw when it uses them.\n",
+      child->name, assign->key, state->path, child->name, str_builder_peek(missing));
+  }
+  str_builder_destroy(missing);
+  for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+    if(!field->symbol) {
+      continue;
+    }
+    bool used = false;
+    for(size_t i = 0; i < INTERFACE_BAGS; i++) {
+      if(str_map_get(printer_interface_bag(child->interface, i)->by_name, field->name) != NULL) {
+        used = true;
+      }
+    }
+    if(!used) {
+      printer_warnf(printer, LUCY_STREAM_STDOUT,
+        "spawn(%s) for [%s] in state [%s] gives [:%s], which machine [%s] doesn't use.\n",
         child->name, assign->key, state->path, field->name, child->name);
     }
   }
@@ -311,14 +479,21 @@ static void check_spawns(Printer* printer, JSMachine* machine, JSState* state, T
     if(assign == NULL) {
       continue;
     }
-    Expression* target = ((SpawnExpression*)assign->value)->target;
-    if(target->type != EXPRESSION_IDENTIFIER) {
+    SpawnExpression* spawn = (SpawnExpression*)assign->value;
+    JSMachine* child = spawned_machine(printer, spawn);
+    if(child != NULL) {
+      check_child(printer, machine, child, "spawns", true, warned);
+      check_inputs(printer, state, assign, child);
+      check_symbols(printer, state, assign, child);
       continue;
     }
-    JSMachine* child = printer_find_machine(printer, ((IdentifierExpression*)target)->name);
-    if(child != NULL) {
-      check_child(printer, machine, child, "spawns", warned);
-      check_inputs(printer, state, assign, child);
+    // What anything else uses its symbols for isn't known.
+    for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+      if(field->symbol) {
+        printer_warnf(printer, LUCY_STREAM_STDOUT,
+          "The spawn for [%s] in state [%s] gives [:%s], but a symbol can only be given to a machine of this file.\n",
+          assign->key, state->path, field->name);
+      }
     }
   }
 }
@@ -345,7 +520,7 @@ static void check_states(Printer* printer, JSMachine* machine, JSState* state, S
       check_transitions(printer, machine, state, node->invoke->event_transition, warned);
     }
     if(state->invoke_kind == INVOKE_MACHINE) {
-      check_child(printer, machine, state->invoked, "invokes", warned);
+      check_child(printer, machine, state->invoked, "invokes", false, warned);
       // An invoke has nowhere to give inputs.
       for(JSInput* input = state->invoked->inputs; input != NULL; input = input->next) {
         printer_warnf(printer, LUCY_STREAM_STDOUT,

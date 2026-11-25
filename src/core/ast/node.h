@@ -219,9 +219,16 @@ typedef struct OnExpression {
 // as is the data of a send: a MemberExpression (event.data, context.key),
 // an IdentifierExpression (self, parent, or a function from `use`) or a
 // SymbolExpression.
+//
+// A line `:name = function` gives one of the machine's :symbols instead,
+// which is code and never part of its context. Its value is the function
+// itself, not a call of it: an IdentifierExpression (a function from
+// `use`) or a SymbolExpression (one of the spawning machine's own).
 typedef struct SpawnField {
   const char* name;
   Expression* value;
+  // The line gives a :symbol, not an input.
+  bool symbol;
   struct SpawnField* next;
 } SpawnField;
 

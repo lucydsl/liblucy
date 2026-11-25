@@ -26,17 +26,36 @@ static ParseStatus consume_inline_spawn_args(Parser* parser, void* expr, TokenTy
   return PARSE_OK;
 }
 
-static bool has_field(const SpawnExpression* spawn_expression, const char* name) {
+static bool has_field(const SpawnExpression* spawn_expression, const char* name, bool symbol) {
   for(const SpawnField* field = spawn_expression->fields; field != NULL; field = field->next) {
-    if(strcmp(field->name, name) == 0) {
+    if(field->symbol == symbol && strcmp(field->name, name) == 0) {
       return true;
     }
   }
   return false;
 }
 
-// The block after a spawn, from after its {: a `name = value` on each
-// line, up to the }.
+// The function a `:name = function` line gives, token being its first
+// token: one from `use`, or one of this machine's own :symbols. NULL,
+// after an error, for anything else.
+static Expression* consume_function(Parser* parser, TokenType token) {
+  if(token == TOKEN_IDENTIFIER) {
+    IdentifierExpression* identifier = expression_create_identifier(parser->arena);
+    identifier->name = parser_take_word(parser);
+    return (Expression*)identifier;
+  }
+  if(token == TOKEN_SYMBOL) {
+    SymbolExpression* symbol = expression_create_symbol(parser->arena);
+    symbol->name = parser_take_word(parser);
+    return (Expression*)symbol;
+  }
+  parser_error_back(parser, parser->token_len, "A :symbol is given a function: one from use, or a :symbol of this machine.");
+  return NULL;
+}
+
+// The block after a spawn, from after its {, up to the }. Each line is
+// `name = value`, an input, or `:name = function`, one of the machine's
+// :symbols.
 static ParseStatus consume_fields(Parser* parser, SpawnExpression* spawn_expression) {
   ParseStatus status = PARSE_OK;
   SpawnField** tail = &spawn_expression->fields;
@@ -48,33 +67,41 @@ static ParseStatus consume_fields(Parser* parser, SpawnExpression* spawn_express
     if(token == TOKEN_END_BLOCK) {
       return status;
     }
-    if(token != TOKEN_IDENTIFIER) {
+    if(token != TOKEN_IDENTIFIER && token != TOKEN_SYMBOL) {
       if(token == TOKEN_EOF) {
         parser_error(parser, "Expected a } to end the inputs of this spawn.");
       } else {
-        parser_error_back(parser, parser->token_len, "Expected the name of an input, as in name = value.");
+        parser_error_back(parser, parser->token_len, "Expected the name of an input, as in name = value, or of a symbol, as in :name = function.");
       }
       return PARSE_FATAL;
     }
+    bool symbol = token == TOKEN_SYMBOL;
     const char* name = parser_take_word(parser);
-    if(has_field(spawn_expression, name)) {
-      parser_error_backf(parser, parser->token_len, "The input %s is already given.", name);
+    if(has_field(spawn_expression, name, symbol)) {
+      parser_error_backf(parser, parser->token_len, symbol ? "The symbol :%s is already given." : "The input %s is already given.", name);
       status = PARSE_ERROR;
     }
     token = parser_next_token(parser);
     if(token != TOKEN_ASSIGNMENT) {
-      parser_error_backf(parser, parser->token_len, "Expected an = after the input's name, as in %s = value.", name);
+      parser_error_backf(parser, parser->token_len,
+        symbol ? "Expected an = after the symbol's name, as in :%s = function." : "Expected an = after the input's name, as in %s = value.", name);
       return PARSE_FATAL;
     }
     token = parser_next_token(parser);
-    const char* word = token == TOKEN_MEMBER_EXPRESSION || token == TOKEN_IDENTIFIER || token == TOKEN_SYMBOL ? parser_take_word(parser) : NULL;
-    Expression* value = parser_consume_value(parser, token, word);
+    Expression* value;
+    if(symbol) {
+      value = consume_function(parser, token);
+    } else {
+      const char* word = token == TOKEN_MEMBER_EXPRESSION || token == TOKEN_IDENTIFIER || token == TOKEN_SYMBOL ? parser_take_word(parser) : NULL;
+      value = parser_consume_value(parser, token, word);
+    }
     if(value == NULL) {
       return PARSE_FATAL;
     }
     SpawnField* field = arena_alloc(parser->arena, sizeof(SpawnField));
     field->name = name;
     field->value = value;
+    field->symbol = symbol;
     *tail = field;
     tail = &field->next;
 

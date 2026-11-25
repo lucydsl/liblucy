@@ -1,0 +1,40 @@
+use './util.js' { log, loadSub }
+
+machine subtask {
+  initial state open {
+    close => guard(:canClose) => closed
+  }
+
+  final state closed {}
+}
+
+machine todoItem {
+  input title
+
+  initial state active {
+    remove => guard(:canDelete) => action(:log) => assign(reason, :why) => removed
+    split => append(subtasks, spawn(subtask) { :canClose = :canCloseSub }) => active
+    delay(:wait) => active
+  }
+
+  state removed {
+    invoke(:save) {
+      done => active
+    }
+  }
+}
+
+machine todoList {
+  initial state ready {
+    add => guard(:canAdd) => append(todos, spawn(todoItem) {
+      title = event.data
+      :canDelete = :canDeleteTodo
+      :log = log
+      :why = :reasonFor
+      :wait = :todoWait
+      :save = loadSub
+      :canCloseSub = :canAdd
+    }) => ready
+    only => assign(one, spawn(subtask) { :canClose = :canAdd }) => ready
+  }
+}

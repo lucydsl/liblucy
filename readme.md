@@ -84,6 +84,8 @@ machine todoList {
 - The block has one `name = value` to a line. A value is a reference, not an expression: `event.data`, `context.key`, `self` (the spawning machine), `parent` (its own parent), or a function, from `use` or a `:symbol` in `assigns`, called with `(context, event)`.
 - An imported factory or a `services` entry given to `spawn` is called with `{ context, parent }`, the inputs being the context.
 - `send(actor, event)` passes on the data of the event being handled. A third argument, a value of the same kinds, is the data instead: `send(parent, removed, self)` tells the parent which machine was removed, and `send(todo, rename, context.name)` sends a key of the context.
+- A line that starts with a `:symbol` gives the machine one of its symbols instead: `:canDelete = :canDeleteTodo` or `:log = log`. The function, one from `use` or one of the spawning machine's own symbols, is handed over as it is, not called, and goes in the option the spawned machine uses it in (`guards.canDelete`), never in its context. A symbol of its own that a machine gives away is one its creator has to supply, in the same option, even if it only passes it on. This works for a machine of the same file; for anything else, the compiler warns.
+- The compiler warns about a spawn that leaves out a symbol the machine uses, or gives one it doesn't.
 - The compiler warns about a spawn that leaves out an input the machine declares, or gives one it doesn't, and about an `invoke` of a machine with inputs, which can't give any. A machine that declares no inputs is not checked.
 - In the `.d.ts`, the inputs are `TodoItemInput`, and `createTodoItem` has to be given a `context` that holds them.
 
