@@ -6,9 +6,36 @@ on:
     - '*'
 
 jobs:
+  # The GitHub release, with lucyc for Linux and macOS, which the website's
+  # install.sh downloads. One job makes it, as a draft; each build adds its
+  # binary; and it is published once both are there, so nobody downloads
+  # from a release that is missing one.
+  #
+  # When each build made the release itself they raced, and the one that
+  # lost failed with "already exists", leaving the release with one binary.
+  #
+  # Each step can be run again: the draft is only made if it isn't there,
+  # and an upload replaces what an earlier run uploaded.
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Make the draft release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 ||
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$GITHUB_REF_NAME" --notes ""
+
   build:
+    needs: release
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
+      # One build failing shouldn't stop the other's binary being uploaded.
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -21,12 +48,21 @@ jobs:
       run: |
         make bin/lucyc
         cd bin && tar -zcvf ../${{ matrix.name }}.tar.gz lucyc && cd -
-    - uses: ncipollo/release-action@v1
-      with:
-        allowUpdates: true
-        prerelease: false
-        artifacts: ${{ matrix.name }}.tar.gz
-        token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Add the binary to the release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh release upload "$GITHUB_REF_NAME" ${{ matrix.name }}.tar.gz --repo "$GITHUB_REPOSITORY" --clobber
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Publish the release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false
 
   # Publishes @lucy/liblucy to npm with trusted publishing: npm trusts this
   # workflow file in this repository (set on the package's page at npmjs.com),
