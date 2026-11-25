@@ -76,7 +76,65 @@ static bool value_takes_event(Expression* value) {
 
 bool printer_spawn_takes_event(SpawnExpression* spawn) {
   for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
-    if(value_takes_event(field->value)) {
+    // A symbol's function is handed over, not called.
+    if(!field->symbol && value_takes_event(field->value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool gives_inputs(const SpawnExpression* spawn) {
+  for(const SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+    if(!field->symbol) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Whether machine, which a spawn spawns, has the symbol a field gives in
+// the option with this name. The services option holds two of an
+// interface's bags.
+static bool option_has(JSMachine* machine, const char* option, const SpawnField* field) {
+  if(machine == NULL || !field->symbol) {
+    return false;
+  }
+  for(size_t i = 0; i < INTERFACE_BAGS; i++) {
+    if(strcmp(printer_interface_option(i), option) == 0 &&
+       str_map_get(printer_interface_bag(machine->interface, i)->by_name, field->name) != NULL) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool gives_option(JSMachine* machine, const SpawnExpression* spawn, const char* option) {
+  for(const SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+    if(option_has(machine, option, field)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// The options a machine can be given symbols in, in the order printed.
+static const char* const spawn_options[] = { "actions", "assigns", "delays", "guards", "services", NULL };
+
+static JSMachine* spawned_machine(Printer* printer, SpawnExpression* spawn) {
+  if(spawn->target->type != EXPRESSION_IDENTIFIER) {
+    return NULL;
+  }
+  return printer_find_machine(printer, ((IdentifierExpression*)spawn->target)->name);
+}
+
+bool printer_spawn_is_long(Printer* printer, SpawnExpression* spawn) {
+  if(gives_inputs(spawn)) {
+    return true;
+  }
+  JSMachine* machine = spawned_machine(printer, spawn);
+  for(size_t i = 0; spawn_options[i] != NULL; i++) {
+    if(gives_option(machine, spawn, spawn_options[i])) {
       return true;
     }
   }
@@ -84,37 +142,90 @@ bool printer_spawn_takes_event(SpawnExpression* spawn) {
 }
 
 // What spawn(x) is in the output, from where the line is up to: the call
-// that creates what x makes and starts it. With inputs, which are the
-// context it starts with, it is over several lines. A machine of this file
-// is given its parent if it uses it. What anything else does with it isn't
-// known, so it always is.
+// that creates what x makes and starts it. A machine of this file is given
+// its parent if it uses it. What anything else does with it isn't known,
+// so it always is.
+//
+// With a block it is over several lines: the inputs, which are the context
+// the machine starts with, and the symbols, each in the option that the
+// machine has it in (which only a machine of this file is known to have).
 static void add_spawn_call(Printer* printer, SpawnExpression* spawn) {
   JSBuilder* jsb = printer->jsb;
   JSMachine* machine = NULL;
   add_spawn_callee(printer, spawn, &machine);
+  bool with_parent = machine == NULL || machine->interface->takes_parent;
 
-  if(spawn->fields == NULL) {
-    js_builder_add_str(jsb, "(");
-    if(machine != NULL) {
-      printer_add_child_options(printer, machine);
-    } else {
-      js_builder_add_str(jsb, "{ parent: machine }");
-    }
-    js_builder_add_str(jsb, ").start()");
+  if(!printer_spawn_is_long(printer, spawn)) {
+    js_builder_add_str(jsb, with_parent ? "({ parent: machine }).start()" : "().start()");
     return;
+  }
+
+  // How many parts follow the one being printed, for the commas.
+  size_t parts = 0;
+  if(gives_inputs(spawn)) {
+    parts++;
+  }
+  if(with_parent) {
+    parts++;
+  }
+  for(size_t i = 0; spawn_options[i] != NULL; i++) {
+    if(gives_option(machine, spawn, spawn_options[i])) {
+      parts++;
+    }
   }
 
   js_builder_add_str(jsb, "({\n");
   jsb->depth++;
-  bool with_parent = machine == NULL || machine->interface->takes_parent;
-  js_builder_open(jsb, "context: {");
-  for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
-    js_builder_add_indent(jsb);
-    js_builder_add_format(jsb, "%s: ", field->name);
-    add_value(printer, field->value);
-    js_builder_add_str(jsb, field->next != NULL ? ",\n" : "\n");
+  if(gives_inputs(spawn)) {
+    js_builder_open(jsb, "context: {");
+    const SpawnField* last = NULL;
+    for(const SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+      if(!field->symbol) {
+        last = field;
+      }
+    }
+    for(SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+      if(field->symbol) {
+        continue;
+      }
+      js_builder_add_indent(jsb);
+      js_builder_add_format(jsb, "%s: ", field->name);
+      add_value(printer, field->value);
+      js_builder_add_str(jsb, field != last ? ",\n" : "\n");
+    }
+    js_builder_close(jsb, "}%s", --parts > 0 ? "," : "");
   }
-  js_builder_close(jsb, "}%s", with_parent ? "," : "");
+  for(size_t i = 0; spawn_options[i] != NULL; i++) {
+    const char* option = spawn_options[i];
+    if(!gives_option(machine, spawn, option)) {
+      continue;
+    }
+    js_builder_open(jsb, "%s: {", option);
+    const SpawnField* last = NULL;
+    for(const SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+      if(option_has(machine, option, field)) {
+        last = field;
+      }
+    }
+    for(const SpawnField* field = spawn->fields; field != NULL; field = field->next) {
+      if(!option_has(machine, option, field)) {
+        continue;
+      }
+      const char* comma = field != last ? "," : "";
+      if(field->value->type == EXPRESSION_SYMBOL) {
+        // One of this machine's own, which it has in the same option.
+        js_builder_line(jsb, "%s: %s.%s%s", field->name, option, ((SymbolExpression*)field->value)->name, comma);
+      } else {
+        const char* function = ((IdentifierExpression*)field->value)->name;
+        if(strcmp(function, field->name) == 0) {
+          js_builder_line(jsb, "%s%s", function, comma);
+        } else {
+          js_builder_line(jsb, "%s: %s%s", field->name, function, comma);
+        }
+      }
+    }
+    js_builder_close(jsb, "}%s", --parts > 0 ? "," : "");
+  }
   if(with_parent) {
     js_builder_line(jsb, "parent: machine");
   }
@@ -144,7 +255,7 @@ static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpress
 
   // The key may hold what an earlier spawn put there.
   js_builder_line(jsb, "machine.context.%s?.stop();", assign->key);
-  if(spawn->fields == NULL) {
+  if(!printer_spawn_is_long(printer, spawn)) {
     js_builder_add_indent(jsb);
     js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: ", assign->key);
     add_spawn_call(printer, spawn);

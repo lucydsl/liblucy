@@ -85,3 +85,25 @@ machine board {
     }
   }
 }
+
+machine gated {
+  initial state shut {
+    open => guard(:allowed) => action(:note) => shut
+  }
+}
+
+machine gatekeeper {
+  initial state idle {
+    all => assign(a, spawn(gated) {
+      :allowed = :mayOpen
+      :note = :note
+    }) => idle
+    some => assign(b, spawn(gated) { :allowed = :mayOpen }) => idle
+    extra => assign(c, spawn(gated) {
+      :allowed = :mayOpen
+      :note = :note
+      :unused = :mayOpen
+    }) => idle
+    other => assign(d, spawn(:external) { :allowed = :mayOpen }) => idle
+  }
+}

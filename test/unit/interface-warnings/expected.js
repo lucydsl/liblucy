@@ -1,4 +1,5 @@
-Machine [parent] spawns machine [kid], which needs options that nothing supplies to it (actions.log, delays.wait, guards.ok), so it will throw when it uses them.
+spawn(kid) for [child] in state [idle] doesn't give machine [kid] the symbols it uses (actions.log, delays.wait, guards.ok), so it will throw when it uses them.
+spawn(kid) for [child] in state [idle] doesn't give machine [kid] the symbols it uses (actions.log, delays.wait, guards.ok), so it will throw when it uses them.
 Machine [parent] invokes machine [timer], which needs options that nothing supplies to it (actions.ring), so it will throw when it uses them.
 Machine [reporter] sends its parent the event [unknown], which machine [boss], which spawns it, does not declare.
 spawn(card) for [b] in state [idle] doesn't give machine [card] its input [owner].
@@ -7,6 +8,9 @@ spawn(card) for [c] in state [idle] doesn't give machine [card] its input [owner
 spawn(card) for [d] in state [idle] gives [colour], which machine [card] doesn't declare as an input.
 invoke(card) in state [waiting] doesn't give machine [card] its input [title]: an invoke can't give any.
 invoke(card) in state [waiting] doesn't give machine [card] its input [owner]: an invoke can't give any.
+spawn(gated) for [b] in state [idle] doesn't give machine [gated] the symbols it uses (actions.note), so it will throw when it uses them.
+spawn(gated) for [c] in state [idle] gives [:unused], which machine [gated] doesn't use.
+The spawn for [d] in state [idle] gives [:allowed], but a symbol can only be given to a machine of this file.
 export function createKid({ actions, context = {}, delays, guards } = {}) {
   const listeners = new Set();
   let busy = false;
@@ -670,6 +674,179 @@ export function createBoard({ context = {} } = {}) {
       }
       if(machine.context.e) {
         machine.context.e.stop();
+      }
+      queue.length = 0;
+      listeners.clear();
+    }
+  };
+  return machine;
+}
+
+export function createGated({ actions, context = {}, guards } = {}) {
+  const listeners = new Set();
+  let busy = false;
+  const queue = [];
+  const states = {
+    shut: {
+      open(event) {
+        if(guards.allowed(machine.context, event)) {
+          actions.note(machine.context, event);
+          machine.state = 'shut';
+        }
+      }
+    }
+  };
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
+    }
+  }
+  const machine = {
+    state: 'shut',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      queue.length = 0;
+      listeners.clear();
+    }
+  };
+  return machine;
+}
+
+export function createGatekeeper({ actions, context = {}, guards, services } = {}) {
+  const listeners = new Set();
+  let busy = false;
+  const queue = [];
+  const states = {
+    idle: {
+      all() {
+        machine.context.a?.stop();
+        machine.context = {
+          ...machine.context,
+          a: createGated({
+            actions: {
+              note: actions.note
+            },
+            guards: {
+              allowed: guards.mayOpen
+            }
+          }).start()
+        };
+        machine.state = 'idle';
+      },
+      some() {
+        machine.context.b?.stop();
+        machine.context = {
+          ...machine.context,
+          b: createGated({
+            guards: {
+              allowed: guards.mayOpen
+            }
+          }).start()
+        };
+        machine.state = 'idle';
+      },
+      extra() {
+        machine.context.c?.stop();
+        machine.context = {
+          ...machine.context,
+          c: createGated({
+            actions: {
+              note: actions.note
+            },
+            guards: {
+              allowed: guards.mayOpen
+            }
+          }).start()
+        };
+        machine.state = 'idle';
+      },
+      other() {
+        machine.context.d?.stop();
+        machine.context = { ...machine.context, d: services.external({ parent: machine }).start() };
+        machine.state = 'idle';
+      }
+    }
+  };
+  function notify() {
+    for(const listener of listeners) {
+      listener(machine);
+    }
+  }
+  const machine = {
+    state: 'idle',
+    context,
+    send(event) {
+      if(typeof event === 'string') {
+        event = { type: event };
+      }
+      if(busy) {
+        queue.push(event);
+        return;
+      }
+      busy = true;
+      try {
+        do {
+          const handler = states[machine.state][event.type];
+          if(handler) {
+            handler(event);
+            notify();
+          }
+        } while((event = queue.shift()));
+      } finally {
+        queue.length = 0;
+        busy = false;
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    start() {
+      notify();
+      return machine;
+    },
+    stop() {
+      if(machine.context.a) {
+        machine.context.a.stop();
+      }
+      if(machine.context.b) {
+        machine.context.b.stop();
+      }
+      if(machine.context.c) {
+        machine.context.c.stop();
+      }
+      if(machine.context.d) {
+        machine.context.d.stop();
       }
       queue.length = 0;
       listeners.clear();

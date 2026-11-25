@@ -1,0 +1,11 @@
+machine a {
+  initial state s {
+    go => guard(:ok) => s
+  }
+}
+
+machine b {
+  initial state r {
+    go => assign(x, spawn(a) { :ok = context.allowed }) => r
+  }
+}

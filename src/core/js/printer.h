@@ -75,6 +75,10 @@ typedef struct JSSymbol {
   // timers, invoke results).
   StringList events;
   bool any_event;
+  // The machine doesn't use it itself: it only gives it to a machine it
+  // spawns (`:name = :symbol` in a spawn's block), which calls it with its
+  // own context and events.
+  bool forwarded;
   struct JSSymbol* next;
 } JSSymbol;
 
@@ -289,6 +293,19 @@ void printer_build_interface(Printer*, JSMachine*);
 /* Whether the machine names anything its creator has to supply. */
 bool printer_interface_needs_options(const JSInterface*);
 /*
+ * The bags of an interface, by number, and the option each is in. The last
+ * two, services and actors, are both in the services option.
+ */
+#define INTERFACE_BAGS 6
+JSSymbolBag* printer_interface_bag(JSInterface*, size_t index);
+const char* printer_interface_option(size_t index);
+/*
+ * Add to each machine's interface the symbols of its own that it gives to
+ * the machines it spawns, in the option the spawned machine uses them in.
+ * Every machine's interface must be built.
+ */
+void printer_forward_symbols(Printer*);
+/*
  * Warn about the machines of this file that machine spawns or invokes and
  * that need options, which nothing supplies to them. Every machine's
  * interface must be built.
@@ -352,6 +369,9 @@ AssignExpression* printer_action_spawn(Printer*, TransitionAction*);
 /* The argument a machine of this file is created with by another: its
  * parent, if it uses it, else nothing. */
 void printer_add_child_options(Printer*, JSMachine* child);
+/* Whether a spawn's call is printed over several lines: it gives inputs,
+ * or symbols the machine it spawns uses. */
+bool printer_spawn_is_long(Printer*, SpawnExpression*);
 /* Whether the values a spawn gives use the event. */
 bool printer_spawn_takes_event(SpawnExpression*);
 /* The expression for a delay's length in milliseconds. */

@@ -652,6 +652,7 @@ void printer_build_model(Printer* printer) {
     }
     printer_build_interface(printer, machine);
   }
+  printer_forward_symbols(printer);
   for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     printer_check_events(printer, machine);
     printer_check_interfaces(printer, machine);
