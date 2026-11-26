@@ -640,6 +640,7 @@ void printer_build_model(Printer* printer) {
   printer->dom = printer_free_name(printer, "dom");
   printer->nodes = printer_free_name(printer, "nodes");
   printer->template = printer_free_name(printer, "template");
+  printer->attr = printer_free_name(printer, "attr");
   printer_prepare_views(printer);
   for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     set_invoke_kinds(printer, machine->states);

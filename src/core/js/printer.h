@@ -72,11 +72,14 @@ struct JSState {
   const char* part_template;
 };
 
-// A text node of a view that shows a key of the context, which the output
-// changes when an assign does.
+// A text node of a view that shows a key of the context, or an attribute
+// bound to one, which the output changes when an assign does.
 typedef struct JSViewText {
   const char* key;
+  // The text node's variable, or the element's.
   const char* var;
+  // The attribute, or NULL for a text node.
+  const char* attribute;
   // In a state's part, which isn't made until the state is first entered.
   bool in_part;
   struct JSViewText* next;
@@ -244,6 +247,10 @@ typedef struct Printer {
   const char* dom;
   const char* nodes;
   const char* template;
+  // The function that sets an attribute bound to a key, emitted when a
+  // view has one that isn't set as a property.
+  const char* attr;
+  bool needs_attr;
   // The machine being printed.
   JSMachine* machine;
   // Printing TypeScript: each factory comes after its types, and what it

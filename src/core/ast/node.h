@@ -78,12 +78,15 @@ typedef enum ViewNodeType {
   VIEW_PART,    // {part(name)}: where a state's view(name) goes
 } ViewNodeType;
 
-// An attribute of an element: `name="value"`, `name`, or an event,
-// `on:submit={add}`, which sends the Lucy event when the DOM event fires.
+// An attribute of an element: `name="value"`, `name`, one bound to a key
+// of the context, `value={name}`, or an event, `on:submit={add}`, which
+// sends the Lucy event when the DOM event fires.
 typedef struct ViewAttribute {
   const char* name;
   // The value as written, quotes included, or NULL for none.
   const char* value;
+  // For name={key}, the key.
+  const char* key;
   // For on:name={event}, the DOM event's name and the Lucy event's.
   const char* dom_event;
   const char* event;

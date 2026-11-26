@@ -220,12 +220,16 @@ static ParseStatus consume_attributes(Parser* parser, ViewNode* element, bool* s
         skip_space(parser);
         const char* value = take_while(parser, is_identifier_char);
         skip_space(parser);
-        if(!event || value[0] == '\0' || peek(parser) != '}') {
-          parser_error(parser, event ? "An event attribute sends a Lucy event, as in on:click={remove}." : "Only an event attribute (on:name={event}) takes a {...} value for now.");
+        if(value[0] == '\0' || peek(parser) != '}') {
+          parser_error(parser, event ? "An event attribute sends a Lucy event, as in on:click={remove}." : "An attribute shows a key of the context as it is, as in value={name}: there are no expressions.");
           return PARSE_FATAL;
         }
         take(parser);
-        attribute->event = value;
+        if(event) {
+          attribute->event = value;
+        } else {
+          attribute->key = value;
+        }
       } else if(quote == '"' || quote == '\'') {
         if(event) {
           parser_error(parser, "An event attribute sends a Lucy event, named in braces: on:click={remove}.");

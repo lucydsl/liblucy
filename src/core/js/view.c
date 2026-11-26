@@ -23,7 +23,7 @@
 static const char* const taken_names[] = {
   "machine", "states", "context", "event", "listeners", "notify", "queue", "busy", "run", "parent",
   "dom", "nodes", "template", "data", "handler", "listener", "promise", "error", "child", "actions",
-  "assigns", "delays", "guards", "services", "actor", "node", "part",
+  "assigns", "delays", "guards", "services", "actor", "node", "part", "attr", "element", "name", "value",
   "var", "new", "delete", "in", "do", "if", "for", "class", "const", "let", "switch", "case",
   "default", "return", "this", "with", "void", "typeof", "function", NULL
 };
@@ -63,6 +63,25 @@ static const char* tag_name(Printer* printer, const char* tag) {
   return name;
 }
 
+// The attributes a bound key sets as a property, as the element's state
+// can move away from its attribute once someone types or clicks.
+static bool is_property(const char* name) {
+  return strcmp(name, "value") == 0 || strcmp(name, "checked") == 0 || strcmp(name, "selected") == 0 ||
+         strcmp(name, "indeterminate") == 0;
+}
+
+// Note whether any attribute bound to a key is set with the attr helper.
+static void find_bound_attributes(Printer* printer, ViewNode* node) {
+  for(; node != NULL; node = node->next) {
+    for(ViewAttribute* attribute = node->attributes; attribute != NULL; attribute = attribute->next) {
+      if(attribute->key != NULL && !is_property(attribute->name)) {
+        printer->needs_attr = true;
+      }
+    }
+    find_bound_attributes(printer, node->child);
+  }
+}
+
 static void find_slots(Printer* printer, JSView* view, ViewNode* node) {
   for(; node != NULL; node = node->next) {
     if(node->type == VIEW_PART) {
@@ -89,6 +108,7 @@ static void prepare_parts(Printer* printer, JSMachine* machine, JSState* state) 
         const char* name = printer_capitalize(printer, node->part_name);
         state->part_var = view_name(printer, machine->view, printer_concat(printer, state->var, name));
         state->part_make = view_name(printer, machine->view, printer_concat(printer, printer_concat(printer, "make", state->ident), name));
+        find_bound_attributes(printer, node->part);
         state->part_template = printer_free_name(printer,
           printer_concat(printer, printer_concat(printer, printer_concat(printer, machine->name, state->ident), name), "View"));
       }
@@ -110,6 +130,7 @@ void printer_prepare_views(Printer* printer) {
       }
       view->template_var = printer_free_name(printer, printer_concat(printer, machine->name, "View"));
       find_slots(printer, view, node->view);
+      find_bound_attributes(printer, node->view);
       machine->view = view;
     }
     prepare_parts(printer, machine, machine->states);
@@ -137,6 +158,20 @@ void printer_print_view_helper(Printer* printer) {
   js_builder_line(jsb, "return element.content;");
   js_builder_close(jsb, "}");
   js_builder_blank(jsb);
+  if(printer->needs_attr) {
+    js_builder_line(jsb, "// An attribute bound to a key: there for true and other values, as");
+    js_builder_line(jsb, "// written, and gone for false, null and undefined.");
+    js_builder_open(jsb, "function %s(element%s, name%s, value%s) {", printer->attr,
+      printer->ts ? ": Element" : "", printer->ts ? ": string" : "", printer->ts ? ": unknown" : "");
+    js_builder_open(jsb, "if(value == null || value === false) {");
+    js_builder_line(jsb, "element.removeAttribute(name);");
+    js_builder_close(jsb, "} else {");
+    jsb->depth++;
+    js_builder_line(jsb, "element.setAttribute(name, value === true ? '' : String(value));");
+    js_builder_close(jsb, "}");
+    js_builder_close(jsb, "}");
+    js_builder_blank(jsb);
+  }
 }
 
 static void part_templates(Printer* printer, JSState* state) {
@@ -165,7 +200,7 @@ static void add_markup(StrBuilder* sb, ViewNode* node) {
       case VIEW_ELEMENT: {
         str_builder_add_format(sb, "<%s", node->name);
         for(ViewAttribute* attribute = node->attributes; attribute != NULL; attribute = attribute->next) {
-          if(attribute->event != NULL) {
+          if(attribute->event != NULL || attribute->key != NULL) {
             continue;
           }
           str_builder_add_format(sb, " %s", attribute->name);
@@ -234,9 +269,10 @@ typedef struct Walk {
   StrSet* lists;
 } Walk;
 
+// Whether the element listens, or has an attribute bound to a key.
 static bool has_event(ViewNode* node) {
   for(ViewAttribute* attribute = node->attributes; attribute != NULL; attribute = attribute->next) {
-    if(attribute->event != NULL) {
+    if(attribute->event != NULL || attribute->key != NULL) {
       return true;
     }
   }
@@ -294,8 +330,13 @@ static void print_walk(Walk* walk, const char* parent, ViewNode* children) {
   const char* path = printer_concat(walk->printer, parent, ".firstChild");
   for(ViewNode* child = children; child != NULL; child = child->next) {
     if(needs_var(child)) {
-      child->var = view_name(walk->printer, walk->view, node_var_base(walk, child));
-      js_builder_line(jsb, "const %s = %s;", child->var, path);
+      if(child->var != NULL) {
+        // Declared already, for an assign to reach it.
+        js_builder_line(jsb, "%s = %s;", child->var, path);
+      } else {
+        child->var = view_name(walk->printer, walk->view, node_var_base(walk, child));
+        js_builder_line(jsb, "const %s = %s;", child->var, path);
+      }
       path = child->var;
     }
     if(child == last) {
@@ -313,17 +354,38 @@ static void print_walk(Walk* walk, const char* parent, ViewNode* children) {
   }
 }
 
+// Note that var, a text node or, with attribute, an element, shows key,
+// so that an assign of the key changes it.
+static void add_binding(Walk* walk, const char* key, const char* var, const char* attribute) {
+  JSViewText* entry = ARENA_NEW(walk->printer->arena, JSViewText);
+  entry->key = key;
+  entry->var = var;
+  entry->attribute = attribute;
+  entry->in_part = walk->in_part;
+  // In the order they are in the view, which is the order they change in.
+  JSViewText** tail = &walk->view->texts;
+  while(*tail != NULL) {
+    tail = &(*tail)->next;
+  }
+  *tail = entry;
+}
+
 // Name the text node that shows key, which an assign of it changes.
 static const char* add_text(Walk* walk, const char* key) {
-  Printer* printer = walk->printer;
-  const char* text = view_name(printer, walk->view, printer_concat(printer, key, "Text"));
-  JSViewText* entry = ARENA_NEW(printer->arena, JSViewText);
-  entry->key = key;
-  entry->var = text;
-  entry->in_part = walk->in_part;
-  entry->next = walk->view->texts;
-  walk->view->texts = entry;
+  const char* text = view_name(walk->printer, walk->view, printer_concat(walk->printer, key, "Text"));
+  add_binding(walk, key, text, NULL);
   return text;
+}
+
+// Whether an element of a part has an attribute bound to a key the
+// machine assigns, so that its variable has to be the factory's.
+static bool has_assigned_attribute(Walk* walk, ViewNode* node) {
+  for(ViewAttribute* attribute = node->attributes; attribute != NULL; attribute = attribute->next) {
+    if(attribute->key != NULL && str_set_contains(walk->assigned, attribute->key)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // A part's text nodes that show assigned keys are the factory's variables,
@@ -335,6 +397,9 @@ static void declare_part_texts(Walk* walk, ViewNode* node) {
        str_set_contains(walk->assigned, node->name)) {
       node->text = add_text(walk, node->name);
       js_builder_line(walk->printer->jsb, "let %s;", node->text);
+    } else if(node->type == VIEW_ELEMENT && has_assigned_attribute(walk, node)) {
+      node->var = view_name(walk->printer, walk->view, tag_name(walk->printer, node->name));
+      js_builder_line(walk->printer->jsb, "let %s;", node->var);
     }
     declare_part_texts(walk, node->child);
   }
@@ -344,6 +409,19 @@ static void declare_part_texts(Walk* walk, ViewNode* node) {
 // in a part made later, the machine's.
 static const char* context_of(Walk* walk) {
   return walk->in_part ? "machine.context" : "context";
+}
+
+// Set the attribute of element bound to a key to value, a JavaScript
+// expression, on the current line.
+static void print_set(Printer* printer, const char* element, const char* attribute, const char* value) {
+  JSBuilder* jsb = printer->jsb;
+  if(strcmp(attribute, "value") == 0) {
+    js_builder_line(jsb, "%s.value = %s ?? '';", element, value);
+  } else if(is_property(attribute)) {
+    js_builder_line(jsb, "%s.%s = !!%s;", element, attribute, value);
+  } else {
+    js_builder_line(jsb, "%s(%s, '%s', %s);", printer->attr, element, attribute, value);
+  }
 }
 
 // What follows the walk: each key's text put where its marker is, the
@@ -358,6 +436,12 @@ static void print_wiring(Walk* walk, ViewNode* node) {
           if(attribute->event != NULL) {
             js_builder_line(jsb, "%s.addEventListener('%s', data => machine.send({ type: '%s', data }));",
               node->var, attribute->dom_event, attribute->event);
+          } else if(attribute->key != NULL) {
+            if(str_set_contains(walk->assigned, attribute->key)) {
+              add_binding(walk, attribute->key, node->var, attribute->name);
+            }
+            print_set(printer, node->var, attribute->name,
+              printer_concat(printer, printer_concat(printer, context_of(walk), "."), attribute->key));
           }
         }
         print_wiring(walk, node->child);
@@ -499,17 +583,30 @@ void printer_print_view_assign(Printer* printer, const char* key, bool append) {
     }
     return;
   }
+  // The bindings of a part are checked for, as the part may not be made
+  // yet: once for each node that has them.
+  const char* guard = NULL;
   for(JSViewText* text = view->texts; text != NULL; text = text->next) {
     if(strcmp(text->key, key) != 0) {
       continue;
     }
-    if(text->in_part) {
-      js_builder_open(jsb, "if(%s) {", text->var);
-      js_builder_line(jsb, "%s.data = machine.context.%s ?? '';", text->var, key);
+    const char* needs = text->in_part ? text->var : NULL;
+    if(guard != NULL && (needs == NULL || strcmp(needs, guard) != 0)) {
       js_builder_close(jsb, "}");
+      guard = NULL;
+    }
+    if(needs != NULL && guard == NULL) {
+      js_builder_open(jsb, "if(%s) {", needs);
+      guard = needs;
+    }
+    if(text->attribute != NULL) {
+      print_set(printer, text->var, text->attribute, printer_concat(printer, "machine.context.", key));
     } else {
       js_builder_line(jsb, "%s.data = machine.context.%s ?? '';", text->var, key);
     }
+  }
+  if(guard != NULL) {
+    js_builder_close(jsb, "}");
   }
 }
 

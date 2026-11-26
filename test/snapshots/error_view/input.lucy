@@ -1,6 +1,6 @@
 machine a {
   initial state s {}
   view {
-    <input value={name}>
+    <div><span>hi</div>
   }
 }

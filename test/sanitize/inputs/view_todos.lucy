@@ -1,13 +1,14 @@
 // {todos} is a list of machines that have views. append and remove each
 // change one machine in it, so the compiler adds or removes that one's
 // root element, with no list to compare.
-use './dom.js' { preventDefault, formTitle, clearForm }
+use './dom.js' { preventDefault, formTitle, clearForm, isChecked }
 
 machine todoItem {
   input title
   input list
 
   initial state active {
+    toggle => assign(done, isChecked)
     remove => removed
   }
 
@@ -16,7 +17,11 @@ machine todoItem {
   }
 
   view {
-    <li class="todo"><span>{title}</span><button type="button" aria-label="Remove" on:click={remove}>×</button></li>
+    <li class="todo" data-done={done}>
+      <input type="checkbox" checked={done} on:change={toggle}>
+      <span>{title}</span>
+      <button type="button" aria-label="Remove" on:click={remove}>×</button>
+    </li>
   }
 }
 
