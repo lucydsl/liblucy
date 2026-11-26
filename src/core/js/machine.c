@@ -160,6 +160,7 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
   js_builder_add_format(jsb, ")%s {\n", printer_any(printer));
   jsb->depth++;
 
+  printer_print_view_setup(printer, machine);
   js_builder_line(jsb, "const listeners = new Set%s();", printer->ts ? "<(machine: any) => void>" : "");
   if(machine->queued) {
     js_builder_line(jsb, "let %s = false;", printer->busy);
@@ -186,6 +187,12 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
     js_builder_line(jsb, "state: '%s',", printer_leaf(machine->initial)->path);
   }
   js_builder_line(jsb, "context,");
+  if(machine->view != NULL) {
+    // The view, for the host to attach, and its top-level nodes, which
+    // stay when attaching empties the fragment.
+    js_builder_line(jsb, strcmp(printer->dom, "dom") == 0 ? "dom," : "dom: %s,", printer->dom);
+    js_builder_line(jsb, strcmp(printer->nodes, "nodes") == 0 ? "nodes," : "nodes: %s,", printer->nodes);
+  }
   if(machine->has_final) {
     js_builder_line(jsb, "done: false,");
   }

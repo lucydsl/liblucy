@@ -289,6 +289,16 @@ static void print_remove(Printer* printer, RemoveExpression* remove) {
     remove->key, remove->key, printer->actor, printer->actor);
   add_value(printer, remove->value);
   js_builder_add_str(jsb, ") };\n");
+  if(printer_view_has_list(printer, remove->key)) {
+    // One machine was taken out, so its view goes.
+    js_builder_add_indent(jsb);
+    js_builder_add_str(jsb, "for(const node of ");
+    add_value(printer, remove->value);
+    js_builder_add_format(jsb, ".%s) {\n", printer->nodes);
+    jsb->depth++;
+    js_builder_line(jsb, "node.remove();");
+    js_builder_close(jsb, "}");
+  }
   js_builder_close(jsb, "}");
 }
 
@@ -297,6 +307,7 @@ static void print_assign(Printer* printer, AssignExpression* assign) {
   Expression* value = assign->value;
   if(value != NULL && value->type == EXPRESSION_SPAWN) {
     print_spawn(printer, assign, (SpawnExpression*)value);
+    printer_print_view_assign(printer, assign->key, assign->append);
     return;
   }
   js_builder_add_indent(jsb);
@@ -320,6 +331,9 @@ static void print_assign(Printer* printer, AssignExpression* assign) {
     }
   }
   js_builder_add_str(jsb, " };\n");
+  // A view that shows the key shows the change, before anything after
+  // the assign in the transition.
+  printer_print_view_assign(printer, assign->key, false);
 }
 
 static void print_send(Printer* printer, SendExpression* send) {

@@ -87,7 +87,8 @@ ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
         parser_error_backf(parser, parser->token_len, "Guards are not allowed in %s", local_name(key));
         break;
       }
-      // Not a keyword
+      // Not a keyword where an action goes.
+      case KEYWORD_VIEW:
       case KEYWORD_NONE: {
         if(parser_has_action_name(parser, identifier)) {
           TransitionAction* action = node_create_transition_action(parser->arena);
@@ -114,8 +115,9 @@ ParseStatus parser_consume_local(Parser* parser, LocalKind key) {
     status = PARSE_ERROR;
   }
 
-end: {
-  parser_leave_node(parser);
-  return status;
-}
+end:
+  {
+    parser_leave_node(parser);
+    return status;
+  }
 }

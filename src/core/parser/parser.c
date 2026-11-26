@@ -95,6 +95,13 @@ static ParseStatus consume_program(Parser* parser) {
             }
             break;
           }
+          case KEYWORD_VIEW: {
+            // Likewise.
+            if(parse_merge(&status, parser_consume_view(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
+            break;
+          }
           case KEYWORD_EVENT: {
             // Not allowed here, which parser_consume_event reports. Without
             // this it would start the file's unnamed machine.
@@ -127,9 +134,10 @@ static ParseStatus consume_program(Parser* parser) {
     }
   }
 
-end: {
-  return status;
-}
+end:
+  {
+    return status;
+  }
 }
 
 ParseResult parse(Arena* arena, const char* source, const char* filename, DiagnosticList* diagnostics) {

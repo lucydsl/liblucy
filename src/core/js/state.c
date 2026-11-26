@@ -173,6 +173,7 @@ static void print_enter(Printer* printer, JSState* state) {
   if(state->top_final) {
     js_builder_line(jsb, "machine.done = true;");
   }
+  printer_print_part_enter(printer, state);
   if(node->entry != NULL) {
     for(TransitionAction* action = node->entry->action; action != NULL; action = action->next) {
       printer_print_action(printer, action);
@@ -247,6 +248,7 @@ static void print_exit(Printer* printer, JSState* state) {
   } else if(state->invoke_kind == INVOKE_MACHINE) {
     js_builder_line(jsb, "%sChild.stop();", state->var);
   }
+  printer_print_part_exit(printer, state);
   js_builder_close(jsb, "}");
 }
 

@@ -1,0 +1,6 @@
+machine a {
+  initial state s {
+    view(status) { <p>x</p> }
+  }
+  view { <div></div> }
+}
