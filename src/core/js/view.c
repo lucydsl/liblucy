@@ -19,6 +19,18 @@
  * state's part goes in and out in its enter and exit functions.
  */
 
+// What the helpers of a module that hydrates have to include.
+typedef struct AdoptNeeds {
+  // A template is parsed: a machine makes its own nodes, or a state has a
+  // part, which is always made.
+  bool template;
+  // claimText and clearRegion are called.
+  bool claim;
+  bool clear;
+} AdoptNeeds;
+
+static void find_adopt_needs(Printer* printer, AdoptNeeds* needs);
+
 // Names a view's variables can't take: the output's own, and JavaScript's.
 static const char* const taken_names[] = {
   "machine", "states", "context", "event", "listeners", "notify", "queue", "busy", "run", "parent",
@@ -122,8 +134,10 @@ static void prepare_parts(Printer* printer, JSMachine* machine, JSState* state) 
 }
 
 void printer_prepare_views(Printer* printer) {
+  printer_mark_spawned(printer);
   for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     MachineNode* node = machine->node;
+    machine->adopts = printer->hydrate && !printer->ssr && node->has_view && !machine->spawned;
     if(node->has_view) {
       JSView* view = ARENA_NEW(printer->arena, JSView);
       view->lists = str_map_create(printer->arena);
@@ -131,6 +145,11 @@ void printer_prepare_views(Printer* printer) {
       str_set_init(&view->names, printer->arena);
       for(size_t i = 0; taken_names[i] != NULL; i++) {
         str_set_add(&view->names, taken_names[i]);
+      }
+      const char* const helpers[] = { printer->hydrate_option, printer->claim_text, printer->clear_region,
+        printer->escape, printer->render, printer->template, printer->attr };
+      for(size_t i = 0; i < sizeof(helpers) / sizeof(helpers[0]); i++) {
+        str_set_add(&view->names, helpers[i]);
       }
       view->template_var = printer_free_name(printer, printer_concat(printer, machine->name, "View"));
       find_slots(printer, view, node->view);
@@ -181,13 +200,49 @@ void printer_print_view_helper(Printer* printer) {
     return;
   }
   JSBuilder* jsb = printer->jsb;
-  js_builder_line(jsb, "// Markup, parsed once into a fragment for the machines to clone.");
-  js_builder_open(jsb, "function %s(html%s) {", printer->template, printer->ts ? ": string" : "");
-  js_builder_line(jsb, "const element = document.createElement('template');");
-  js_builder_line(jsb, "element.innerHTML = html;");
-  js_builder_line(jsb, "return element.content;");
-  js_builder_close(jsb, "}");
-  js_builder_blank(jsb);
+  AdoptNeeds needs = { 0 };
+  find_adopt_needs(printer, &needs);
+  if(needs.template) {
+    js_builder_line(jsb, "// Markup, parsed once into a fragment for the machines to clone.");
+    js_builder_open(jsb, "function %s(html%s) {", printer->template, printer->ts ? ": string" : "");
+    js_builder_line(jsb, "const element = document.createElement('template');");
+    js_builder_line(jsb, "element.innerHTML = html;");
+    js_builder_line(jsb, "return element.content;");
+    js_builder_close(jsb, "}");
+    js_builder_blank(jsb);
+  }
+  if(needs.claim) {
+    js_builder_line(jsb, "// The text node the server rendered for a key, after its <!--[--> marker,");
+    js_builder_line(jsb, "// or an empty one put there if its text was empty.");
+    js_builder_open(jsb, "function %s(start%s) {", printer->claim_text, printer->ts ? ": any" : "");
+    js_builder_line(jsb, "let text = start.nextSibling;");
+    js_builder_open(jsb, "if(text.nodeType !== 3) {");
+    js_builder_line(jsb, "text = document.createTextNode('');");
+    js_builder_line(jsb, "start.after(text);");
+    js_builder_close(jsb, "}");
+    js_builder_line(jsb, "return text;");
+    js_builder_close(jsb, "}");
+    js_builder_blank(jsb);
+  }
+  if(needs.clear) {
+    js_builder_line(jsb, "// Remove what the server rendered between a <!--[--> marker and its <!--]-->,");
+    js_builder_line(jsb, "// a list's machines or a state's part, and return the <!--]-->.");
+    js_builder_open(jsb, "function %s(start%s) {", printer->clear_region, printer->ts ? ": any" : "");
+    js_builder_line(jsb, "let depth = 0;");
+    js_builder_open(jsb, "for(let node = start.nextSibling; ; node = start.nextSibling) {");
+    js_builder_open(jsb, "if(node.nodeType === 8) {");
+    js_builder_open(jsb, "if(node.data === '[') {");
+    js_builder_line(jsb, "depth++;");
+    js_builder_close(jsb, "} else if(node.data === ']' && depth-- === 0) {");
+    jsb->depth++;
+    js_builder_line(jsb, "return node;");
+    js_builder_close(jsb, "}");
+    js_builder_close(jsb, "}");
+    js_builder_line(jsb, "node.remove();");
+    js_builder_close(jsb, "}");
+    js_builder_close(jsb, "}");
+    js_builder_blank(jsb);
+  }
   if(printer->needs_attr) {
     js_builder_line(jsb, "// An attribute bound to a key: there for true and other values, as");
     js_builder_line(jsb, "// written, and gone for false, null and undefined.");
@@ -217,7 +272,9 @@ void printer_print_view_templates(Printer* printer, JSMachine* machine) {
   if(machine->view == NULL || printer->ssr) {
     return;
   }
-  js_builder_line(printer->jsb, "let %s;", machine->view->template_var);
+  if(!machine->adopts) {
+    js_builder_line(printer->jsb, "let %s;", machine->view->template_var);
+  }
   part_templates(printer, machine->states);
   js_builder_blank(printer->jsb);
 }
@@ -552,6 +609,197 @@ static void collect_lists(Printer* printer, JSState* state, StrSet* lists) {
   }
 }
 
+
+/*
+ * Hydration on the DOM. A machine that adopts takes the nodes the server
+ * rendered, in its hydrate option, and finds what changes in them the way
+ * a machine that makes its own finds them in its clone, except that each
+ * key's text, list and part is between <!--[--> and <!--]--> markers, and
+ * so has no fixed number of nodes: the walk goes on from its end. A key's
+ * text node is kept; a list's machines and a state's part are cleared,
+ * to be made again as the machine starts. Nothing is set that the server
+ * already rendered.
+ */
+
+
+static void find_regions(Printer* printer, ViewNode* node, StrSet* lists, AdoptNeeds* needs) {
+  for(; node != NULL; node = node->next) {
+    if(node->type == VIEW_PART || (node->type == VIEW_VALUE && str_set_contains(lists, node->name))) {
+      needs->clear = true;
+    } else if(node->type == VIEW_VALUE) {
+      needs->claim = true;
+    }
+    find_regions(printer, node->child, lists, needs);
+  }
+}
+
+static bool any_part(JSState* state) {
+  for(; state != NULL; state = state->next) {
+    if(state->part_var != NULL || any_part(state->child)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void find_adopt_needs(Printer* printer, AdoptNeeds* needs) {
+  for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
+    if(machine->view == NULL) {
+      continue;
+    }
+    if(!machine->adopts || any_part(machine->states)) {
+      needs->template = true;
+    }
+    if(machine->adopts) {
+      StrSet lists;
+      str_set_init(&lists, printer->arena);
+      collect_lists(printer, machine->states, &lists);
+      find_regions(printer, machine->node->view, &lists, needs);
+    }
+  }
+}
+
+// Whether an element has an attribute bound to a key the machine assigns.
+static bool binds_assigned(Walk* walk, ViewNode* node) {
+  return has_assigned_attribute(walk, node);
+}
+
+static bool listens(ViewNode* node) {
+  for(ViewAttribute* attribute = node->attributes; attribute != NULL; attribute = attribute->next) {
+    if(attribute->event != NULL) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Whether the adopting walk has to find node: it changes, listens, is a
+// list or a part, or is on the way to one of those.
+static bool adopt_needs_var(Walk* walk, ViewNode* node) {
+  switch(node->type) {
+    case VIEW_PART:
+      return true;
+    case VIEW_VALUE:
+      return str_set_contains(walk->lists, node->name) || str_set_contains(walk->assigned, node->name);
+    case VIEW_TEXT:
+      return false;
+    case VIEW_ELEMENT:
+      break;
+  }
+  if(listens(node) || binds_assigned(walk, node)) {
+    return true;
+  }
+  for(ViewNode* child = node->child; child != NULL; child = child->next) {
+    if(adopt_needs_var(walk, child)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void print_adopt_walk(Walk* walk, const char* parent, ViewNode* children) {
+  Printer* printer = walk->printer;
+  JSBuilder* jsb = printer->jsb;
+  ViewNode* last = NULL;
+  for(ViewNode* child = children; child != NULL; child = child->next) {
+    if(adopt_needs_var(walk, child)) {
+      last = child;
+    }
+  }
+  if(last == NULL) {
+    return;
+  }
+  // The expression for the node the loop is at.
+  const char* path = printer_concat(printer, parent, ".firstChild");
+  for(ViewNode* child = children; child != NULL; child = child->next) {
+    bool needed = adopt_needs_var(walk, child);
+    const char* next = NULL;
+    switch(child->type) {
+      case VIEW_ELEMENT: {
+        if(needed) {
+          child->var = view_name(printer, walk->view, tag_name(printer, child->name));
+          js_builder_line(jsb, "const %s = %s;", child->var, path);
+          path = child->var;
+        }
+        next = printer_concat(printer, path, ".nextSibling");
+        break;
+      }
+      case VIEW_TEXT: {
+        next = printer_concat(printer, path, ".nextSibling");
+        break;
+      }
+      case VIEW_VALUE: {
+        if(str_set_contains(walk->lists, child->name)) {
+          child->var = view_name(printer, walk->view, printer_concat(printer, child->name, "End"));
+          js_builder_line(jsb, "const %s = %s(%s);", child->var, printer->clear_region, path);
+          next = printer_concat(printer, child->var, ".nextSibling");
+        } else if(needed) {
+          // Its text node, then the <!--]-->.
+          child->var = add_text(walk, child->name);
+          js_builder_line(jsb, "const %s = %s(%s);", child->var, printer->claim_text, path);
+          next = printer_concat(printer, child->var, ".nextSibling.nextSibling");
+        } else {
+          // Nothing changes it, but the walk goes past it.
+          next = printer_concat(printer, printer_concat(printer,
+            printer_concat(printer, printer->claim_text, "("), path), ").nextSibling.nextSibling");
+        }
+        break;
+      }
+      case VIEW_PART: {
+        child->var = view_name(printer, walk->view, printer_concat(printer, child->name, "Slot"));
+        js_builder_line(jsb, "const %s = %s(%s);", child->var, printer->clear_region, path);
+        next = printer_concat(printer, child->var, ".nextSibling");
+        break;
+      }
+    }
+    if(child == last) {
+      break;
+    }
+    path = next;
+  }
+  for(ViewNode* child = children; child != NULL; child = child->next) {
+    if(child->type == VIEW_ELEMENT && child->var != NULL) {
+      print_adopt_walk(walk, child->var, child->child);
+    }
+    if(child == last) {
+      break;
+    }
+  }
+}
+
+// After the walk: the listeners, the bindings that assigns change, and
+// the lists filled again.
+static void print_adopt_wiring(Walk* walk, ViewNode* node) {
+  Printer* printer = walk->printer;
+  JSBuilder* jsb = printer->jsb;
+  for(; node != NULL; node = node->next) {
+    if(node->type == VIEW_ELEMENT) {
+      for(ViewAttribute* attribute = node->attributes; attribute != NULL; attribute = attribute->next) {
+        if(attribute->event != NULL && node->var != NULL) {
+          js_builder_line(jsb, "%s.addEventListener('%s', data => machine.send({ type: '%s', data }));",
+            node->var, attribute->dom_event, attribute->event);
+        } else if(attribute->key != NULL && node->var != NULL && str_set_contains(walk->assigned, attribute->key)) {
+          add_binding(walk, attribute->key, node->var, attribute->name);
+        }
+      }
+      print_adopt_wiring(walk, node->child);
+    } else if(node->type == VIEW_VALUE && node->var != NULL && str_set_contains(walk->lists, node->name)) {
+      str_map_set(walk->view->lists, node->name, node);
+      js_builder_open(jsb, "for(const %s of context.%s ?? []) {", printer->actor, node->name);
+      js_builder_line(jsb, "%s.before(...%s.%s);", node->var, printer->actor, printer->nodes);
+      js_builder_close(jsb, "}");
+    }
+  }
+}
+
+static void print_adopt_setup(Walk* walk, ViewNode* nodes) {
+  Printer* printer = walk->printer;
+  JSBuilder* jsb = printer->jsb;
+  js_builder_line(jsb, "const %s = [...%s.childNodes];", printer->nodes, printer->hydrate_option);
+  print_adopt_walk(walk, printer->hydrate_option, nodes);
+  print_adopt_wiring(walk, nodes);
+}
+
 // A state's part: the let for its nodes, and the function that makes them.
 static void print_part_makers(Walk* walk, JSState* state) {
   Printer* printer = walk->printer;
@@ -672,11 +920,20 @@ static void add_render(Render* render, StrBuilder* sb, ViewNode* node) {
         break;
       }
       case VIEW_VALUE: {
+        // For hydration each place that changes is between <!--[--> and
+        // <!--]-->, so the browser can find it, and its text stays apart
+        // from the text around it.
+        if(printer->hydrate) {
+          str_builder_add_str(sb, "<!--[-->");
+        }
         if(str_set_contains(render->lists, node->name)) {
           str_builder_add_format(sb, "${(machine.context.%s ?? []).map(%s => %s.%s()).join('')}",
             node->name, printer->actor, printer->actor, "render");
         } else {
           str_builder_add_format(sb, "${%s(machine.context.%s)}", printer->escape, node->name);
+        }
+        if(printer->hydrate) {
+          str_builder_add_str(sb, "<!--]-->");
         }
         break;
       }
@@ -685,7 +942,13 @@ static void add_render(Render* render, StrBuilder* sb, ViewNode* node) {
           printer_warnf(printer, LUCY_STREAM_STDOUT, "A part of a view can't have parts of its own.\n");
           break;
         }
+        if(printer->hydrate) {
+          str_builder_add_str(sb, "<!--[-->");
+        }
         add_parts(render, sb, render->machine->states, node->name);
+        if(printer->hydrate) {
+          str_builder_add_str(sb, "<!--]-->");
+        }
         break;
       }
     }
@@ -734,11 +997,15 @@ void printer_print_view_setup(Printer* printer, JSMachine* machine) {
   };
   ViewNode* nodes = machine->node->view;
 
-  js_builder_line(jsb, "%s ?\?= %s(%s);", view->template_var, printer->template, markup_string(printer, nodes));
-  js_builder_line(jsb, "const %s = %s.cloneNode(true);", printer->dom, view->template_var);
-  js_builder_line(jsb, "const %s = [...%s.childNodes];", printer->nodes, printer->dom);
-  print_walk(&walk, printer->dom, nodes);
-  print_wiring(&walk, nodes);
+  if(machine->adopts) {
+    print_adopt_setup(&walk, nodes);
+  } else {
+    js_builder_line(jsb, "%s ?\?= %s(%s);", view->template_var, printer->template, markup_string(printer, nodes));
+    js_builder_line(jsb, "const %s = %s.cloneNode(true);", printer->dom, view->template_var);
+    js_builder_line(jsb, "const %s = [...%s.childNodes];", printer->nodes, printer->dom);
+    print_walk(&walk, printer->dom, nodes);
+    print_wiring(&walk, nodes);
+  }
 
   print_part_makers(&walk, machine->states);
   js_builder_blank(jsb);

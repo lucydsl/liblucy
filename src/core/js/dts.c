@@ -280,6 +280,10 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
     // It only hands its parent on, to a machine it spawns.
     js_builder_line(jsb, "parent?: unknown;");
   }
+  if(machine->adopts) {
+    // The element whose children are the view the server rendered.
+    js_builder_line(jsb, "hydrate: ParentNode;");
+  }
   if(interface->services.head != NULL || interface->actors.head != NULL) {
     js_builder_open(jsb, "services: {");
     for(JSSymbol* symbol = interface->services.head; symbol != NULL; symbol = symbol->next) {
@@ -312,8 +316,11 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
     // Its view as HTML.
     js_builder_line(jsb, "render(): string;");
   } else if(machine->view != NULL) {
-    // Its view, to attach, and the view's top-level nodes.
-    js_builder_line(jsb, "dom: DocumentFragment;");
+    // Its view, to attach, and the view's top-level nodes. One that
+    // adopts the server's nodes has only those.
+    if(!machine->adopts) {
+      js_builder_line(jsb, "dom: DocumentFragment;");
+    }
     js_builder_line(jsb, "nodes: ChildNode[];");
   }
   if(machine->has_final) {
@@ -333,7 +340,7 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
   js_builder_close(jsb, "}");
   js_builder_blank(jsb);
 
-  bool needs_options = printer_interface_needs_options(interface) || has_inputs;
+  bool needs_options = printer_interface_needs_options(interface) || has_inputs || machine->adopts;
   js_builder_add_format(jsb, "export %s %s<TContext extends %s = %s",
     machine->name != NULL ? "function" : "default function", machine->factory,
     context_constraint, context_constraint);

@@ -45,6 +45,8 @@ typedef struct Options {
   PrintTarget print_target;
   // --target: where the views run.
   LucyTarget target;
+  // --hydrate: for hydration.
+  bool hydrate;
 } Options;
 
 static void usage(const char* program_name) {
@@ -64,6 +66,10 @@ static void usage(const char* program_name) {
   fprintf(stderr, "%s--target TARGET       Where views run: 'dom', the browser (the\n"
                   "%s                       default), or 'ssr', a server, as HTML strings.\n",
     U_INDENT, U_INDENT);
+  fprintf(stderr, "%s--hydrate             Compile for hydration: with 'ssr', mark where\n"
+                  "%s                       the HTML changes; with 'dom', take over that\n"
+                  "%s                       HTML instead of making new nodes.\n",
+    U_INDENT, U_INDENT, U_INDENT);
   fprintf(stderr, "%s--print KIND          Specify which unit to print to the console:\n"
                   "%s                       'js', 'dts' (without --ts)\n",
     U_INDENT, U_INDENT);
@@ -208,6 +214,7 @@ static int compile_file(const char* filename, const char* out_file, const Option
   LucyResult* result = lucy_result_create();
   lucy_result_set_format(result, options->ts ? LUCY_FORMAT_TS : LUCY_FORMAT_JS);
   lucy_result_set_target(result, options->target);
+  lucy_result_set_hydrate(result, options->hydrate);
   lucy_compile(result, source, filename);
   print_diagnostics(result);
   // The result has its own copies of everything it needs.
@@ -333,6 +340,7 @@ enum {
   OPTION_PRINT,
   OPTION_TS,
   OPTION_TARGET,
+  OPTION_HYDRATE,
 };
 
 static const struct option long_options[] = {
@@ -343,6 +351,7 @@ static const struct option long_options[] = {
   { "print", required_argument, NULL, OPTION_PRINT },
   { "ts", no_argument, NULL, OPTION_TS },
   { "target", required_argument, NULL, OPTION_TARGET },
+  { "hydrate", no_argument, NULL, OPTION_HYDRATE },
   { "help", no_argument, NULL, 'h' },
   { "version", no_argument, NULL, 'v' },
   // getopt_long needs the terminating entry.
@@ -356,7 +365,8 @@ int main(int argc, char* argv[]) {
     .out_file = NULL,
     .out_dir = NULL,
     .print_target = PRINT_TARGET_JS,
-    .target = LUCY_TARGET_DOM
+    .target = LUCY_TARGET_DOM,
+    .hydrate = false
   };
 
   int opt;
@@ -367,6 +377,10 @@ int main(int argc, char* argv[]) {
       }
       case OPTION_TS: {
         options.ts = true;
+        break;
+      }
+      case OPTION_HYDRATE: {
+        options.hydrate = true;
         break;
       }
       case OPTION_TARGET: {

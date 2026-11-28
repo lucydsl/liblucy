@@ -13,6 +13,13 @@ declare namespace LibLucy {
      */
     target?: 'dom' | 'ssr';
     /**
+     * Compile for hydration, on both targets: with 'ssr', render() marks
+     * where each key's text, list and part is; with 'dom', a machine with
+     * a view takes over those nodes, given as its hydrate option, rather
+     * than making its own. A machine the module spawns makes its own.
+     */
+    hydrate?: boolean;
+    /**
      * @deprecated The declarations are always produced. This does nothing.
      */
     dts?: boolean;

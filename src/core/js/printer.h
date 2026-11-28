@@ -214,6 +214,12 @@ struct JSMachine {
   JSInterface* interface;
   // Its view, or NULL without one.
   JSView* view;
+  // A machine of the module spawns it.
+  bool spawned;
+  // Hydrating on the DOM: it takes the nodes the server rendered, from
+  // its hydrate option, rather than making its own. Every machine with a
+  // view does, except those that are spawned.
+  bool adopts;
 };
 
 /*
@@ -255,6 +261,12 @@ typedef struct Printer {
   // one that makes a view's string.
   const char* escape;
   const char* render;
+  // For hydration on the DOM: the option a factory takes the server's
+  // nodes from, and the helpers that find a key's text node and clear a
+  // list's or a part's place.
+  const char* hydrate_option;
+  const char* claim_text;
+  const char* clear_region;
   // The machine being printed.
   JSMachine* machine;
   // Printing TypeScript: each factory comes after its types, and what it
@@ -262,7 +274,13 @@ typedef struct Printer {
   bool ts;
   // The ssr target: views are strings, from render().
   bool ssr;
+  // For hydration: render() marks each key's text, list and part, and on
+  // the DOM a machine that adopts takes the server's nodes.
+  bool hydrate;
 } Printer;
+
+/* interface.c: note which machines of the module are spawned. */
+void printer_mark_spawned(Printer*);
 
 /* printer.c */
 

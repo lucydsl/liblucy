@@ -38,8 +38,9 @@ typedef struct JSOutput {
 
 /*
  * Print program, parsed from source, as a module of plain state machines:
- * JavaScript and its .d.ts, or TypeScript. Working memory comes from arena. Warnings about what the printer can't print are added
+ * JavaScript and its .d.ts, or TypeScript, for target, and for hydration
+ * if hydrate is set (see lucy_result_set_hydrate). Working memory comes from arena. Warnings about what the printer can't print are added
  * to diagnostics.
  */
 JSOutput js_print(Arena* arena, Program* program, const char* source,
-  JSFormat format, JSTarget target, DiagnosticList* diagnostics);
+  JSFormat format, JSTarget target, bool hydrate, DiagnosticList* diagnostics);

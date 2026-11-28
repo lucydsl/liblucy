@@ -12,6 +12,7 @@
 struct LucyResult {
   LucyFormat format;
   LucyTarget target;
+  bool hydrate;
 
   // The last compile's output, malloc'd and owned by the result.
   bool success;
@@ -58,6 +59,11 @@ void lucy_result_set_target(LucyResult* result, LucyTarget target) {
   result->target = target;
 }
 
+void lucy_result_set_hydrate(LucyResult* result, bool hydrate) {
+  clear_output(result);
+  result->hydrate = hydrate;
+}
+
 void lucy_compile(LucyResult* result, const char* source, const char* filename) {
   // Output from an earlier compile into the same result is replaced.
   clear_output(result);
@@ -76,7 +82,8 @@ void lucy_compile(LucyResult* result, const char* source, const char* filename) 
   if(parsed.success) {
     JSOutput output = js_print(&arena, parsed.program, source,
       result->format == LUCY_FORMAT_TS ? JS_FORMAT_TS : JS_FORMAT_JS,
-      result->target == LUCY_TARGET_SSR ? JS_TARGET_SSR : JS_TARGET_DOM, &result->diagnostics);
+      result->target == LUCY_TARGET_SSR ? JS_TARGET_SSR : JS_TARGET_DOM, result->hydrate,
+      &result->diagnostics);
     result->success = true;
     result->js = output.js;
     result->dts = output.dts;

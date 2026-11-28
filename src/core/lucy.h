@@ -64,6 +64,16 @@ typedef enum LucyTarget {
 void lucy_result_set_target(LucyResult* result, LucyTarget target);
 
 /*
+ * Whether the next compiles are for hydration, and clear the result's
+ * output. Off by default. Both sides of a page are compiled with it on:
+ * on LUCY_TARGET_SSR, render() marks where each key's text, list and part
+ * is, and on LUCY_TARGET_DOM a machine takes the nodes the server rendered,
+ * from its hydrate option, instead of making its own. A machine the module
+ * spawns still makes its own, as it can be spawned after the page loads.
+ */
+void lucy_result_set_hydrate(LucyResult* result, bool hydrate);
+
+/*
  * Compile source, a NUL-terminated Lucy program read from filename, into
  * result. The source and filename are only read during the call. A NULL
  * source or filename is a failed compile.

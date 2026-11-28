@@ -56,6 +56,10 @@ run_test() {
   if [[ "$input" == *"ssr_"* ]]; then
     targetflag="--target ssr"
   fi
+  # And one with hydrate_ in it, for hydration.
+  if [[ "$input" == *"hydrate_"* ]]; then
+    targetflag="$targetflag --hydrate"
+  fi
 
   $LUCYC $dtsflag $targetflag $input >> $tmp 2>&1
 

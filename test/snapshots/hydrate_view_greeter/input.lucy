@@ -1,0 +1,13 @@
+use './dom.js' { inputValue }
+
+machine greeter {
+  initial state idle {
+    input => assign(name, inputValue)
+  }
+
+  // Two top-level elements: a view needn't have one root.
+  view {
+    <span class="greeting">Name: {name}</span>
+    <input type="text" value={name} on:input={input}>
+  }
+}
