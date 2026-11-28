@@ -251,10 +251,14 @@ export function createParent({ context = {} } = {}) {
   };
   function enterIdle() {
     machine.state = 'idle';
-    machine.context.child?.stop();
-    machine.context = { ...machine.context, child: createKid().start() };
-    machine.context.other?.stop();
-    machine.context = { ...machine.context, other: createPlain().start() };
+    {
+      const context = { ...machine.context };
+      context.child?.stop();
+      context.child = createKid().start();
+      context.other?.stop();
+      context.other = createPlain().start();
+      machine.context = context;
+    }
   }
   function enterWaiting() {
     machine.state = 'waiting';

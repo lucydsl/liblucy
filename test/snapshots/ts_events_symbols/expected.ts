@@ -62,8 +62,7 @@ export function createSession({ actions, assigns, context = {}, delays, guards, 
     anonymous: {
       login(event: any) {
         if(guards.allowed(machine.context, event)) {
-          machine.context = { ...machine.context, user: event.data };
-          machine.context = { ...machine.context, last: event.data };
+          machine.context = { ...machine.context, user: event.data, last: event.data };
           enterActive(event);
         }
       }
@@ -71,13 +70,16 @@ export function createSession({ actions, assigns, context = {}, delays, guards, 
     active: {
       rename(event: any) {
         if(guards.allowed(machine.context, event)) {
-          machine.context = { ...machine.context, name: assigns.trimmed(machine.context, event) };
-          machine.context = { ...machine.context, last: event.data };
+          {
+            const context = { ...machine.context };
+            context.name = assigns.trimmed(context, event);
+            context.last = event.data;
+            machine.context = context;
+          }
         }
       },
       resize(event: any) {
-        machine.context = { ...machine.context, size: event.data };
-        machine.context = { ...machine.context, last: event.data };
+        machine.context = { ...machine.context, size: event.data, last: event.data };
       },
       logout(event: any) {
         exitActive();

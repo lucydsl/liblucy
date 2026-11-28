@@ -1011,18 +1011,25 @@ void printer_print_view_setup(Printer* printer, JSMachine* machine) {
   js_builder_blank(jsb);
 }
 
-void printer_print_view_assign(Printer* printer, const char* key, bool append) {
+void printer_print_view_assign(Printer* printer, const char* key, size_t appends) {
   JSView* view = printer->machine != NULL ? printer->machine->view : NULL;
   // On a server nothing changes: render() reads the context when called.
   if(view == NULL || key == NULL || printer->ssr) {
     return;
   }
   JSBuilder* jsb = printer->jsb;
-  if(append) {
+  if(appends > 0) {
     ViewNode* end = str_map_get(view->lists, key);
-    if(end != NULL) {
-      // One machine was added, at the end, so its view goes at the end.
+    if(end == NULL) {
+      return;
+    }
+    // Machines were added at the end, so their views go at the end.
+    if(appends == 1) {
       js_builder_line(jsb, "%s.before(...machine.context.%s.at(-1).%s);", end->var, key, printer->nodes);
+    } else {
+      js_builder_open(jsb, "for(const %s of machine.context.%s.slice(-%zu)) {", printer->actor, key, appends);
+      js_builder_line(jsb, "%s.before(...%s.%s);", end->var, printer->actor, printer->nodes);
+      js_builder_close(jsb, "}");
     }
     return;
   }

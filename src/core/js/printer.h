@@ -272,6 +272,9 @@ typedef struct Printer {
   // Printing TypeScript: each factory comes after its types, and what it
   // declares is annotated (printer_any).
   bool ts;
+  // Printing a run of assigns, which reads and writes its own copy of the
+  // context, `context`, until the run ends.
+  bool in_assigns;
   // The ssr target: views are strings, from render().
   bool ssr;
   // For hydration: render() marks each key's text, list and part, and on
@@ -400,7 +403,7 @@ void printer_print_view_templates(Printer*, JSMachine*);
  * listeners and lists set up, and the functions that make its parts. */
 void printer_print_view_setup(Printer*, JSMachine*);
 /* After an assign of key, or an append to it: the view shows the change. */
-void printer_print_view_assign(Printer*, const char* key, bool append);
+void printer_print_view_assign(Printer*, const char* key, size_t appends);
 /* Whether the machine's view shows key as a list of machines. */
 bool printer_view_has_list(Printer*, const char* key);
 /* In a state's enter function, its part put in; in its exit function,
@@ -459,7 +462,10 @@ const char* printer_handler_name(Printer*, JSState* owner, const char* event);
  */
 Expression* printer_action_expression(Printer*, TransitionAction*);
 /* An action as a statement. */
-void printer_print_action(Printer*, TransitionAction*);
+void printer_print_actions(Printer*, TransitionAction*);
+/* The context, as the code being printed reads it: the machine's, or a run
+ * of assigns' copy. */
+const char* printer_context(const Printer*);
 /* Whether an action's statement uses the event. */
 bool printer_action_takes_event(Printer*, TransitionAction*);
 bool printer_actions_take_event(Printer*, TransitionAction*);
