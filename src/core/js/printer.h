@@ -251,11 +251,17 @@ typedef struct Printer {
   // view has one that isn't set as a property.
   const char* attr;
   bool needs_attr;
+  // For the ssr target: the function that escapes text for HTML, and the
+  // one that makes a view's string.
+  const char* escape;
+  const char* render;
   // The machine being printed.
   JSMachine* machine;
   // Printing TypeScript: each factory comes after its types, and what it
   // declares is annotated (printer_any).
   bool ts;
+  // The ssr target: views are strings, from render().
+  bool ssr;
 } Printer;
 
 /* printer.c */

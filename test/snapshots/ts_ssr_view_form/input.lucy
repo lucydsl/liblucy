@@ -1,0 +1,41 @@
+// view(status) in a state is a part of the view that is there only while
+// the machine is in that state. {part(status)} in the machine's view is
+// where it goes. Two states fill the same slot here, so the compiler swaps
+// one for the other.
+use './dom.js' { inputValue, preventDefault, save }
+
+machine form {
+  initial state editing {
+    input => assign(note, inputValue)
+    submit => action(preventDefault) => saving
+  }
+
+  state saving {
+    invoke(save) {
+      done => editing
+      error => failed
+    }
+
+    view(status) {
+      <p class="status">Saving…</p>
+    }
+  }
+
+  state failed {
+    retry => saving
+    input => assign(note, inputValue) => editing
+
+    view(status) {
+      <p class="status status--error">That didn't work. <button type="button" on:click={retry}>Try again</button></p>
+    }
+  }
+
+  view {
+    <form class="note" on:submit={submit}>
+      <textarea on:input={input}></textarea>
+      <button>Save</button>
+      {part(status)}
+      <p class="preview">Draft: {note}</p>
+    </form>
+  }
+}

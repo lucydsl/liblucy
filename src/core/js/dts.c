@@ -308,7 +308,10 @@ void printer_print_machine_types(Printer* printer, JSBuilder* jsb, JSMachine* ma
     js_builder_line(jsb, "state: %sState;", prefix);
   }
   js_builder_line(jsb, "context: TContext;");
-  if(machine->view != NULL) {
+  if(machine->view != NULL && printer->ssr) {
+    // Its view as HTML.
+    js_builder_line(jsb, "render(): string;");
+  } else if(machine->view != NULL) {
     // Its view, to attach, and the view's top-level nodes.
     js_builder_line(jsb, "dom: DocumentFragment;");
     js_builder_line(jsb, "nodes: ChildNode[];");

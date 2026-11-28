@@ -7,7 +7,7 @@
 #include "printer.h"
 
 JSOutput js_print(Arena* arena, Program* program, const char* source,
-  JSFormat format, DiagnosticList* diagnostics) {
+  JSFormat format, JSTarget target, DiagnosticList* diagnostics) {
   Printer printer = {
     .arena = arena,
     .diagnostics = diagnostics,
@@ -15,6 +15,7 @@ JSOutput js_print(Arena* arena, Program* program, const char* source,
     .program = program,
     .jsb = js_builder_create(),
     .ts = format == JS_FORMAT_TS,
+    .ssr = target == JS_TARGET_SSR,
   };
   printer_build_model(&printer);
 

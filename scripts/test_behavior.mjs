@@ -87,7 +87,7 @@ for(const [name, format] of names.flatMap(name => [[name, 'js'], [name, 'ts']]))
       writeFileSync(join(work, file), text);
     }
     // Warnings go to stdout; show them, as a test shouldn't have any.
-    const warnings = execFileSync(lucyc, [...(format === 'ts' ? ['--ts'] : []), '--out-file', join(work, out), join(work, 'machine.lucy')], { stdio: ['ignore', 'pipe', 'inherit'] });
+    const warnings = execFileSync(lucyc, [...(format === 'ts' ? ['--ts'] : []), ...(test.target ? ['--target', test.target] : []), '--out-file', join(work, out), join(work, 'machine.lucy')], { stdio: ['ignore', 'pipe', 'inherit'] });
     if(warnings.length > 0) {
       throw new Error(`lucyc warned:\n${warnings}`);
     }

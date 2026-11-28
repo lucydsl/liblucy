@@ -19,7 +19,7 @@
 
 #include "../../src/core/lucy.h"
 
-#define OPTION_SETS 2
+#define OPTION_SETS 4
 
 typedef struct Source {
   const char* name;
@@ -214,9 +214,12 @@ int main(int argc, char** argv) {
       }
       const char* filename = sources[i].name;
       for(int set = 0; set < OPTION_SETS; set++) {
-        LucyFormat format = set == 1 ? LUCY_FORMAT_TS : LUCY_FORMAT_JS;
+        // Each format, for each target.
+        LucyFormat format = set % 2 == 1 ? LUCY_FORMAT_TS : LUCY_FORMAT_JS;
+        LucyTarget target = set >= 2 ? LUCY_TARGET_SSR : LUCY_TARGET_DOM;
         LucyResult* result = reuse ? reused : lucy_result_create();
         lucy_result_set_format(result, format);
+        lucy_result_set_target(result, target);
         lucy_compile(result, sources[i].text, filename);
 
         Output* expected = &outputs[i * OPTION_SETS + set];
@@ -228,8 +231,8 @@ int main(int argc, char** argv) {
         } else if(lucy_result_success(result) != expected->success ||
                   !same(lucy_result_js(result), expected->js) || !same(lucy_result_dts(result), expected->dts) ||
                   !same(lucy_result_ts(result), expected->ts)) {
-          printf("FAILED - %s (%s) changed in round %d\n",
-            filename, format == LUCY_FORMAT_TS ? "ts" : "js", round + 1);
+          printf("FAILED - %s (%s, %s) changed in round %d\n",
+            filename, format == LUCY_FORMAT_TS ? "ts" : "js", target == LUCY_TARGET_SSR ? "ssr" : "dom", round + 1);
           failed = 1;
         }
 

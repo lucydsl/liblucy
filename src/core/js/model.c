@@ -641,6 +641,8 @@ void printer_build_model(Printer* printer) {
   printer->nodes = printer_free_name(printer, "nodes");
   printer->template = printer_free_name(printer, "template");
   printer->attr = printer_free_name(printer, "attr");
+  printer->escape = printer_free_name(printer, "escape");
+  printer->render = printer_free_name(printer, "render");
   printer_prepare_views(printer);
   for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     set_invoke_kinds(printer, machine->states);

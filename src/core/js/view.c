@@ -74,7 +74,8 @@ static bool is_property(const char* name) {
 static void find_bound_attributes(Printer* printer, ViewNode* node) {
   for(; node != NULL; node = node->next) {
     for(ViewAttribute* attribute = node->attributes; attribute != NULL; attribute = attribute->next) {
-      if(attribute->key != NULL && !is_property(attribute->name)) {
+      // On a server every bound attribute is written with the helper.
+      if(attribute->key != NULL && (printer->ssr || !is_property(attribute->name))) {
         printer->needs_attr = true;
       }
     }
@@ -104,6 +105,9 @@ static void prepare_parts(Printer* printer, JSMachine* machine, JSState* state) 
         printer_warnf(printer, LUCY_STREAM_STDOUT,
           "State [%s] has a part, view(%s), but the machine's view has no {part(%s)} to put it in.\n",
           state->path, node->part_name, node->part_name);
+      } else if(printer->ssr) {
+        // render() writes the part when the machine is in the state.
+        find_bound_attributes(printer, node->part);
       } else {
         const char* name = printer_capitalize(printer, node->part_name);
         state->part_var = view_name(printer, machine->view, printer_concat(printer, state->var, name));
@@ -146,8 +150,34 @@ static bool any_view(Printer* printer) {
   return false;
 }
 
+// The ssr target's helpers: escaping, and the attribute bound to a key.
+static void print_ssr_helpers(Printer* printer) {
+  JSBuilder* jsb = printer->jsb;
+  js_builder_line(jsb, "// A value as HTML text, or an attribute's value.");
+  js_builder_open(jsb, "function %s(value%s) {", printer->escape, printer->ts ? ": unknown" : "");
+  js_builder_line(jsb, "return String(value ?? '').replace(/[&<>\"]/g, c => '&#' + c.charCodeAt(0) + ';');");
+  js_builder_close(jsb, "}");
+  js_builder_blank(jsb);
+  if(printer->needs_attr) {
+    js_builder_line(jsb, "// An attribute bound to a key: there for true and other values, as");
+    js_builder_line(jsb, "// written, and left out for false, null and undefined.");
+    js_builder_open(jsb, "function %s(name%s, value%s) {", printer->attr,
+      printer->ts ? ": string" : "", printer->ts ? ": unknown" : "");
+    js_builder_open(jsb, "if(value == null || value === false) {");
+    js_builder_line(jsb, "return '';");
+    js_builder_close(jsb, "}");
+    js_builder_line(jsb, "return value === true ? ' ' + name : ' ' + name + '=\"' + %s(value) + '\"';", printer->escape);
+    js_builder_close(jsb, "}");
+    js_builder_blank(jsb);
+  }
+}
+
 void printer_print_view_helper(Printer* printer) {
   if(!any_view(printer)) {
+    return;
+  }
+  if(printer->ssr) {
+    print_ssr_helpers(printer);
     return;
   }
   JSBuilder* jsb = printer->jsb;
@@ -184,12 +214,25 @@ static void part_templates(Printer* printer, JSState* state) {
 }
 
 void printer_print_view_templates(Printer* printer, JSMachine* machine) {
-  if(machine->view == NULL) {
+  if(machine->view == NULL || printer->ssr) {
     return;
   }
   js_builder_line(printer->jsb, "let %s;", machine->view->template_var);
   part_templates(printer, machine->states);
   js_builder_blank(printer->jsb);
+}
+
+// Whether an element has no children or end tag.
+static bool is_void(const char* tag) {
+  static const char* const void_elements[] = {
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", NULL
+  };
+  for(size_t i = 0; void_elements[i] != NULL; i++) {
+    if(strcmp(void_elements[i], tag) == 0) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // The markup of nodes, for the template: as written, but with no event
@@ -209,16 +252,7 @@ static void add_markup(StrBuilder* sb, ViewNode* node) {
           }
         }
         str_builder_add_str(sb, ">");
-        static const char* const void_elements[] = {
-          "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", NULL
-        };
-        bool is_void = false;
-        for(size_t i = 0; void_elements[i] != NULL; i++) {
-          if(strcmp(void_elements[i], node->name) == 0) {
-            is_void = true;
-          }
-        }
-        if(!is_void) {
+        if(!is_void(node->name)) {
           add_markup(sb, node->child);
           str_builder_add_format(sb, "</%s>", node->name);
         }
@@ -541,9 +575,150 @@ static void print_part_makers(Walk* walk, JSState* state) {
   }
 }
 
+
+/*
+ * The ssr target. A machine's view is the string render() returns, made
+ * from its state and context when it is called: one template literal, with
+ * each key's text escaped, each machine of a list rendered, and a state's
+ * part written while the machine is in the state.
+ */
+
+// Text of the view as it is in a template literal.
+static void add_literal(StrBuilder* sb, const char* text) {
+  for(const char* c = text; *c != '\0'; c++) {
+    if(*c == '\\' || *c == '`' || (*c == '$' && c[1] == '{')) {
+      str_builder_add_char(sb, '\\');
+    }
+    str_builder_add_char(sb, *c);
+  }
+}
+
+typedef struct Render {
+  Printer* printer;
+  JSMachine* machine;
+  StrSet* lists;
+  bool in_part;
+} Render;
+
+static void add_render(Render* render, StrBuilder* sb, ViewNode* node);
+
+// Whether the machine is in state: in it, or in one of its children.
+static void add_in_state(StrBuilder* sb, JSState* state) {
+  if(state->child == NULL) {
+    str_builder_add_format(sb, "machine.state === '%s'", state->path);
+  } else {
+    str_builder_add_format(sb, "(machine.state === '%s' || machine.state.startsWith('%s.'))", state->path, state->path);
+  }
+}
+
+// The parts of the states named name, each written while its state is.
+static void add_parts(Render* render, StrBuilder* sb, JSState* state, const char* name) {
+  for(; state != NULL; state = state->next) {
+    StateNode* node = state->node;
+    if(node->part_name != NULL && strcmp(node->part_name, name) == 0) {
+      str_builder_add_str(sb, "${");
+      add_in_state(sb, state);
+      str_builder_add_str(sb, " ? `");
+      render->in_part = true;
+      add_render(render, sb, node->part);
+      render->in_part = false;
+      str_builder_add_str(sb, "` : ''}");
+    }
+    add_parts(render, sb, state->child, name);
+  }
+}
+
+static void add_render(Render* render, StrBuilder* sb, ViewNode* node) {
+  Printer* printer = render->printer;
+  for(; node != NULL; node = node->next) {
+    switch(node->type) {
+      case VIEW_ELEMENT: {
+        str_builder_add_format(sb, "<%s", node->name);
+        for(ViewAttribute* attribute = node->attributes; attribute != NULL; attribute = attribute->next) {
+          if(attribute->event != NULL) {
+            continue;
+          }
+          if(attribute->key != NULL) {
+            const char* name = attribute->name;
+            if(strcmp(name, "indeterminate") == 0) {
+              // Only a property; HTML has no attribute for it.
+              continue;
+            }
+            if(strcmp(name, "value") == 0) {
+              str_builder_add_format(sb, "${%s('value', machine.context.%s ?? '')}", printer->attr, attribute->key);
+            } else if(is_property(name)) {
+              str_builder_add_format(sb, "${%s('%s', !!machine.context.%s)}", printer->attr, name, attribute->key);
+            } else {
+              str_builder_add_format(sb, "${%s('%s', machine.context.%s)}", printer->attr, name, attribute->key);
+            }
+            continue;
+          }
+          str_builder_add_char(sb, ' ');
+          add_literal(sb, attribute->name);
+          if(attribute->value != NULL) {
+            str_builder_add_char(sb, '=');
+            add_literal(sb, attribute->value);
+          }
+        }
+        str_builder_add_char(sb, '>');
+        if(!is_void(node->name)) {
+          add_render(render, sb, node->child);
+          str_builder_add_format(sb, "</%s>", node->name);
+        }
+        break;
+      }
+      case VIEW_TEXT: {
+        add_literal(sb, node->text);
+        break;
+      }
+      case VIEW_VALUE: {
+        if(str_set_contains(render->lists, node->name)) {
+          str_builder_add_format(sb, "${(machine.context.%s ?? []).map(%s => %s.%s()).join('')}",
+            node->name, printer->actor, printer->actor, "render");
+        } else {
+          str_builder_add_format(sb, "${%s(machine.context.%s)}", printer->escape, node->name);
+        }
+        break;
+      }
+      case VIEW_PART: {
+        if(render->in_part) {
+          printer_warnf(printer, LUCY_STREAM_STDOUT, "A part of a view can't have parts of its own.\n");
+          break;
+        }
+        add_parts(render, sb, render->machine->states, node->name);
+        break;
+      }
+    }
+  }
+}
+
+static void print_render(Printer* printer, JSMachine* machine) {
+  StrSet lists;
+  str_set_init(&lists, printer->arena);
+  collect_lists(printer, machine->states, &lists);
+  Render render = {
+    .printer = printer,
+    .machine = machine,
+    .lists = &lists,
+  };
+  StrBuilder* sb = str_builder_create();
+  add_render(&render, sb, machine->node->view);
+  JSBuilder* jsb = printer->jsb;
+  js_builder_line(jsb, "// The view as HTML, from the machine's state and context now.");
+  js_builder_open(jsb, "function %s()%s {", printer->render, printer->ts ? ": string" : "");
+  js_builder_line(jsb, "return `%s`;", str_builder_peek(sb));
+  js_builder_close(jsb, "}");
+  js_builder_blank(jsb);
+  str_builder_destroy(sb);
+}
+
 void printer_print_view_setup(Printer* printer, JSMachine* machine) {
   JSView* view = machine->view;
   if(view == NULL) {
+    return;
+  }
+  if(printer->ssr) {
+    print_render(printer, machine);
     return;
   }
   JSBuilder* jsb = printer->jsb;
@@ -571,7 +746,8 @@ void printer_print_view_setup(Printer* printer, JSMachine* machine) {
 
 void printer_print_view_assign(Printer* printer, const char* key, bool append) {
   JSView* view = printer->machine != NULL ? printer->machine->view : NULL;
-  if(view == NULL || key == NULL) {
+  // On a server nothing changes: render() reads the context when called.
+  if(view == NULL || key == NULL || printer->ssr) {
     return;
   }
   JSBuilder* jsb = printer->jsb;

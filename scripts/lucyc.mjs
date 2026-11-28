@@ -19,6 +19,10 @@ while(filename && filename.startsWith('--')) {
       options.format = 'ts';
       break;
     }
+    case '--target': {
+      options.target = process.argv[++index];
+      break;
+    }
     case '--print': {
       print = process.argv[++index];
       break;

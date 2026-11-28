@@ -95,7 +95,9 @@ export function createCompiler(instance, {
    * Compile Lucy source to a module of plain JavaScript state machines.
    * @param source {String} the input Lucy source.
    * @param filename {String} the name of the Lucy file.
-   * @param options {{ format?: 'js' | 'ts' }}
+   * @param options {{ format?: 'js' | 'ts', target?: 'dom' | 'ssr' }} the
+   *   target is where views run: 'dom', the browser, where a view is
+   *   machine.dom, or 'ssr', a server, where it is machine.render().
    * @returns {{ js: string, dts: string } | { ts: string }} The compiled
    *   JavaScript module and its TypeScript declarations, or with the 'ts'
    *   format the two as one TypeScript module.
@@ -113,6 +115,10 @@ export function createCompiler(instance, {
     if(format !== 'js' && format !== 'ts') {
       throw new Error(`Unknown format '${format}'. Use 'js' or 'ts'.`);
     }
+    const target = options.target ?? 'dom';
+    if(target !== 'dom' && target !== 'ssr') {
+      throw new Error(`Unknown target '${target}'. Use 'dom' or 'ssr'.`);
+    }
 
     const srcPtr = writeString(source);
     let fnPtr;
@@ -129,6 +135,8 @@ export function createCompiler(instance, {
       result = wasm.lucy_result_create();
       // 1 is LUCY_FORMAT_TS.
       wasm.lucy_result_set_format(result, format === 'ts' ? 1 : 0);
+      // 1 is LUCY_TARGET_SSR.
+      wasm.lucy_result_set_target(result, target === 'ssr' ? 1 : 0);
       wasm.lucy_compile(result, srcPtr, fnPtr);
 
       // The compiler doesn't print; this prints what lucyc would.

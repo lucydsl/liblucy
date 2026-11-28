@@ -187,7 +187,10 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
     js_builder_line(jsb, "state: '%s',", printer_leaf(machine->initial)->path);
   }
   js_builder_line(jsb, "context,");
-  if(machine->view != NULL) {
+  if(machine->view != NULL && printer->ssr) {
+    // The view as HTML, for the server to send.
+    js_builder_line(jsb, strcmp(printer->render, "render") == 0 ? "render," : "render: %s,", printer->render);
+  } else if(machine->view != NULL) {
     // The view, for the host to attach, and its top-level nodes, which
     // stay when attaching empties the fragment.
     js_builder_line(jsb, strcmp(printer->dom, "dom") == 0 ? "dom," : "dom: %s,", printer->dom);

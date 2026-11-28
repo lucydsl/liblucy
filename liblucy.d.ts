@@ -6,6 +6,13 @@ declare namespace LibLucy {
      */
     format?: 'js' | 'ts';
     /**
+     * Where views run: 'dom', the default, for the browser, where a
+     * machine's view is machine.dom; or 'ssr' for a server, where it is
+     * the string machine.render() returns. Machines without a view are the
+     * same for both.
+     */
+    target?: 'dom' | 'ssr';
+    /**
      * @deprecated The declarations are always produced. This does nothing.
      */
     dts?: boolean;

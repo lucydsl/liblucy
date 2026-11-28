@@ -19,6 +19,12 @@ typedef enum JSFormat {
   JS_FORMAT_TS,
 } JSFormat;
 
+// Where the views run: the browser's DOM, or a server, as strings.
+typedef enum JSTarget {
+  JS_TARGET_DOM,
+  JS_TARGET_SSR,
+} JSTarget;
+
 // The output, which the caller must free(). Only the strings of the
 // format asked for are set.
 typedef struct JSOutput {
@@ -36,4 +42,4 @@ typedef struct JSOutput {
  * to diagnostics.
  */
 JSOutput js_print(Arena* arena, Program* program, const char* source,
-  JSFormat format, DiagnosticList* diagnostics);
+  JSFormat format, JSTarget target, DiagnosticList* diagnostics);
