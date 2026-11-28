@@ -1,0 +1,4 @@
+machine a {
+  initial state s {}
+  view { <p title={a + b}></p> }
+}

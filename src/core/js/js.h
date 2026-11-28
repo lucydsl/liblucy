@@ -19,6 +19,12 @@ typedef enum JSFormat {
   JS_FORMAT_TS,
 } JSFormat;
 
+// Where the views run: the browser's DOM, or a server, as strings.
+typedef enum JSTarget {
+  JS_TARGET_DOM,
+  JS_TARGET_SSR,
+} JSTarget;
+
 // The output, which the caller must free(). Only the strings of the
 // format asked for are set.
 typedef struct JSOutput {
@@ -32,8 +38,9 @@ typedef struct JSOutput {
 
 /*
  * Print program, parsed from source, as a module of plain state machines:
- * JavaScript and its .d.ts, or TypeScript. Working memory comes from arena. Warnings about what the printer can't print are added
+ * JavaScript and its .d.ts, or TypeScript, for target, and for hydration
+ * if hydrate is set (see lucy_result_set_hydrate). Working memory comes from arena. Warnings about what the printer can't print are added
  * to diagnostics.
  */
 JSOutput js_print(Arena* arena, Program* program, const char* source,
-  JSFormat format, DiagnosticList* diagnostics);
+  JSFormat format, JSTarget target, bool hydrate, DiagnosticList* diagnostics);

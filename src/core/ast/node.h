@@ -70,6 +70,44 @@ typedef struct SourceSpan {
   size_t end;
 } SourceSpan;
 
+// What a view is made of: markup, as written in a `view { }` block.
+typedef enum ViewNodeType {
+  VIEW_ELEMENT, // <tag attributes>children</tag>
+  VIEW_TEXT,    // text between tags, its whitespace as JSX keeps it
+  VIEW_VALUE,   // {key}: a context key, shown as text or as a list of machines
+  VIEW_PART,    // {part(name)}: where a state's view(name) goes
+} ViewNodeType;
+
+// An attribute of an element: `name="value"`, `name`, one bound to a key
+// of the context, `value={name}`, or an event, `on:submit={add}`, which
+// sends the Lucy event when the DOM event fires.
+typedef struct ViewAttribute {
+  const char* name;
+  // The value as written, quotes included, or NULL for none.
+  const char* value;
+  // For name={key}, the key.
+  const char* key;
+  // For on:name={event}, the DOM event's name and the Lucy event's.
+  const char* dom_event;
+  const char* event;
+  struct ViewAttribute* next;
+} ViewAttribute;
+
+typedef struct ViewNode {
+  ViewNodeType type;
+  // The tag of an element, the key of a value, the name of a part.
+  const char* name;
+  // The text of a text node. For a key shown in a state's part, the
+  // printer keeps the name of its text node's variable here.
+  const char* text;
+  ViewAttribute* attributes;
+  struct ViewNode* child;
+  struct ViewNode* next;
+  // The variable the printer finds the node by, if it needs one. Set by
+  // the printer.
+  const char* var;
+} ViewNode;
+
 typedef struct MachineNode {
   Node node;
 
@@ -80,6 +118,9 @@ typedef struct MachineNode {
   // The name of the state marked `initial`, if one is.
   bool has_initial;
   SourceSpan initial;
+  // `view { ... }`: the machine's view, the nodes at its top level.
+  bool has_view;
+  ViewNode* view;
 } MachineNode;
 
 typedef struct StateNode {
@@ -93,6 +134,10 @@ typedef struct StateNode {
   struct TransitionNode* immediate_transition;
   struct TransitionNode* delay_transition;
   struct InvokeNode* invoke;
+  // `view(name) { ... }`: a part of the machine's view that is there only
+  // while the machine is in this state, put where {part(name)} is.
+  const char* part_name;
+  ViewNode* part;
 } StateNode;
 
 typedef struct TransitionGuard {

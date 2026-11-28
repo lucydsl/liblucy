@@ -218,6 +218,7 @@ typedef enum Keyword {
   KEYWORD_INPUT,
   KEYWORD_APPEND,
   KEYWORD_REMOVE,
+  KEYWORD_VIEW,
 } Keyword;
 
 /* The keyword a word is, or KEYWORD_NONE (also for NULL). */
@@ -275,6 +276,10 @@ ParseStatus parser_consume_inline_spawn(Parser*, AssignExpression*);
  */
 ParseStatus parser_consume_spawn_field(Parser*, SpawnExpression*, bool symbol, const char* name, bool after_equals);
 ParseStatus parser_consume_input(Parser*);
+/* view.c: `view { ... }` in a machine, after the word view. */
+ParseStatus parser_consume_view(Parser*);
+/* `view(name) { ... }` in a state, after the word view. */
+ParseStatus parser_consume_part(Parser*);
 /* A value (see value.c), token being its first token and word that
  * token's text. NULL, after an error, when it isn't one. */
 Expression* parser_consume_value(Parser*, TokenType token, const char* word);

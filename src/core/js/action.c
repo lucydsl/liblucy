@@ -44,7 +44,7 @@ static void add_value(Printer* printer, Expression* value) {
     MemberExpression* member = (MemberExpression*)value;
     const char* property = ((IdentifierExpression*)member->property)->name;
     if(strcmp(member->owner, "context") == 0) {
-      js_builder_add_format(jsb, "machine.context.%s", property);
+      js_builder_add_format(jsb, "%s.%s", printer_context(printer), property);
     } else {
       js_builder_add_format(jsb, "event.%s", property);
     }
@@ -55,10 +55,10 @@ static void add_value(Printer* printer, Expression* value) {
     } else if(strcmp(name, "parent") == 0) {
       js_builder_add_str(jsb, printer->parent);
     } else {
-      js_builder_add_format(jsb, "%s(machine.context, event)", name);
+      js_builder_add_format(jsb, "%s(%s, event)", name, printer_context(printer));
     }
   } else if(value->type == EXPRESSION_SYMBOL) {
-    js_builder_add_format(jsb, "assigns.%s(machine.context, event)", ((SymbolExpression*)value)->name);
+    js_builder_add_format(jsb, "assigns.%s(%s, event)", ((SymbolExpression*)value)->name, printer_context(printer));
   }
 }
 
@@ -237,8 +237,94 @@ void printer_add_spawn_call(Printer* printer, SpawnExpression* spawn, bool start
 
 // assign(key, spawn(x)): the machine is kept in the context, in place of
 // what the key held. append(key, spawn(x)): it is added to the list the
-// key holds.
+// key holds. Either goes into the run's copy of the context.
 static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpression* spawn) {
+  JSBuilder* jsb = printer->jsb;
+  if(assign->append) {
+    js_builder_open(jsb, "context.%s = [", assign->key);
+    // There need be no list yet.
+    js_builder_line(jsb, "...(context.%s ?? []),", assign->key);
+    js_builder_add_indent(jsb);
+    printer_add_spawn_call(printer, spawn, true);
+    js_builder_add_str(jsb, "\n");
+    js_builder_close(jsb, "];");
+    return;
+  }
+
+  // The key may hold what an earlier spawn put there.
+  js_builder_line(jsb, "context.%s?.stop();", assign->key);
+  js_builder_add_indent(jsb);
+  js_builder_add_format(jsb, "context.%s = ", assign->key);
+  printer_add_spawn_call(printer, spawn, true);
+  js_builder_add_str(jsb, ";\n");
+}
+
+// remove(key, value): the machine is stopped and taken out of the list,
+// if it is in it.
+static void print_remove(Printer* printer, RemoveExpression* remove) {
+  JSBuilder* jsb = printer->jsb;
+  js_builder_add_indent(jsb);
+  js_builder_add_format(jsb, "if(machine.context.%s?.includes(", remove->key);
+  add_value(printer, remove->value);
+  js_builder_add_str(jsb, ")) {\n");
+  jsb->depth++;
+  js_builder_add_indent(jsb);
+  add_value(printer, remove->value);
+  js_builder_add_str(jsb, ".stop();\n");
+  js_builder_add_indent(jsb);
+  js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: machine.context.%s.filter(%s => %s !== ",
+    remove->key, remove->key, printer->actor, printer->actor);
+  add_value(printer, remove->value);
+  js_builder_add_str(jsb, ") };\n");
+  if(printer_view_has_list(printer, remove->key)) {
+    // One machine was taken out, so its view goes.
+    js_builder_add_indent(jsb);
+    js_builder_add_str(jsb, "for(const node of ");
+    add_value(printer, remove->value);
+    js_builder_add_format(jsb, ".%s) {\n", printer->nodes);
+    jsb->depth++;
+    js_builder_line(jsb, "node.remove();");
+    js_builder_close(jsb, "}");
+  }
+  js_builder_close(jsb, "}");
+}
+
+// One assign of a run, into the run's copy of the context.
+static void print_assign(Printer* printer, AssignExpression* assign) {
+  JSBuilder* jsb = printer->jsb;
+  Expression* value = assign->value;
+  if(value != NULL && value->type == EXPRESSION_SPAWN) {
+    print_spawn(printer, assign, (SpawnExpression*)value);
+    return;
+  }
+  js_builder_add_indent(jsb);
+  js_builder_add_format(jsb, "context.%s = ", assign->key);
+  if(value == NULL) {
+    js_builder_add_str(jsb, "event.data");
+  } else {
+    switch(value->type) {
+      case EXPRESSION_IDENTIFIER: {
+        js_builder_add_format(jsb, "%s(context, event)", ((IdentifierExpression*)value)->name);
+        break;
+      }
+      case EXPRESSION_SYMBOL: {
+        js_builder_add_format(jsb, "assigns.%s(context, event)", ((SymbolExpression*)value)->name);
+        break;
+      }
+      default: {
+        js_builder_add_str(jsb, "undefined");
+        break;
+      }
+    }
+  }
+  js_builder_add_str(jsb, ";\n");
+}
+
+const char* printer_context(const Printer* printer) {
+  return printer->in_assigns ? "context" : "machine.context";
+}
+
+static void print_spawn_alone(Printer* printer, AssignExpression* assign, SpawnExpression* spawn) {
   JSBuilder* jsb = printer->jsb;
   if(assign->append) {
     js_builder_open(jsb, "machine.context = {");
@@ -272,31 +358,13 @@ static void print_spawn(Printer* printer, AssignExpression* assign, SpawnExpress
   js_builder_close(jsb, "};");
 }
 
-// remove(key, value): the machine is stopped and taken out of the list,
-// if it is in it.
-static void print_remove(Printer* printer, RemoveExpression* remove) {
-  JSBuilder* jsb = printer->jsb;
-  js_builder_add_indent(jsb);
-  js_builder_add_format(jsb, "if(machine.context.%s?.includes(", remove->key);
-  add_value(printer, remove->value);
-  js_builder_add_str(jsb, ")) {\n");
-  jsb->depth++;
-  js_builder_add_indent(jsb);
-  add_value(printer, remove->value);
-  js_builder_add_str(jsb, ".stop();\n");
-  js_builder_add_indent(jsb);
-  js_builder_add_format(jsb, "machine.context = { ...machine.context, %s: machine.context.%s.filter(%s => %s !== ",
-    remove->key, remove->key, printer->actor, printer->actor);
-  add_value(printer, remove->value);
-  js_builder_add_str(jsb, ") };\n");
-  js_builder_close(jsb, "}");
-}
-
-static void print_assign(Printer* printer, AssignExpression* assign) {
+// An assign on its own, not in a run: one copy of the context, inline.
+static void print_assign_alone(Printer* printer, AssignExpression* assign) {
   JSBuilder* jsb = printer->jsb;
   Expression* value = assign->value;
   if(value != NULL && value->type == EXPRESSION_SPAWN) {
-    print_spawn(printer, assign, (SpawnExpression*)value);
+    print_spawn_alone(printer, assign, (SpawnExpression*)value);
+    printer_print_view_assign(printer, assign->key, assign->append ? 1 : 0);
     return;
   }
   js_builder_add_indent(jsb);
@@ -320,6 +388,98 @@ static void print_assign(Printer* printer, AssignExpression* assign) {
     }
   }
   js_builder_add_str(jsb, " };\n");
+  // A view that shows the key shows the change, before anything after
+  // the assign in the transition.
+  printer_print_view_assign(printer, assign->key, 0);
+}
+
+static AssignExpression* action_assign(Printer* printer, TransitionAction* action) {
+  Expression* expression = printer_action_expression(printer, action);
+  return expression != NULL && expression->type == EXPRESSION_ASSIGN ? (AssignExpression*)expression : NULL;
+}
+
+/*
+ * A run of two or more assigns, up to the first action that isn't one
+ * (one on its own is inline, print_assign_alone). The context is
+ * copied once, into a block's own `context`, which is filled in order, so
+ * that each assign's function sees the ones before it, and is the
+ * machine's only at the end: if one throws, none of the run's assigns
+ * happened. The context the machine had is never changed. Then the view
+ * shows the keys the run changed, each once, before anything after it.
+ */
+static TransitionAction* print_assigns(Printer* printer, TransitionAction* action) {
+  JSBuilder* jsb = printer->jsb;
+  if(action->next == NULL || action_assign(printer, action->next) == NULL) {
+    print_assign_alone(printer, action_assign(printer, action));
+    return action->next;
+  }
+  // A run that only takes event data reads nothing it writes, so it is
+  // one object, inline.
+  bool data_only = true;
+  TransitionAction* end = action;
+  for(; end != NULL && action_assign(printer, end) != NULL; end = end->next) {
+    if(action_assign(printer, end)->value != NULL) {
+      data_only = false;
+    }
+  }
+  if(data_only) {
+    js_builder_add_indent(jsb);
+    js_builder_add_str(jsb, "machine.context = { ...machine.context");
+    for(TransitionAction* a = action; a != end; a = a->next) {
+      js_builder_add_format(jsb, ", %s: event.data", action_assign(printer, a)->key);
+    }
+    js_builder_add_str(jsb, " };\n");
+    for(TransitionAction* a = action; a != end; a = a->next) {
+      const char* key = action_assign(printer, a)->key;
+      bool earlier = false;
+      for(TransitionAction* b = action; b != a; b = b->next) {
+        if(strcmp(action_assign(printer, b)->key, key) == 0) {
+          earlier = true;
+        }
+      }
+      if(!earlier) {
+        printer_print_view_assign(printer, key, 0);
+      }
+    }
+    return end;
+  }
+  js_builder_open(jsb, "{");
+  js_builder_line(jsb, "const context = { ...machine.context };");
+  printer->in_assigns = true;
+  TransitionAction* first = action;
+  for(; action != NULL; action = action->next) {
+    AssignExpression* assign = action_assign(printer, action);
+    if(assign == NULL) {
+      break;
+    }
+    print_assign(printer, assign);
+  }
+  printer->in_assigns = false;
+  js_builder_line(jsb, "machine.context = context;");
+  js_builder_close(jsb, "}");
+  for(TransitionAction* a = first; a != action; a = a->next) {
+    const char* key = action_assign(printer, a)->key;
+    // Each key once, where the run first assigns it.
+    bool earlier = false;
+    for(TransitionAction* b = first; b != a; b = b->next) {
+      if(strcmp(action_assign(printer, b)->key, key) == 0) {
+        earlier = true;
+      }
+    }
+    if(earlier) {
+      continue;
+    }
+    // A list shows the machines the run appended, at its end.
+    size_t appends = 0;
+    for(TransitionAction* b = a; b != action; b = b->next) {
+      AssignExpression* other = action_assign(printer, b);
+      if(other->append && strcmp(other->key, key) == 0) {
+        appends++;
+      }
+    }
+    printer_print_view_assign(printer, key, appends);
+  }
+  return action;
 }
 
 static void print_send(Printer* printer, SendExpression* send) {
@@ -350,16 +510,8 @@ static void print_call(Printer* printer, Expression* ref, const char* bag) {
   }
 }
 
-void printer_print_action(Printer* printer, TransitionAction* action) {
-  Expression* expression = printer_action_expression(printer, action);
-  if(expression == NULL) {
-    return;
-  }
+static void print_action(Printer* printer, Expression* expression) {
   switch(expression->type) {
-    case EXPRESSION_ASSIGN: {
-      print_assign(printer, (AssignExpression*)expression);
-      break;
-    }
     case EXPRESSION_SEND: {
       print_send(printer, (SendExpression*)expression);
       break;
@@ -381,6 +533,20 @@ void printer_print_action(Printer* printer, TransitionAction* action) {
       printer_warn(printer, LUCY_STREAM_STDOUT, "This type of expression is not currently supported.\n");
       break;
     }
+  }
+}
+
+void printer_print_actions(Printer* printer, TransitionAction* action) {
+  while(action != NULL) {
+    if(action_assign(printer, action) != NULL) {
+      action = print_assigns(printer, action);
+      continue;
+    }
+    Expression* expression = printer_action_expression(printer, action);
+    if(expression != NULL) {
+      print_action(printer, expression);
+    }
+    action = action->next;
   }
 }
 

@@ -21,7 +21,8 @@
     holds the cursor and the tokens, `error.c` reports errors, and
     `keyword.c` and `timeframe.c` read keywords and delays. The other files
     each parse one construct (`machine.c`, `state.c`, `transition.c`,
-    `call.c` for calls like `guard(x)`, ...).
+    `call.c` for calls like `guard(x)`, ...). `view.c` parses a view's
+    markup, by hand, character by character, into `ViewNode`s.
   - `js/`: prints a `Program` as a module of plain JavaScript state
     machines. `js.h` is its interface; `printer.h` is shared by the
     printer's files. `model.c` builds the printer's model of the program (a
@@ -39,6 +40,11 @@
     machine's declarations, then its factory with annotations.
     `event.c` holds the events a machine declares and the warnings about
     states that don't keep to them.
+    `view.c` prints views: for the `dom` target the template, the walk that
+    finds the nodes that change, the listeners, and what each assign and
+    each state's enter and exit change; for `ssr` (`Printer.ssr`) the
+    `render()` function; and with `Printer.hydrate` the walk over the
+    server's nodes instead of a clone, or the markers in `render()`.
     `js_builder.c` builds indented JavaScript text a line at a time.
 
 ## Conventions

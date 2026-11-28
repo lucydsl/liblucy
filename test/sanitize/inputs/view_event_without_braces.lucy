@@ -1,0 +1,6 @@
+machine a {
+  initial state s {}
+  view {
+    <button on:click="go">x</button>
+  }
+}

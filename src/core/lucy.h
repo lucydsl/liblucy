@@ -50,6 +50,29 @@ typedef enum LucyFormat {
 /* Set the format of the next compiles, and clear the result's output. */
 void lucy_result_set_format(LucyResult* result, LucyFormat format);
 
+/* Where the compiled machines' views run. Machines without a view are the
+ * same for every target. */
+typedef enum LucyTarget {
+  // The browser: each view is DOM nodes (machine.dom), changed in place.
+  LUCY_TARGET_DOM,
+  // A server: each view is a string of HTML, from machine.render(). No
+  // DOM is made and nothing listens.
+  LUCY_TARGET_SSR,
+} LucyTarget;
+
+/* Set the target of the next compiles, and clear the result's output. */
+void lucy_result_set_target(LucyResult* result, LucyTarget target);
+
+/*
+ * Whether the next compiles are for hydration, and clear the result's
+ * output. Off by default. Both sides of a page are compiled with it on:
+ * on LUCY_TARGET_SSR, render() marks where each key's text, list and part
+ * is, and on LUCY_TARGET_DOM a machine takes the nodes the server rendered,
+ * from its hydrate option, instead of making its own. A machine the module
+ * spawns still makes its own, as it can be spawned after the page loads.
+ */
+void lucy_result_set_hydrate(LucyResult* result, bool hydrate);
+
 /*
  * Compile source, a NUL-terminated Lucy program read from filename, into
  * result. The source and filename are only read during the call. A NULL

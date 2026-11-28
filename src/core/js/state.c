@@ -173,10 +173,9 @@ static void print_enter(Printer* printer, JSState* state) {
   if(state->top_final) {
     js_builder_line(jsb, "machine.done = true;");
   }
+  printer_print_part_enter(printer, state);
   if(node->entry != NULL) {
-    for(TransitionAction* action = node->entry->action; action != NULL; action = action->next) {
-      printer_print_action(printer, action);
-    }
+    printer_print_actions(printer, node->entry->action);
   }
   size_t index = 0;
   for(TransitionNode* t = node->delay_transition; t != NULL; t = t->next) {
@@ -235,9 +234,7 @@ static void print_exit(Printer* printer, JSState* state) {
   }
 
   if(node->exit != NULL) {
-    for(TransitionAction* action = node->exit->action; action != NULL; action = action->next) {
-      printer_print_action(printer, action);
-    }
+    printer_print_actions(printer, node->exit->action);
   }
   for(size_t i = 0; i < state->delay_count; i++) {
     js_builder_line(jsb, "clearTimeout(%s);", timer_name(printer, state, i));
@@ -247,6 +244,7 @@ static void print_exit(Printer* printer, JSState* state) {
   } else if(state->invoke_kind == INVOKE_MACHINE) {
     js_builder_line(jsb, "%sChild.stop();", state->var);
   }
+  printer_print_part_exit(printer, state);
   js_builder_close(jsb, "}");
 }
 

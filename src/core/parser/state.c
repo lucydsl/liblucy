@@ -85,6 +85,18 @@ ParseStatus parser_consume_state(Parser* parser) {
             }
             break;
           }
+          case KEYWORD_VIEW: {
+            // view(name) { ... } is a part of the view; `view => ...` is a
+            // transition on an event called view.
+            if(parser_peek(parser) == '(') {
+              if(parse_merge(&status, parser_consume_part(parser)) == PARSE_FATAL) {
+                return PARSE_FATAL;
+              }
+            } else if(parse_merge(&status, parser_consume_transition(parser)) == PARSE_FATAL) {
+              return PARSE_FATAL;
+            }
+            break;
+          }
           default: {
             if(parse_merge(&status, parser_consume_transition(parser)) == PARSE_FATAL) {
               return PARSE_FATAL;
@@ -123,8 +135,9 @@ ParseStatus parser_consume_state(Parser* parser) {
     }
   }
 
-end: {
-  parser_leave_node(parser);
-  return status;
-}
+end:
+  {
+    parser_leave_node(parser);
+    return status;
+  }
 }

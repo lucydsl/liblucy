@@ -1,0 +1,20 @@
+use './dom.js' { inputValue }
+
+machine editor {
+  initial state editing {
+    input => assign(label, inputValue)
+    save => saving
+  }
+
+  state saving {
+    done => editing
+    view(status) {
+      <p class="status" title={label} data-label={label}>Saving {label}<progress max={total}></progress></p>
+    }
+  }
+
+  view {
+    <input value={label} on:input={input}>
+    {part(status)}
+  }
+}

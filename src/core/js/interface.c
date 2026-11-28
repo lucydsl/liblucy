@@ -347,6 +347,21 @@ void printer_forward_symbols(Printer* printer) {
   }
 }
 
+static bool mark_spawned(Printer* printer, JSMachine* machine, SpawnExpression* spawn) {
+  (void)machine;
+  JSMachine* child = spawned_machine(printer, spawn);
+  if(child != NULL) {
+    child->spawned = true;
+  }
+  return false;
+}
+
+void printer_mark_spawned(Printer* printer) {
+  for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
+    visit_spawns(printer, machine, machine->states, mark_spawned);
+  }
+}
+
 bool printer_interface_needs_options(const JSInterface* interface) {
   return interface->actions.head != NULL || interface->assigns.head != NULL ||
          interface->guards.head != NULL || interface->delays.head != NULL ||

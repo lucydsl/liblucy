@@ -1,0 +1,14 @@
+use './query.js' { sample, elapsedText, elapsedClass, queryText }
+
+// A run of assigns that read each other: one copy of the context, then
+// the view, once for each key.
+machine query {
+  initial state live {
+    frame => assign(sample, sample) => assign(elapsed, elapsedText) => assign(className, elapsedClass) => assign(text, queryText) => assign(elapsed, elapsedText)
+    reset => assign(elapsed) => assign(text)
+  }
+
+  view {
+    <td class={className}>{elapsed}<span>{text}</span></td>
+  }
+}

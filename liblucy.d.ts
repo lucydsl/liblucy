@@ -6,6 +6,20 @@ declare namespace LibLucy {
      */
     format?: 'js' | 'ts';
     /**
+     * Where views run: 'dom', the default, for the browser, where a
+     * machine's view is machine.dom; or 'ssr' for a server, where it is
+     * the string machine.render() returns. Machines without a view are the
+     * same for both.
+     */
+    target?: 'dom' | 'ssr';
+    /**
+     * Compile for hydration, on both targets: with 'ssr', render() marks
+     * where each key's text, list and part is; with 'dom', a machine with
+     * a view takes over those nodes, given as its hydrate option, rather
+     * than making its own. A machine the module spawns makes its own.
+     */
+    hydrate?: boolean;
+    /**
      * @deprecated The declarations are always produced. This does nothing.
      */
     dts?: boolean;

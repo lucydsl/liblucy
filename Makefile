@@ -41,6 +41,7 @@ WASM_CC=$(WASI_SDK)/bin/clang --target=wasm32-wasip1 --sysroot=$(WASI_SDK)/share
 #   with WASM_STRIP= to keep them.
 WASM_EXPORTS=malloc free \
 	lucy_result_create lucy_result_destroy lucy_result_set_format \
+	lucy_result_set_target lucy_result_set_hydrate \
 	lucy_compile lucy_result_success lucy_result_js lucy_result_dts \
 	lucy_result_ts \
 	lucy_result_diagnostic_count lucy_result_diagnostic \

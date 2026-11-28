@@ -51,7 +51,17 @@ run_test() {
     local output="${d}expected.js"
   fi
 
-  $LUCYC $dtsflag $input >> $tmp 2>&1
+  # A test whose name has ssr_ in it compiles for a server.
+  local targetflag=""
+  if [[ "$input" == *"ssr_"* ]]; then
+    targetflag="--target ssr"
+  fi
+  # And one with hydrate_ in it, for hydration.
+  if [[ "$input" == *"hydrate_"* ]]; then
+    targetflag="$targetflag --hydrate"
+  fi
+
+  $LUCYC $dtsflag $targetflag $input >> $tmp 2>&1
 
   if [ "$upd" -eq 1 ]; then
     mv $tmp $output

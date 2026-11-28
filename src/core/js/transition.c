@@ -120,9 +120,7 @@ void printer_print_transition(Printer* printer, JSState* owner, TransitionNode* 
   if(transition->dest != NULL) {
     printer_print_exit_call(printer, owner, has_event);
   }
-  for(TransitionAction* action = transition->action; action != NULL; action = action->next) {
-    printer_print_action(printer, action);
-  }
+  printer_print_actions(printer, transition->action);
   if(transition->dest != NULL) {
     printer_print_enter_target(printer, owner, transition->dest, has_event);
   } else if(owner->flags & STATE_NEEDS_ALWAYS) {

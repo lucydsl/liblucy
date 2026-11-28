@@ -20,7 +20,7 @@ machine.stop();
 
 - `createMachine({ context, actions, guards, assigns, delays, services })`: the options supply what the Lucy source names with `:symbols`, each called as `(context, event)`; a `services` entry returns a promise for `invoke(:name)`, and for `spawn(:name)` is called with `{ parent }` and returns an unstarted machine. Only the options a machine uses are read.
 - A machine that uses `send(parent, event)` sends to whatever created it: the machine that spawned or invoked it, or the `parent` option (anything with a `send`) when you create it yourself. Without a parent the send does nothing. An imported factory given to `spawn` is called with `{ parent }` too. Spawning into a context key that already holds a machine stops that one first.
-- `state` is the current state's name, or a dotted path such as `'red.walk'` inside a nested machine. `context` is a plain object, replaced (not mutated) by each `assign`. `done` becomes `true` when a final state is entered.
+- `state` is the current state's name, or a dotted path such as `'red.walk'` inside a nested machine. `context` is a plain object, replaced (not mutated) by assigns: each one on its own makes a new object, and two or more in a row make one between them, each seeing the ones before it. `done` becomes `true` when a final state is entered.
 - `send(event)` takes a type or an `{ type, data }` object and runs the transition at once. An event sent while the machine is handling another (from an action, a listener, or an actor it sent to) is queued: it is handled after that transition and its notification, in order, before the outermost `send` returns. If a transition throws, the queue is dropped and the error reaches the caller. A machine that calls no code of its own has no queue. `subscribe(listener)` calls the listener with the machine after each change and returns an unsubscribe function. `start()` enters the initial state (entry actions, timers, invokes) and returns the machine; `stop()` clears timers, drops pending invokes, stops invoked and spawned children, and clears the listeners.
 - Every module comes with a `.d.ts` that types each factory's options and the machine it returns: `lucyc --out-file toggle.js` writes `toggle.d.ts` beside it, and `compile()` returns it as `dts`.
 - `lucyc --ts` (and `compile(source, filename, { format: 'ts' })`, which returns `ts`) compiles to one TypeScript module instead: the same code with those types in it. Its syntax is erasable, so Node runs it as it is. The types are those of the factories; the code inside them is marked `// @ts-nocheck`, as it is generated and uses `any` for the events.
@@ -111,6 +111,63 @@ machine todoList {
 - `stop()` stops every machine in the list. A machine that reaches a final state stays in the list until it is removed.
 - `append` and `remove` are keywords where an action goes, so a state can't be called either and be a transition's target. An event still can.
 - The compiler warns about a key that `assign` spawns into and `append` adds to, and about a `send` to a key that holds a list.
+
+## Views
+
+A machine can have a view: HTML in a `view { }` block, which shows keys of its context, and which the compiler keeps up to date without comparing anything.
+
+```lucy
+use './dom.js' { inputValue }
+
+machine greeter {
+  initial state idle {
+    input => assign(name, inputValue)
+    save => saving
+  }
+
+  state saving {
+    done => idle
+
+    view(status) {
+      <p class="status">Saving…</p>
+    }
+  }
+
+  view {
+    <span class="greeting">Name: {name}</span>
+    <input type="text" value={name} on:input={input}>
+    {part(status)}
+  }
+}
+```
+
+```js
+const greeter = createGreeter({ context: { name: 'Ada' } }).start();
+document.body.append(greeter.dom);
+```
+
+- `{key}` shows a key of the context as text. `attr={key}` binds an attribute to one: `value`, `checked`, `selected` and `indeterminate` are set as properties, and any other is there for `true` and other values, as written, and gone for `false`, `null` and `undefined`. A value is always a key, never an expression.
+- `on:event={name}` sends the machine the Lucy event `name`, with the DOM event as its data, on any DOM event. Calling `preventDefault` is up to an action.
+- `{key}` where the key is a list of machines with views (`append(key, spawn(x))`) shows their views, in order. `append` adds the new one's nodes at the end and `remove` takes its nodes out; nothing else is touched.
+- `view(name) { }` in a state is a part of the view, put where the machine's view has `{part(name)}` while the machine is in the state (or one of its children), and taken out when it leaves. A part is made the first time and kept.
+- The markup is parsed into a `<template>` once per module, and each machine clones it. The compiler knows every place a key is assigned, so the text or attribute that shows it is set right after the assign. `machine.dom` is the view, a fragment to attach, and `machine.nodes` its top-level nodes, which stay when attaching empties the fragment. A view needn't have one root element. Whitespace follows JSX's rule: text that is only whitespace with a line break goes, and lines are trimmed and joined with a space.
+- A view is only in the top-level machines of a file, which have names. A machine without a view has no view code.
+
+### Targets
+
+Where a view runs is a compile option, and each target's output has none of the other's code:
+
+- `dom`, the default: the view is DOM, `machine.dom`, as above.
+- `ssr` (`lucyc --target ssr`, `compile(source, filename, { target: 'ssr' })`): a server. The view is the string of HTML `machine.render()` returns, made from the machine's state and context when it's called. Text and attributes are escaped, each machine of a list renders its own view, and a part is there while its state is. Nothing listens and no DOM is made.
+
+### Hydration
+
+`lucyc --hydrate` (`{ hydrate: true }`) compiles both targets for hydration, so the browser takes over the HTML the server rendered instead of making its own:
+
+- With `ssr`, `render()` puts `<!--[-->` and `<!--]-->` around each key's text, list and part, so the browser can find them, and so text stays a node of its own.
+- With `dom`, a machine with a view takes the nodes under its `hydrate` option, an element whose children are what `render()` returned, and keeps them: each key's text node, the elements that listen or show an assigned key. It sets nothing the server already rendered, and has no markup to parse. Lists and parts are made again as the machine starts, in the places the server's were. The machine must start with the context the server rendered it with.
+- A machine the module spawns, such as an item of a list, still makes its own view, since it can be made after the page loads.
+- Without `--hydrate` there is no code for it on either side.
 
 ## Contributing
 

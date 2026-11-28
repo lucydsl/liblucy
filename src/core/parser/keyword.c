@@ -24,6 +24,7 @@ static const struct {
   { "input", KEYWORD_INPUT },
   { "append", KEYWORD_APPEND },
   { "remove", KEYWORD_REMOVE },
+  { "view", KEYWORD_VIEW },
 };
 
 Keyword keyword_lookup(const char* key) {

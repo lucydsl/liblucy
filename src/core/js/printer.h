@@ -63,7 +63,43 @@ struct JSState {
   size_t delay_count;
   InvokeKind invoke_kind;
   JSMachine* invoked;
+  // Its part of the machine's view, view(name) { ... }, when the view has
+  // a place for it: the variable that keeps its nodes (savingStatus), the
+  // function that makes them (makeSavingStatus), and the module's variable
+  // for its template (formSavingStatusView). NULL without one.
+  const char* part_var;
+  const char* part_make;
+  const char* part_template;
 };
+
+// A text node of a view that shows a key of the context, or an attribute
+// bound to one, which the output changes when an assign does.
+typedef struct JSViewText {
+  const char* key;
+  // The text node's variable, or the element's.
+  const char* var;
+  // The attribute, or NULL for a text node.
+  const char* attribute;
+  // In a state's part, which isn't made until the state is first entered.
+  bool in_part;
+  struct JSViewText* next;
+} JSViewText;
+
+// What the printer knows of a machine's view (view.c).
+typedef struct JSView {
+  // The module's variable for the template, made the first time a machine
+  // of this kind is: greeterView.
+  const char* template_var;
+  // The text nodes that show keys.
+  JSViewText* texts;
+  // By key, the ViewNode marking where a list of machines' views go, and
+  // by part name, the one where a state's part goes. Each one's var is
+  // the marker they go before.
+  StrMap* lists;
+  StrMap* slots;
+  // The names the view's variables have taken.
+  StrSet names;
+} JSView;
 
 // A :symbol a machine's options have to provide.
 typedef struct JSSymbol {
@@ -176,6 +212,14 @@ struct JSMachine {
   JSInput* inputs;
   // What it needs supplied and what it handles.
   JSInterface* interface;
+  // Its view, or NULL without one.
+  JSView* view;
+  // A machine of the module spawns it.
+  bool spawned;
+  // Hydrating on the DOM: it takes the nodes the server rendered, from
+  // its hydrate option, rather than making its own. Every machine with a
+  // view does, except those that are spawned.
+  bool adopts;
 };
 
 /*
@@ -204,12 +248,42 @@ typedef struct Printer {
   // machine in a list.
   const char* parent;
   const char* actor;
+  // The variables for a view: its fragment and top-level nodes, and the
+  // function that parses markup. Free of the imports, like the others.
+  const char* dom;
+  const char* nodes;
+  const char* template;
+  // The function that sets an attribute bound to a key, emitted when a
+  // view has one that isn't set as a property.
+  const char* attr;
+  bool needs_attr;
+  // For the ssr target: the function that escapes text for HTML, and the
+  // one that makes a view's string.
+  const char* escape;
+  const char* render;
+  // For hydration on the DOM: the option a factory takes the server's
+  // nodes from, and the helpers that find a key's text node and clear a
+  // list's or a part's place.
+  const char* hydrate_option;
+  const char* claim_text;
+  const char* clear_region;
   // The machine being printed.
   JSMachine* machine;
   // Printing TypeScript: each factory comes after its types, and what it
   // declares is annotated (printer_any).
   bool ts;
+  // Printing a run of assigns, which reads and writes its own copy of the
+  // context, `context`, until the run ends.
+  bool in_assigns;
+  // The ssr target: views are strings, from render().
+  bool ssr;
+  // For hydration: render() marks each key's text, list and part, and on
+  // the DOM a machine that adopts takes the server's nodes.
+  bool hydrate;
 } Printer;
+
+/* interface.c: note which machines of the module are spawned. */
+void printer_mark_spawned(Printer*);
 
 /* printer.c */
 
@@ -312,6 +386,35 @@ void printer_forward_symbols(Printer*);
  */
 void printer_check_interfaces(Printer*, JSMachine*);
 
+/* view.c */
+
+/*
+ * Set up the views of the machines that have one: the names their module
+ * variables take, and which states' parts have a place in their view.
+ * Before the states' flags are worked out, as a part gives a state enter
+ * and exit work.
+ */
+void printer_prepare_views(Printer*);
+/* The function that parses markup, once in a module with any views. */
+void printer_print_view_helper(Printer*);
+/* A machine's module variables for its templates, before its factory. */
+void printer_print_view_templates(Printer*, JSMachine*);
+/* The start of a factory: the view cloned, its nodes found, its text,
+ * listeners and lists set up, and the functions that make its parts. */
+void printer_print_view_setup(Printer*, JSMachine*);
+/* After an assign of key, or an append to it: the view shows the change. */
+void printer_print_view_assign(Printer*, const char* key, size_t appends);
+/* Whether the machine's view shows key as a list of machines. */
+bool printer_view_has_list(Printer*, const char* key);
+/* In a state's enter function, its part put in; in its exit function,
+ * taken out. */
+void printer_print_part_enter(Printer*, JSState*);
+void printer_print_part_exit(Printer*, JSState*);
+/* Whether a name is one the source imports. */
+bool printer_is_imported(Printer*, const char* name);
+/* A name for one of the output's own variables that no import has. */
+const char* printer_free_name(Printer*, const char* base);
+
 /* machine.c */
 
 void printer_print_machine(Printer*, JSMachine*);
@@ -359,7 +462,10 @@ const char* printer_handler_name(Printer*, JSState* owner, const char* event);
  */
 Expression* printer_action_expression(Printer*, TransitionAction*);
 /* An action as a statement. */
-void printer_print_action(Printer*, TransitionAction*);
+void printer_print_actions(Printer*, TransitionAction*);
+/* The context, as the code being printed reads it: the machine's, or a run
+ * of assigns' copy. */
+const char* printer_context(const Printer*);
 /* Whether an action's statement uses the event. */
 bool printer_action_takes_event(Printer*, TransitionAction*);
 bool printer_actions_take_event(Printer*, TransitionAction*);

@@ -1,0 +1,13 @@
+[1m[37mtest/snapshots/error_view/input.lucy[0m:4:24
+
+ [1m[31m𝒙[0m[31m </div> where </span> was expected.
+
+[0m[1m[37m    2[0m │   initial state s {}
+[1m[37m    3[0m │   view {
+[1m[37m    4[0m │     <div><span>hi</div>
+                               [1m[31m˄[0m
+[1m[37m    5[0m │   }
+[1m[37m    6[0m │ }
+
+
+Compilation failed!

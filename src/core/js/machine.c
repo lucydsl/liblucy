@@ -6,7 +6,7 @@
 #include "../support/str_set.h"
 
 // The options the factory reads: the ones its interface has symbols in.
-static void add_factory_params(Printer* printer, const JSInterface* interface) {
+static void add_factory_params(Printer* printer, const JSInterface* interface, bool adopts) {
   JSBuilder* jsb = printer->jsb;
   js_builder_add_str(jsb, "{ ");
   if(interface->actions.head != NULL) {
@@ -30,6 +30,13 @@ static void add_factory_params(Printer* printer, const JSInterface* interface) {
   }
   if(interface->services.head != NULL || interface->actors.head != NULL) {
     js_builder_add_str(jsb, ", services");
+  }
+  if(adopts) {
+    // The element whose children are the view the server rendered.
+    js_builder_add_str(jsb, ", hydrate");
+    if(strcmp(printer->hydrate_option, "hydrate") != 0) {
+      js_builder_add_format(jsb, ": %s", printer->hydrate_option);
+    }
   }
   js_builder_add_format(jsb, " }%s = {}", printer_any(printer));
 }
@@ -156,10 +163,11 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
 
   js_builder_add_str(jsb, machine->name == NULL ? "export default function " : "export function ");
   js_builder_add_format(jsb, "%s(", machine->factory);
-  add_factory_params(printer, machine->interface);
+  add_factory_params(printer, machine->interface, machine->adopts);
   js_builder_add_format(jsb, ")%s {\n", printer_any(printer));
   jsb->depth++;
 
+  printer_print_view_setup(printer, machine);
   js_builder_line(jsb, "const listeners = new Set%s();", printer->ts ? "<(machine: any) => void>" : "");
   if(machine->queued) {
     js_builder_line(jsb, "let %s = false;", printer->busy);
@@ -186,6 +194,18 @@ void printer_print_machine(Printer* printer, JSMachine* machine) {
     js_builder_line(jsb, "state: '%s',", printer_leaf(machine->initial)->path);
   }
   js_builder_line(jsb, "context,");
+  if(machine->view != NULL && printer->ssr) {
+    // The view as HTML, for the server to send.
+    js_builder_line(jsb, strcmp(printer->render, "render") == 0 ? "render," : "render: %s,", printer->render);
+  } else if(machine->view != NULL) {
+    // The view, for the host to attach, and its top-level nodes, which
+    // stay when attaching empties the fragment. A machine that adopts the
+    // server's nodes has only those.
+    if(!machine->adopts) {
+      js_builder_line(jsb, strcmp(printer->dom, "dom") == 0 ? "dom," : "dom: %s,", printer->dom);
+    }
+    js_builder_line(jsb, strcmp(printer->nodes, "nodes") == 0 ? "nodes," : "nodes: %s,", printer->nodes);
+  }
   if(machine->has_final) {
     js_builder_line(jsb, "done: false,");
   }

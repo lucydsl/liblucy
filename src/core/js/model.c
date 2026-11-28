@@ -399,12 +399,12 @@ static bool compute_flags(Printer* printer, JSState* state) {
   TransitionAction* exit = node->exit != NULL ? node->exit->action : NULL;
 
   if(entry != NULL || state->delay_count > 0 || state->invoke_kind != INVOKE_NONE ||
-     node->immediate_transition != NULL) {
+     node->immediate_transition != NULL || state->part_var != NULL) {
     flags |= STATE_NEEDS_ENTER;
   }
   if(exit != NULL || (state->delay_count > 0 && timers_need_exit(state)) ||
      (state->invoke_kind == INVOKE_PROMISE && promise_needs_exit(state)) ||
-     state->invoke_kind == INVOKE_MACHINE) {
+     state->invoke_kind == INVOKE_MACHINE || state->part_var != NULL) {
     flags |= STATE_NEEDS_EXIT;
   }
   if(printer_actions_take_event(printer, exit)) {
@@ -547,7 +547,7 @@ static const char* const reserved_names[] = {
   "delays", "guards", "services", NULL
 };
 
-static bool is_imported(Printer* printer, const char* name) {
+bool printer_is_imported(Printer* printer, const char* name) {
   for(Node* node = printer->program->body; node != NULL; node = node->next) {
     if(node->type != NODE_IMPORT) {
       continue;
@@ -561,11 +561,10 @@ static bool is_imported(Printer* printer, const char* name) {
   return false;
 }
 
-// A name for one of the output's own variables that no import has: base,
-// or base2, base3, ...
-static const char* free_name(Printer* printer, const char* base) {
+// base, or base2, base3, ...
+const char* printer_free_name(Printer* printer, const char* base) {
   const char* name = base;
-  for(unsigned n = 2; is_imported(printer, name); n++) {
+  for(unsigned n = 2; printer_is_imported(printer, name); n++) {
     char suffix[16];
     snprintf(suffix, sizeof(suffix), "%u", n);
     name = printer_concat(printer, base, suffix);
@@ -633,11 +632,21 @@ void printer_build_model(Printer* printer) {
   }
 
   check_imports(printer);
-  printer->busy = free_name(printer, "busy");
-  printer->queue = free_name(printer, "queue");
-  printer->run = free_name(printer, "run");
-  printer->parent = free_name(printer, "parent");
-  printer->actor = free_name(printer, "actor");
+  printer->busy = printer_free_name(printer, "busy");
+  printer->queue = printer_free_name(printer, "queue");
+  printer->run = printer_free_name(printer, "run");
+  printer->parent = printer_free_name(printer, "parent");
+  printer->actor = printer_free_name(printer, "actor");
+  printer->dom = printer_free_name(printer, "dom");
+  printer->nodes = printer_free_name(printer, "nodes");
+  printer->template = printer_free_name(printer, "template");
+  printer->attr = printer_free_name(printer, "attr");
+  printer->escape = printer_free_name(printer, "escape");
+  printer->render = printer_free_name(printer, "render");
+  printer->hydrate_option = printer_free_name(printer, "hydrate");
+  printer->claim_text = printer_free_name(printer, "claimText");
+  printer->clear_region = printer_free_name(printer, "clearRegion");
+  printer_prepare_views(printer);
   for(JSMachine* machine = printer->machines; machine != NULL; machine = machine->next) {
     set_invoke_kinds(printer, machine->states);
     check_targets(printer, machine->states);
